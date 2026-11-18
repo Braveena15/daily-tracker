@@ -7,7 +7,7 @@ A personal web app for tracking mood, meals, weight, learning and reflection eve
 | Status | Feature |
 | ------ | ------- |
 | ✅ | Project setup: React client, Express API, MongoDB Atlas connection, health check page |
-| 🚧 | Login and user accounts |
+| ✅ | Login and user accounts (bcrypt passwords, JWT in an httpOnly cookie, protected routes) |
 | 🚧 | Daily check-in: mood, weight, activities, learnings |
 | 🚧 | Meal and calorie logging with BMR/TDEE estimates |
 | 🚧 | Daily mental, physical and learning scores |
@@ -31,12 +31,24 @@ daily-tracker/
 ├── client/              # React + Vite frontend
 │   ├── public/
 │   ├── src/
-│   │   ├── App.tsx
+│   │   ├── components/  # shared components, e.g. ProtectedRoute
+│   │   ├── context/     # AuthProvider and the useAuth hook
+│   │   ├── lib/api.ts   # fetch wrapper for the API
+│   │   ├── pages/       # Login, Register, Dashboard
+│   │   ├── App.tsx      # routes
 │   │   └── main.tsx
 │   └── vite.config.ts   # proxies /api to the server on port 4000
 └── server/              # Express + Mongoose API
     ├── src/
-    │   └── index.ts     # app entry, MongoDB connection, /api/health
+    │   ├── config/      # env validation, MongoDB connection
+    │   ├── controllers/ # request handlers
+    │   ├── middleware/  # requireAuth, rate limiting, error handling
+    │   ├── models/      # Mongoose models
+    │   ├── routes/      # /api/health, /api/auth
+    │   ├── types/       # Express type extensions
+    │   ├── utils/       # JWT and cookie helpers, AppError
+    │   ├── app.ts       # Express app setup
+    │   └── index.ts     # entry point
     └── .env.example     # template for environment variables
 ```
 
@@ -68,7 +80,13 @@ cp server/.env.example server/.env
 | Variable | Description |
 | -------- | ----------- |
 | `PORT` | Port for the Express server (default `4000`) |
+| `NODE_ENV` | `development` or `production`. In production, cookies are HTTPS-only and errors hide details. |
 | `MONGODB_URI` | Your MongoDB Atlas connection string |
+| `JWT_SECRET` | A random string of at least 32 characters, used to sign login tokens |
+| `ALLOW_REGISTRATION` | `true` to allow new sign-ups. Anything else closes registration. |
+| `CLIENT_URL` | URL of the React client, allowed by CORS (e.g. `http://localhost:5173`) |
+
+The server checks these at startup and stops with a clear message if any are missing or invalid.
 
 `server/.env` is git-ignored. Never commit real credentials.
 
@@ -88,12 +106,22 @@ cd client
 npm run dev
 ```
 
-Open http://localhost:5173. The page calls `/api/health`, which Vite forwards to the server, and shows whether the server and database are connected.
+Open http://localhost:5173 and create an account, or log in. Vite forwards every `/api` request to the server. You can check the server and database at http://localhost:4000/api/health.
+
+### API
+
+| Method | Path | Description |
+| ------ | ---- | ----------- |
+| GET | `/api/health` | Server and database status |
+| POST | `/api/auth/register` | Create an account (only when `ALLOW_REGISTRATION=true`) |
+| POST | `/api/auth/login` | Log in; sets the `token` cookie (10 attempts per 15 minutes) |
+| POST | `/api/auth/logout` | Clear the `token` cookie |
+| GET | `/api/auth/me` | Current user (requires login) |
 
 ## Roadmap
 
 1. ✅ **Part 1:** Project setup, MongoDB connection, health check page
-2. 🚧 **Part 2:** Login and user accounts
+2. ✅ **Part 2:** Login and user accounts
 3. 🚧 **Part 3:** Daily check-in (mood, weight, activities, learnings)
 4. 🚧 **Part 4:** Meal and calorie logging with BMR/TDEE
 5. 🚧 **Part 5:** Daily mental, physical and learning scores
