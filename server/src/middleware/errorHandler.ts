@@ -19,9 +19,15 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
     return;
   }
 
-  // MongoDB duplicate key, e.g. two sign-ups with the same email at the same moment
+  // MongoDB duplicate key: two requests tried to create the same unique record at once,
+  // e.g. two sign-ups with one email, or two saves of a new day's entry.
   if (typeof err === "object" && err !== null && (err as { code?: unknown }).code === 11000) {
-    res.status(409).json({ message: "An account with this email already exists" });
+    const keyPattern = (err as { keyPattern?: Record<string, unknown> }).keyPattern ?? {};
+    const message =
+      "email" in keyPattern
+        ? "An account with this email already exists"
+        : "This was just saved by another request. Please try again.";
+    res.status(409).json({ message });
     return;
   }
 

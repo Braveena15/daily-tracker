@@ -25,6 +25,8 @@ export function Layout() {
           <NavLink to="/" end>
             Dashboard
           </NavLink>
+          <NavLink to="/today">Today</NavLink>
+          <NavLink to="/history">History</NavLink>
           <NavLink to="/profile">Profile</NavLink>
           <button className="secondary" onClick={handleLogout} disabled={loggingOut}>
             {loggingOut ? 'Logging out…' : 'Logout'}

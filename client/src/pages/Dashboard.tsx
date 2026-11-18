@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { api } from '../lib/api'
 import type { SummaryResponse } from '../lib/profile'
+import { moodEmoji, type EntryResponse, type StreakResponse } from '../lib/entries'
 
 const kcal = (n: number) => `${n.toLocaleString()} kcal`
 
@@ -13,11 +14,89 @@ export function Dashboard() {
     <>
       <section className="card">
         <h1>Welcome, {user?.name}</h1>
-        <p className="subtitle">Your daily check-ins will appear here soon.</p>
+        <p className="subtitle">Here's how today is going.</p>
       </section>
+
+      <div className="card-row">
+        <TodayCheckin />
+        <StreakCard />
+      </div>
 
       <DailyNumbers />
     </>
+  )
+}
+
+function TodayCheckin() {
+  const [data, setData] = useState<EntryResponse | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    api
+      .get<EntryResponse>('/entries/today')
+      .then(setData)
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Could not load today'))
+  }, [])
+
+  return (
+    <section className="card">
+      <h2>Today's check-in</h2>
+      {error ? (
+        <p className="form-error">{error}</p>
+      ) : !data ? (
+        <p className="muted">Loading…</p>
+      ) : data.entry ? (
+        <>
+          <p className="big-status">
+            Done ✓ <span aria-label={`Mood ${data.entry.mood} out of 10`}>{moodEmoji(data.entry.mood)}</span>
+          </p>
+          <Link to="/today">View or edit →</Link>
+        </>
+      ) : (
+        <>
+          <p className="muted">You haven't checked in yet today.</p>
+          <Link to="/today" className="button-link">
+            Log today
+          </Link>
+        </>
+      )}
+    </section>
+  )
+}
+
+function StreakCard() {
+  const [data, setData] = useState<StreakResponse | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    api
+      .get<StreakResponse>('/entries/stats/streak')
+      .then(setData)
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Could not load your streak'))
+  }, [])
+
+  const days = (n: number) => `${n} day${n === 1 ? '' : 's'}`
+
+  return (
+    <section className="card">
+      <h2>🔥 Streak</h2>
+      {error ? (
+        <p className="form-error">{error}</p>
+      ) : !data ? (
+        <p className="muted">Loading…</p>
+      ) : (
+        <dl className="streak">
+          <div>
+            <dt>Current</dt>
+            <dd>{days(data.current)}</dd>
+          </div>
+          <div>
+            <dt>Longest</dt>
+            <dd>{days(data.longest)}</dd>
+          </div>
+        </dl>
+      )}
+    </section>
   )
 }
 

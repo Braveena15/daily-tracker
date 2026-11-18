@@ -9,7 +9,8 @@ A personal web app for tracking mood, meals, weight, learning and reflection eve
 | ✅ | Project setup: React client, Express API, MongoDB Atlas connection, health check page |
 | ✅ | Login and user accounts (bcrypt passwords, JWT in an httpOnly cookie, protected routes) |
 | ✅ | Profile with BMR, TDEE, daily calorie target (with a safe minimum), BMI and weeks-to-goal |
-| 🚧 | Daily check-in: mood, weight, activities, learnings |
+| ✅ | Daily check-in: mood, energy, sleep, body, workouts, mental and outdoor activities, good things, learnings |
+| ✅ | 30-day history and check-in streaks |
 | 🚧 | Meal and calorie logging against the daily target |
 | 🚧 | Daily mental, physical and learning scores |
 | 🚧 | Weight trend chart with a 7-day moving average |
@@ -121,6 +122,14 @@ Open http://localhost:5173 and create an account, or log in. Vite forwards every
 | GET | `/api/profile` | Profile fields (requires login) |
 | PUT | `/api/profile` | Update profile fields; `null` clears a field (requires login) |
 | GET | `/api/profile/summary` | Age, BMR, TDEE, calorie target, BMI and weeks to goal, or which fields are missing (requires login) |
+| GET | `/api/entries?from=&to=` | Entries in a date range, newest first (default: last 30 days, max 366) |
+| GET | `/api/entries/today` | Today's entry (Asia/Colombo date) or `null` |
+| GET | `/api/entries/:date` | One day's entry or `null` |
+| PUT | `/api/entries/:date` | Create or update a day's entry (no future dates) |
+| DELETE | `/api/entries/:date` | Delete a day's entry |
+| GET | `/api/entries/stats/streak` | Current and longest check-in streak |
+
+All `/api/entries` routes require login and only ever return the logged-in user's own entries.
 
 ### Tests
 
@@ -129,15 +138,15 @@ cd server
 npm test
 ```
 
-The calorie and body calculations in `server/src/utils/calories.ts` are covered by unit tests (Vitest).
+Unit tests (Vitest) cover the calorie and body calculations, the date and streak helpers, and the check-in validation.
 
 ## Roadmap
 
 1. ✅ **Part 1:** Project setup, MongoDB connection, health check page
 2. ✅ **Part 2:** Login and user accounts
 3. ✅ **Part 3:** Profile and BMR/TDEE/calorie target calculations
-4. 🚧 **Part 4:** Daily check-in (mood, weight, activities, learnings) and meal & calorie logging
-5. 🚧 **Part 5:** Daily mental, physical and learning scores
+4. ✅ **Part 4:** Daily check-in, history and streaks
+5. 🚧 **Part 5:** Meal and calorie logging, and daily mental, physical and learning scores
 6. 🚧 **Part 6:** Weight trend with 7-day average
 7. 🚧 **Part 7:** Diary and CBT-style thought log
 8. 🚧 **Part 8:** Gemini AI encouragement

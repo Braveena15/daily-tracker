@@ -6,6 +6,7 @@ import { env } from "./config/env";
 import { healthRouter } from "./routes/healthRoutes";
 import { authRouter } from "./routes/authRoutes";
 import { profileRouter } from "./routes/profileRoutes";
+import { entriesRouter } from "./routes/entriesRoutes";
 import { errorHandler, notFound } from "./middleware/errorHandler";
 
 export const app = express();
@@ -19,6 +20,7 @@ app.use(cookieParser());
 app.use("/api/health", healthRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/profile", profileRouter);
+app.use("/api/entries", entriesRouter);
 
 app.use(notFound);
 app.use(errorHandler);
