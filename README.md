@@ -8,8 +8,9 @@ A personal web app for tracking mood, meals, weight, learning and reflection eve
 | ------ | ------- |
 | ✅ | Project setup: React client, Express API, MongoDB Atlas connection, health check page |
 | ✅ | Login and user accounts (bcrypt passwords, JWT in an httpOnly cookie, protected routes) |
+| ✅ | Profile with BMR, TDEE, daily calorie target (with a safe minimum), BMI and weeks-to-goal |
 | 🚧 | Daily check-in: mood, weight, activities, learnings |
-| 🚧 | Meal and calorie logging with BMR/TDEE estimates |
+| 🚧 | Meal and calorie logging against the daily target |
 | 🚧 | Daily mental, physical and learning scores |
 | 🚧 | Weight trend chart with a 7-day moving average |
 | 🚧 | Diary |
@@ -117,13 +118,25 @@ Open http://localhost:5173 and create an account, or log in. Vite forwards every
 | POST | `/api/auth/login` | Log in; sets the `token` cookie (10 attempts per 15 minutes) |
 | POST | `/api/auth/logout` | Clear the `token` cookie |
 | GET | `/api/auth/me` | Current user (requires login) |
+| GET | `/api/profile` | Profile fields (requires login) |
+| PUT | `/api/profile` | Update profile fields; `null` clears a field (requires login) |
+| GET | `/api/profile/summary` | Age, BMR, TDEE, calorie target, BMI and weeks to goal, or which fields are missing (requires login) |
+
+### Tests
+
+```bash
+cd server
+npm test
+```
+
+The calorie and body calculations in `server/src/utils/calories.ts` are covered by unit tests (Vitest).
 
 ## Roadmap
 
 1. ✅ **Part 1:** Project setup, MongoDB connection, health check page
 2. ✅ **Part 2:** Login and user accounts
-3. 🚧 **Part 3:** Daily check-in (mood, weight, activities, learnings)
-4. 🚧 **Part 4:** Meal and calorie logging with BMR/TDEE
+3. ✅ **Part 3:** Profile and BMR/TDEE/calorie target calculations
+4. 🚧 **Part 4:** Daily check-in (mood, weight, activities, learnings) and meal & calorie logging
 5. 🚧 **Part 5:** Daily mental, physical and learning scores
 6. 🚧 **Part 6:** Weight trend with 7-day average
 7. 🚧 **Part 7:** Diary and CBT-style thought log
