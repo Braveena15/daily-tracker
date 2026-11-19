@@ -1,12 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Link, useBlocker, useSearchParams } from 'react-router-dom'
+import { Link, useBlocker } from 'react-router-dom'
 import {
   BookOpen,
   Brain,
-  CalendarDays,
   Check,
-  ChevronLeft,
-  ChevronRight,
   Dumbbell,
   Feather,
   Loader2,
@@ -19,7 +16,6 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Calendar } from '@/components/ui/calendar'
 import { Card, CardContent } from '@/components/ui/card'
 import {
   Dialog,
@@ -29,22 +25,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
+import { DateBar } from '@/components/DateBar'
 import { PageHeader } from '@/components/PageHeader'
+import { useDateParam } from '@/hooks/useDateParam'
 import { ErrorNotice } from '@/components/StatusViews'
 import { ActivityList, LearningList, NumberField, RatingPicker, Section, TextList } from '@/components/CheckinFields'
 import { api } from '@/lib/api'
-import {
-  addDays,
-  formatDate,
-  fromLocalDate,
-  isValidDateString,
-  relativeDay,
-  toLocalDate,
-  todayInTimezone,
-} from '@/lib/dates'
+import { formatDate } from '@/lib/dates'
 import {
   MENTAL_CHIPS,
   OUTDOOR_CHIPS,
@@ -57,17 +46,8 @@ import {
 import { emptyForm, entryToForm, formToPayload, snapshot, type CheckinForm } from '@/lib/checkinForm'
 
 export function Today() {
-  const [params, setParams] = useSearchParams()
-  const today = todayInTimezone()
-
   // ?date=YYYY-MM-DD picks a past day; anything missing, invalid or in the future means today
-  const requested = params.get('date')
-  const date = isValidDateString(requested) && requested <= today ? requested : today
-
-  function goTo(next: string) {
-    const clamped = next > today ? today : next
-    setParams(clamped === today ? {} : { date: clamped })
-  }
+  const { date, today, goTo } = useDateParam()
 
   return (
     <>
@@ -78,62 +58,6 @@ export function Today() {
         <EntryEditor key={date} date={date} today={today} />
       </div>
     </>
-  )
-}
-
-function DateBar({ date, today, onChange }: { date: string; today: string; onChange: (date: string) => void }) {
-  const [open, setOpen] = useState(false)
-  const title = relativeDay(date, today)
-  const subtitle = formatDate(date, today)
-
-  return (
-    <Card size="sm" className="flex-row items-center justify-between gap-2 px-(--card-spacing)">
-      <Button type="button" variant="ghost" size="icon" aria-label="Previous day" onClick={() => onChange(addDays(date, -1))}>
-        <ChevronLeft />
-      </Button>
-
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            className="h-auto min-w-0 flex-col gap-0 rounded-xl px-4 py-1.5"
-            aria-label={`Choose a date, showing ${subtitle}`}
-          >
-            <span className="font-heading text-lg font-semibold">{title}</span>
-            <span className="flex items-center gap-1 text-xs font-normal text-muted-foreground">
-              <CalendarDays className="size-3.5" aria-hidden />
-              {title === subtitle ? 'Pick a date' : subtitle}
-            </span>
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-2" align="center">
-          <Calendar
-            mode="single"
-            selected={toLocalDate(date)}
-            defaultMonth={toLocalDate(date)}
-            endMonth={toLocalDate(today)}
-            disabled={{ after: toLocalDate(today) }}
-            onSelect={(picked) => {
-              if (!picked) return
-              onChange(fromLocalDate(picked))
-              setOpen(false)
-            }}
-          />
-        </PopoverContent>
-      </Popover>
-
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        aria-label="Next day"
-        disabled={date >= today}
-        onClick={() => onChange(addDays(date, 1))}
-      >
-        <ChevronRight />
-      </Button>
-    </Card>
   )
 }
 

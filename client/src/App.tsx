@@ -9,6 +9,8 @@ import { Register } from './pages/Register'
 import { Dashboard } from './pages/Dashboard'
 import { Today } from './pages/Today'
 import { History } from './pages/History'
+import { Meals } from './pages/Meals'
+import { Foods } from './pages/Foods'
 import { Profile } from './pages/Profile'
 
 // A "data router", which the Today page needs to warn about unsaved changes (useBlocker).
@@ -23,6 +25,8 @@ const router = createBrowserRouter([
         children: [
           { path: '/', element: <Dashboard /> },
           { path: '/today', element: <Today /> },
+          { path: '/meals', element: <Meals /> },
+          { path: '/foods', element: <Foods /> },
           { path: '/history', element: <History /> },
           { path: '/profile', element: <Profile /> },
         ],

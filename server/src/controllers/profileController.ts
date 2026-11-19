@@ -2,18 +2,8 @@ import type { Request, Response } from "express";
 import { z } from "zod";
 import { PROFILE_FIELDS, PROFILE_LIMITS, UserModel, maxBirthYear, type ProfileField } from "../models/User";
 import { AppError } from "../utils/AppError";
-import {
-  ACTIVITY_LEVELS,
-  WEEKLY_GOALS,
-  bmiCategory,
-  calculateAge,
-  calculateBMI,
-  calculateBMR,
-  calculateCalorieTarget,
-  calculateDailyDeficit,
-  calculateTDEE,
-  estimateWeeksToGoal,
-} from "../utils/calories";
+import { ACTIVITY_LEVELS, WEEKLY_GOALS } from "../utils/calories";
+import { buildSummary, missingSummaryFields } from "../services/profileSummary";
 
 const { heightCm, weightKg, birthYear } = PROFILE_LIMITS;
 
@@ -97,24 +87,13 @@ const FIELD_LABELS: Record<ProfileField, string> = {
   weeklyGoalKg: "weekly goal",
 };
 
-// Fields needed for the calorie numbers. Goal weight is only needed for weeks-to-goal.
-const REQUIRED_FOR_SUMMARY = [
-  "heightCm",
-  "birthYear",
-  "sex",
-  "currentWeightKg",
-  "activityLevel",
-  "weeklyGoalKg",
-] as const satisfies readonly ProfileField[];
-
 export async function getSummary(req: Request, res: Response): Promise<void> {
   const user = await UserModel.findById(req.userId).lean();
   if (!user) throw new AppError(401, "Please log in to continue");
 
-  // Note: weeklyGoalKg can be 0, so check for null/undefined rather than falsy values
-  const missingFields = REQUIRED_FOR_SUMMARY.filter((f) => user[f] === undefined || user[f] === null);
-
-  if (missingFields.length > 0) {
+  const summary = buildSummary(user);
+  if (!summary) {
+    const missingFields = missingSummaryFields(user);
     res.json({
       complete: false,
       missingFields,
@@ -123,34 +102,5 @@ export async function getSummary(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  // Safe: every field below was checked above
-  const weight = user.currentWeightKg!;
-  const height = user.heightCm!;
-  const sex = user.sex!;
-  const level = user.activityLevel!;
-  const weeklyGoalKg = user.weeklyGoalKg!;
-
-  const age = calculateAge(user.birthYear!);
-  const bmr = calculateBMR({ weightKg: weight, heightCm: height, age, sex });
-  const tdee = calculateTDEE(bmr, level);
-  const dailyDeficit = calculateDailyDeficit(weeklyGoalKg);
-  const { target, wasClamped } = calculateCalorieTarget({ tdee, weeklyGoalKg, sex });
-  const bmi = calculateBMI(weight, height);
-  const weeksToGoal =
-    user.goalWeightKg != null ? estimateWeeksToGoal(weight, user.goalWeightKg, weeklyGoalKg) : null;
-
-  res.json({
-    complete: true,
-    summary: {
-      age,
-      bmr,
-      tdee,
-      dailyDeficit,
-      calorieTarget: target,
-      wasClamped,
-      bmi,
-      bmiCategory: bmiCategory(bmi),
-      weeksToGoal,
-    },
-  });
+  res.json({ complete: true, summary });
 }

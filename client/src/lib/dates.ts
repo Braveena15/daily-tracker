@@ -74,6 +74,14 @@ export function hourInTimezone(tz: string = APP_TIMEZONE, now: Date = new Date()
   return Number(hour) % 24
 }
 
+/** The time right now in the app's timezone, "HH:MM". */
+export function timeInTimezone(tz: string = APP_TIMEZONE, now: Date = new Date()): string {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+    .formatToParts(now)
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '00'
+  return `${get('hour').padStart(2, '0').replace('24', '00')}:${get('minute')}`
+}
+
 /** "Good morning" / "Good afternoon" / "Good evening". */
 export function greeting(hour: number = hourInTimezone()): string {
   if (hour >= 5 && hour < 12) return 'Good morning'

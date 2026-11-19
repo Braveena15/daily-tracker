@@ -1,17 +1,26 @@
-import { CalendarDays, LayoutDashboard, LogOut, SquarePen, UserRound } from 'lucide-react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { CalendarDays, LayoutDashboard, LogOut, SquarePen, UserRound, UtensilsCrossed } from 'lucide-react'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { useAuth } from '@/context/useAuth'
 import { useLogout } from '@/hooks/useLogout'
 import { cn } from '@/lib/utils'
 
-const NAV = [
+const NAV: { to: string; label: string; icon: typeof SquarePen; end?: boolean; alsoActiveOn?: string[] }[] = [
   { to: '/today', label: 'Today', icon: SquarePen },
+  // My Foods lives inside Meals, so the Meals tab stays highlighted there
+  { to: '/meals', label: 'Meals', icon: UtensilsCrossed, alsoActiveOn: ['/foods'] },
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/history', label: 'History', icon: CalendarDays },
   { to: '/profile', label: 'Profile', icon: UserRound },
 ]
+
+/** NavLink's own match, plus any extra paths that belong to the same tab. */
+function useIsActive() {
+  const { pathname } = useLocation()
+  return (item: (typeof NAV)[number], isActive: boolean) =>
+    isActive || (item.alsoActiveOn ?? []).some((p) => pathname.startsWith(p))
+}
 
 // Page frame for logged-in pages: a sidebar on desktop, a bottom tab bar on phones.
 export function Layout() {
@@ -27,6 +36,7 @@ export function Layout() {
 }
 
 function Sidebar() {
+  const isOn = useIsActive()
   const { user } = useAuth()
   const { loggingOut, logout } = useLogout()
 
@@ -35,28 +45,35 @@ function Sidebar() {
       <p className="px-3 font-heading text-xl font-semibold tracking-tight">🌱 Daily Tracker</p>
 
       <nav aria-label="Main" className="mt-8 flex flex-col gap-1">
-        {NAV.map(({ to, label, icon: Icon, end }) => (
+        {NAV.map((item) => {
+          const { to, label, icon: Icon, end } = item
+          return (
           <NavLink
             key={to}
             to={to}
             end={end}
-            className={({ isActive }) =>
-              cn(
+            className={({ isActive: matched }) => {
+              const isActive = isOn(item, matched)
+              return cn(
                 'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all outline-none focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.98]',
                 isActive
                   ? 'bg-sidebar-accent text-sidebar-accent-foreground'
                   : 'text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground',
               )
-            }
+            }}
           >
-            {({ isActive }) => (
+            {({ isActive: matched }) => {
+              const isActive = isOn(item, matched)
+              return (
               <>
                 <Icon className={cn('size-5 transition-colors', isActive && 'text-primary')} aria-hidden />
                 {label}
               </>
-            )}
+              )
+            }}
           </NavLink>
-        ))}
+          )
+        })}
       </nav>
 
       <div className="mt-auto space-y-4">
@@ -83,29 +100,35 @@ function Sidebar() {
 }
 
 function BottomTabs() {
+  const isOn = useIsActive()
   return (
     <nav
       aria-label="Main"
       className="fixed inset-x-0 bottom-0 z-30 border-t bg-card/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-lg md:hidden"
     >
-      <div className="mx-auto grid max-w-md grid-cols-4">
-        {NAV.map(({ to, label, icon: Icon, end }) => (
+      <div className="mx-auto grid max-w-lg grid-cols-5">
+        {NAV.map((item) => {
+          const { to, label, icon: Icon, end } = item
+          return (
           <NavLink
             key={to}
             to={to}
             end={end}
-            className={({ isActive }) =>
-              cn(
+            className={({ isActive: matched }) => {
+              const isActive = isOn(item, matched)
+              return cn(
                 'group flex flex-col items-center gap-1 pt-2 pb-2.5 text-[11px] font-medium transition-colors outline-none focus-visible:bg-muted',
                 isActive ? 'text-foreground' : 'text-muted-foreground',
               )
-            }
+            }}
           >
-            {({ isActive }) => (
+            {({ isActive: matched }) => {
+              const isActive = isOn(item, matched)
+              return (
               <>
                 <span
                   className={cn(
-                    'grid h-8 w-14 place-items-center rounded-full transition-all group-active:scale-90',
+                    'grid h-8 w-12 place-items-center rounded-full transition-all group-active:scale-90',
                     isActive && 'bg-secondary text-primary',
                   )}
                   aria-hidden
@@ -114,9 +137,11 @@ function BottomTabs() {
                 </span>
                 {label}
               </>
-            )}
+              )
+            }}
           </NavLink>
-        ))}
+          )
+        })}
       </div>
     </nav>
   )

@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
+import { CaloriesTodayCard, WeekCaloriesCard } from '@/components/CaloriesCards'
 import { IconBubble } from '@/components/IconBubble'
 import { PageHeader } from '@/components/PageHeader'
 import { EmptyState, ErrorNotice } from '@/components/StatusViews'
@@ -42,6 +43,16 @@ export function Dashboard() {
         <TodayCheckin />
         <StreakCard />
       </div>
+
+      <section className="mt-8 md:mt-10" aria-labelledby="food-heading">
+        <h2 id="food-heading" className="mb-4 text-xl font-semibold">
+          Food
+        </h2>
+        <div className="grid gap-4 md:grid-cols-2 md:gap-6">
+          <CaloriesTodayCard />
+          <WeekCaloriesCard />
+        </div>
+      </section>
 
       <section className="mt-8 md:mt-10" aria-labelledby="numbers-heading">
         <h2 id="numbers-heading" className="mb-4 text-xl font-semibold">

@@ -26,7 +26,9 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
     const message =
       "email" in keyPattern
         ? "An account with this email already exists"
-        : "This was just saved by another request. Please try again.";
+        : "name" in keyPattern
+          ? "You already have a food with this name"
+          : "This was just saved by another request. Please try again.";
     res.status(409).json({ message });
     return;
   }
