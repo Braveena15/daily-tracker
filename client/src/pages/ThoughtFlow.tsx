@@ -11,7 +11,9 @@ import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { ErrorNotice } from '@/components/StatusViews'
+import { AiMessageCard } from '@/components/ai/AiMessageCard'
 import { SupportButton, SupportDialog } from '@/components/mind/Support'
+import { aiRequests } from '@/lib/ai'
 import { api } from '@/lib/api'
 import {
   DISTORTIONS,
@@ -147,7 +149,7 @@ export function ThoughtFlow() {
     if (await save(true)) setDone(true)
   }
 
-  if (done) return <FinishScreen form={form} support={support} onSupportChange={setSupport} />
+  if (done && id) return <FinishScreen id={id} form={form} support={support} onSupportChange={setSupport} />
 
   return (
     <div className="mx-auto max-w-xl">
@@ -412,7 +414,17 @@ function FeelingsStep({ feelings, onChange }: { feelings: Feeling[]; onChange: (
   )
 }
 
-function FinishScreen({ form, support, onSupportChange }: { form: Form; support: boolean; onSupportChange: (v: boolean) => void }) {
+function FinishScreen({
+  id,
+  form,
+  support,
+  onSupportChange,
+}: {
+  id: string
+  form: Form
+  support: boolean
+  onSupportChange: (v: boolean) => void
+}) {
   const before = strongestFeeling(form.feelings)
   const after = form.intensityAfter ?? before?.intensityBefore ?? null
   const change = before && after !== null ? before.intensityBefore - after : null
@@ -441,6 +453,9 @@ function FinishScreen({ form, support, onSupportChange }: { form: Form; support:
         )}
         <p className="mx-auto max-w-md text-pretty text-muted-foreground">{message}</p>
       </div>
+
+      {/* Encouragement (or support contacts, if the words suggested it) */}
+      <AiMessageCard key={id} title="A note for you" request={aiRequests.thought(id)} className="text-left" />
 
       {form.smallStep && (
         <Card size="sm" className="text-left">

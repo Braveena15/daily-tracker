@@ -5,7 +5,9 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { AiMessageCard } from '@/components/ai/AiMessageCard'
 import { IconBubble } from '@/components/IconBubble'
+import { aiRequests } from '@/lib/ai'
 import { PageHeader } from '@/components/PageHeader'
 import { ErrorNotice } from '@/components/StatusViews'
 import { BoxBreathing } from '@/components/mind/BoxBreathing'
@@ -42,6 +44,8 @@ export function Lift() {
         <div className="flex justify-end">
           <SupportButton />
         </div>
+
+        <AiMessageCard title="A boost for you" request={aiRequests.boost()} autoLoad={false} startLabel="Give me a boost ✨" />
 
         {error ? (
           <ErrorNotice>{error}</ErrorNotice>

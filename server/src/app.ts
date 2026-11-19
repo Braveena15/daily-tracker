@@ -20,6 +20,7 @@ import {
   videosRouter,
   wellbeingRouter,
 } from "./routes/mindRoutes";
+import { aiRouter } from "./routes/aiRoutes";
 import { errorHandler, notFound } from "./middleware/errorHandler";
 
 export const app = express();
@@ -50,6 +51,7 @@ app.use("/api/quotes", quotesRouter);
 app.use("/api/videos", videosRouter);
 app.use("/api/wellbeing", wellbeingRouter);
 app.use("/api/lift-me-up", liftRouter);
+app.use("/api/ai", aiRouter);
 
 app.use(notFound);
 app.use(errorHandler);

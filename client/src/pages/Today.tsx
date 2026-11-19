@@ -27,11 +27,13 @@ import {
 } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
+import { AiMessageCard } from '@/components/ai/AiMessageCard'
 import { DateBar } from '@/components/DateBar'
 import { PageHeader } from '@/components/PageHeader'
 import { useDateParam } from '@/hooks/useDateParam'
 import { ErrorNotice } from '@/components/StatusViews'
 import { ActivityList, LearningList, NumberField, RatingPicker, Section, TextList } from '@/components/CheckinFields'
+import { aiRequests } from '@/lib/ai'
 import { api } from '@/lib/api'
 import { formatDate } from '@/lib/dates'
 import {
@@ -272,6 +274,18 @@ function EntryEditor({ date, today }: { date: string; today: string }) {
           <p className="text-right text-xs text-muted-foreground tabular-nums">{form.presentMoment.length} / 2000</p>
         </div>
       </Section>
+
+      {/* Once the day is saved: a short note for tomorrow (saved per date, so it's only written once) */}
+      {exists && (
+        <AiMessageCard
+          key={date}
+          title={date === today ? 'Your note for tomorrow ✨' : `A note on ${dayName} ✨`}
+          request={aiRequests.daily(date)}
+          // Today's note appears straight away; for past days it waits for a tap, to save AI calls
+          autoLoad={date === today}
+          startLabel="Show the note ✨"
+        />
+      )}
 
       {/* Sticks to the bottom of the screen (above the tab bar on phones) */}
       <div className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-20 md:bottom-4">

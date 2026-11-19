@@ -1,26 +1,18 @@
 import type { Request, Response } from "express";
 import { DailyEntryModel } from "../models/DailyEntry";
-import { journeyStart, loadDays, loadUserContext, scoresFor, toScoreEntry } from "../services/dayData";
+import { journeyStart, loadUserContext } from "../services/dayData";
+import { computeInsights, computeWeeklyReview } from "../services/progressData";
 import { AppError } from "../utils/AppError";
-import { addDays, isValidDateString, listDates, todayInTimezone } from "../utils/dates";
-import { findInsights, type InsightDay } from "../utils/insights";
+import { addDays, isValidDateString, todayInTimezone } from "../utils/dates";
 import {
   changeSinceStart,
-  encouragement,
   expectedWeeklyChange,
   journeyProgress,
-  summariseWeek,
-  weekDifferences,
-  weekRanges,
   weeklyChangeFromAverage,
   weightSeries,
-  type ReviewDay,
 } from "../utils/progress";
-import { mentalScore } from "../utils/scores";
 
 const today = () => todayInTimezone();
-const minutes = (items: { durationMin?: number | null; minutes?: number | null }[]) =>
-  items.reduce((s, i) => s + (i.durationMin ?? i.minutes ?? 0), 0);
 
 /** GET /api/progress/weight?days=90 */
 export async function getWeight(req: Request, res: Response): Promise<void> {
@@ -67,42 +59,8 @@ export async function getWeeklyReview(req: Request, res: Response): Promise<void
   if (!isValidDateString(weekEnding)) throw new AppError(400, '"weekEnding" must be a real date in YYYY-MM-DD format');
   if (weekEnding > today()) throw new AppError(400, "That week hasn't happened yet");
 
-  const { current, previous } = weekRanges(weekEnding);
-  const [ctx, { entries, mealKcal }] = await Promise.all([
-    loadUserContext(req.userId),
-    loadDays(req.userId, previous.from, current.to),
-  ]);
-
-  const reviewDays = (from: string, to: string): ReviewDay[] =>
-    listDates(from, to).map((date) => {
-      const entry = entries.get(date);
-      const s = scoresFor(ctx, entry, mealKcal.get(date));
-      return {
-        date,
-        physical: s.physical.score,
-        mental: s.mental.score,
-        learning: s.learning.score,
-        overall: s.overall,
-        mood: entry?.mood ?? null,
-        workouts: entry?.workouts.length ?? 0,
-        workoutMinutes: entry ? minutes(entry.workouts) : 0,
-        learningMinutes: entry ? minutes(entry.learnings) : 0,
-        kcal: mealKcal.get(date) ?? null,
-      };
-    });
-
-  const thisWeek = summariseWeek(reviewDays(current.from, current.to), current.from, current.to);
-  const lastWeek = summariseWeek(reviewDays(previous.from, previous.to), previous.from, previous.to);
-  const differences = weekDifferences(thisWeek, lastWeek);
-
-  res.json({
-    weekEnding,
-    calorieTarget: ctx.summary?.calorieTarget ?? null,
-    thisWeek,
-    lastWeek,
-    differences,
-    message: encouragement(thisWeek, differences),
-  });
+  const { entriesThisWeek: _entries, ...review } = await computeWeeklyReview(req.userId, weekEnding);
+  res.json(review);
 }
 
 /** GET /api/progress/journey — "Day X of 100". */
@@ -121,21 +79,8 @@ export async function getJourney(req: Request, res: Response): Promise<void> {
   );
 }
 
-const INSIGHT_DAYS = 180;
 
 /** GET /api/progress/insights — up to 3 patterns from the last 180 days of check-ins. */
 export async function getInsights(req: Request, res: Response): Promise<void> {
-  const to = today();
-  const rows = await DailyEntryModel.find({ userId: req.userId, date: { $gte: addDays(to, -(INSIGHT_DAYS - 1)), $lte: to } }).lean();
-
-  const days: InsightDay[] = rows.map((entry) => ({
-    date: entry.date,
-    mood: entry.mood,
-    mentalScore: mentalScore(toScoreEntry(entry)).score ?? 0,
-    activities: [...entry.workouts, ...entry.mentalActivities, ...entry.outdoorActivities].map((a) => a.type),
-    outdoor: entry.outdoorActivities.length > 0,
-    sleepHours: entry.sleepHours ?? null,
-  }));
-
-  res.json({ daysAnalysed: days.length, insights: findInsights(days) });
+  res.json(await computeInsights(req.userId));
 }

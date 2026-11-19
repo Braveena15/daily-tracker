@@ -89,6 +89,9 @@ const userSchema = new Schema(
     journeyLengthDays: goal("journeyLengthDays"),
     // "YYYY-MM-DD". When not set, the journey starts on the first logged day (or today).
     journeyStartDate: { type: String, match: /^\d{4}-\d{2}-\d{2}$/ },
+
+    // false = never call the AI for this user; pre-written messages are shown instead
+    aiEnabled: { type: Boolean, default: true },
   },
   {
     timestamps: true,

@@ -20,7 +20,9 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { AiMessageCard } from '@/components/ai/AiMessageCard'
 import { IconBubble } from '@/components/IconBubble'
+import { aiRequests } from '@/lib/ai'
 import { PageHeader } from '@/components/PageHeader'
 import { ErrorNotice } from '@/components/StatusViews'
 import { useFetch } from '@/hooks/useFetch'
@@ -74,6 +76,15 @@ export function Review() {
             <ChevronRight />
           </Button>
         </Card>
+
+        <AiMessageCard
+          key={weekEnding}
+          title="AI reflection"
+          request={aiRequests.weekly(weekEnding)}
+          // This week's reflection appears straight away; past weeks wait for a tap, to save AI calls
+          autoLoad={weekEnding === today}
+          startLabel="Reflect on this week ✨"
+        />
 
         {error ? <ErrorNotice>{error}</ErrorNotice> : !data ? <ReviewSkeleton /> : <ReviewBody data={data} today={today} />}
       </div>

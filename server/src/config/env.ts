@@ -18,6 +18,13 @@ const envSchema = z.object({
       /^[0-9a-fA-F]{64}$/,
       "DIARY_ENCRYPTION_KEY must be exactly 64 hex characters. Generate one with: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"",
     ),
+
+  // AI encouragement (optional). Without a key, AI features show pre-written messages instead.
+  GEMINI_API_KEY: z.string().trim().optional().transform((v) => v || undefined),
+  GEMINI_MODEL: z.string().trim().min(1).default("gemini-2.5-flash"),
+  // "minimal": only numbers and categories are sent. "full": thought-log text too (never private logs or the diary).
+  AI_DATA_MODE: z.enum(["minimal", "full"], { error: 'AI_DATA_MODE must be "minimal" or "full"' }).default("minimal"),
+  AI_DAILY_LIMIT: z.coerce.number().int().min(0).max(1000).default(20),
 });
 
 const parsed = envSchema.safeParse(process.env);

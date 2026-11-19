@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
+import { AiSettings } from '@/components/ai/AiSettings'
 import { InputWithUnit } from '@/components/InputWithUnit'
 import { PageHeader } from '@/components/PageHeader'
 import { ErrorNotice } from '@/components/StatusViews'
@@ -411,6 +412,10 @@ export function Profile() {
           </form>
         </Card>
       )}
+
+      <section aria-label="AI settings" className="mt-4 md:mt-6">
+        <AiSettings />
+      </section>
     </>
   )
 }
