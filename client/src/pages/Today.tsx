@@ -1,7 +1,50 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useBlocker, useSearchParams } from 'react-router-dom'
-import { api } from '../lib/api'
-import { addDays, isValidDateString, relativeDay, todayInTimezone, formatDate } from '../lib/dates'
+import {
+  BookOpen,
+  Brain,
+  CalendarDays,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Dumbbell,
+  Feather,
+  Loader2,
+  Moon,
+  Ruler,
+  Save,
+  Smile,
+  Sparkles,
+  Sun,
+} from 'lucide-react'
+import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
+import { Calendar } from '@/components/ui/calendar'
+import { Card, CardContent } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Textarea } from '@/components/ui/textarea'
+import { PageHeader } from '@/components/PageHeader'
+import { ErrorNotice } from '@/components/StatusViews'
+import { ActivityList, LearningList, NumberField, RatingPicker, Section, TextList } from '@/components/CheckinFields'
+import { api } from '@/lib/api'
+import {
+  addDays,
+  formatDate,
+  fromLocalDate,
+  isValidDateString,
+  relativeDay,
+  toLocalDate,
+  todayInTimezone,
+} from '@/lib/dates'
 import {
   MENTAL_CHIPS,
   OUTDOOR_CHIPS,
@@ -10,9 +53,8 @@ import {
   moodEmoji,
   type EntryResponse,
   type SaveEntryResponse,
-} from '../lib/entries'
-import { emptyForm, entryToForm, formToPayload, snapshot, type CheckinForm } from '../lib/checkinForm'
-import { ActivityList, LearningList, NumberField, RatingPicker, Section, TextList } from '../components/CheckinFields'
+} from '@/lib/entries'
+import { emptyForm, entryToForm, formToPayload, snapshot, type CheckinForm } from '@/lib/checkinForm'
 
 export function Today() {
   const [params, setParams] = useSearchParams()
@@ -28,34 +70,88 @@ export function Today() {
   }
 
   return (
-    <div className="checkin">
-      <div className="date-bar card">
-        <button type="button" className="secondary" aria-label="Previous day" onClick={() => goTo(addDays(date, -1))}>
-          ‹
-        </button>
-        <label className="date-picker">
-          <span className="date-title">{relativeDay(date, today)}</span>
-          <input
-            type="date"
-            value={date}
-            max={today}
-            aria-label="Choose a date"
-            onChange={(e) => isValidDateString(e.target.value) && goTo(e.target.value)}
-          />
-        </label>
-        <button
-          type="button"
-          className="secondary"
-          aria-label="Next day"
-          disabled={date >= today}
-          onClick={() => goTo(addDays(date, 1))}
-        >
-          ›
-        </button>
+    <>
+      <PageHeader title="Daily check-in" />
+      <div className="space-y-4 md:space-y-6">
+        <DateBar date={date} today={today} onChange={goTo} />
+        {/* key: a fresh editor (and a fresh load) for each date */}
+        <EntryEditor key={date} date={date} today={today} />
       </div>
+    </>
+  )
+}
 
-      {/* key: a fresh editor (and a fresh load) for each date */}
-      <EntryEditor key={date} date={date} today={today} />
+function DateBar({ date, today, onChange }: { date: string; today: string; onChange: (date: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const title = relativeDay(date, today)
+  const subtitle = formatDate(date, today)
+
+  return (
+    <Card size="sm" className="flex-row items-center justify-between gap-2 px-(--card-spacing)">
+      <Button type="button" variant="ghost" size="icon" aria-label="Previous day" onClick={() => onChange(addDays(date, -1))}>
+        <ChevronLeft />
+      </Button>
+
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            className="h-auto min-w-0 flex-col gap-0 rounded-xl px-4 py-1.5"
+            aria-label={`Choose a date, showing ${subtitle}`}
+          >
+            <span className="font-heading text-lg font-semibold">{title}</span>
+            <span className="flex items-center gap-1 text-xs font-normal text-muted-foreground">
+              <CalendarDays className="size-3.5" aria-hidden />
+              {title === subtitle ? 'Pick a date' : subtitle}
+            </span>
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-2" align="center">
+          <Calendar
+            mode="single"
+            selected={toLocalDate(date)}
+            defaultMonth={toLocalDate(date)}
+            endMonth={toLocalDate(today)}
+            disabled={{ after: toLocalDate(today) }}
+            onSelect={(picked) => {
+              if (!picked) return
+              onChange(fromLocalDate(picked))
+              setOpen(false)
+            }}
+          />
+        </PopoverContent>
+      </Popover>
+
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        aria-label="Next day"
+        disabled={date >= today}
+        onClick={() => onChange(addDays(date, 1))}
+      >
+        <ChevronRight />
+      </Button>
+    </Card>
+  )
+}
+
+function EditorSkeleton() {
+  return (
+    <div className="space-y-4 md:space-y-6" aria-busy="true" aria-label="Loading check-in">
+      {[0, 1, 2].map((i) => (
+        <Card key={i}>
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-3">
+              <Skeleton className="size-10 rounded-xl" />
+              <Skeleton className="h-5 w-40" />
+            </div>
+            <Skeleton className="h-14 w-full rounded-xl" />
+            <Skeleton className="h-14 w-full rounded-xl" />
+          </CardContent>
+        </Card>
+      ))}
     </div>
   )
 }
@@ -67,7 +163,6 @@ function EntryEditor({ date, today }: { date: string; today: string }) {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -99,28 +194,21 @@ function EntryEditor({ date, today }: { date: string; today: string }) {
     return () => window.removeEventListener('beforeunload', onBeforeUnload)
   }, [dirty])
 
-  // Warn before moving to another page or date inside the app
+  // Warn before moving to another page or date inside the app (shown as a dialog below)
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
       dirty &&
       (currentLocation.pathname !== nextLocation.pathname || currentLocation.search !== nextLocation.search),
   )
-  useEffect(() => {
-    if (blocker.state !== 'blocked') return
-    if (window.confirm('You have unsaved changes. Leave without saving?')) blocker.proceed()
-    else blocker.reset()
-  }, [blocker])
 
   function set<K extends keyof CheckinForm>(field: K, value: CheckinForm[K]) {
     setForm((f) => ({ ...f, [field]: value }))
     setError(null)
-    setNotice(null)
   }
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(null)
-    setNotice(null)
 
     const result = formToPayload(form)
     if (!result.ok) return setError(result.error)
@@ -132,7 +220,9 @@ function EntryEditor({ date, today }: { date: string; today: string }) {
       setForm(saved)
       setSavedSnapshot(snapshot(saved))
       setExists(true)
-      if (data.profileWeightUpdated) setNotice('Your profile weight was updated too.')
+      toast.success('Saved ✓', {
+        description: data.profileWeightUpdated ? 'Your profile weight was updated too.' : undefined,
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save')
     } finally {
@@ -140,34 +230,36 @@ function EntryEditor({ date, today }: { date: string; today: string }) {
     }
   }
 
-  if (loadError) return <p className="form-error">{loadError}</p>
-  if (loading) return <p className="loading">Loading…</p>
+  if (loadError) return <ErrorNotice>{loadError}</ErrorNotice>
+  if (loading) return <EditorSkeleton />
 
   const isSaved = exists && !dirty
   const dayName = date === today ? 'today' : formatDate(date, today)
 
   return (
-    <form className="checkin-form" onSubmit={handleSubmit} noValidate>
-      <Section title="Mood & energy">
+    <form className="space-y-4 md:space-y-6" onSubmit={handleSubmit} noValidate>
+      <Section title="Mood & energy" hint="How are you feeling overall?" icon={Smile}>
         <RatingPicker label="Mood" value={form.mood} onChange={(v) => set('mood', v)} emoji={moodEmoji} />
         <RatingPicker label="Energy" value={form.energy} onChange={(v) => set('energy', v)} emoji={energyEmoji} />
       </Section>
 
-      <Section title="Sleep">
-        <NumberField
-          label="Hours slept last night"
-          unit="hours"
-          step="0.25"
-          min={0}
-          max={24}
-          placeholder="e.g. 7.5"
-          value={form.sleepHours}
-          onChange={(v) => set('sleepHours', v)}
-        />
+      <Section title="Sleep" icon={Moon} tone="mental">
+        <div className="sm:max-w-xs">
+          <NumberField
+            label="Hours slept last night"
+            unit="hours"
+            step="0.25"
+            min={0}
+            max={24}
+            placeholder="e.g. 7.5"
+            value={form.sleepHours}
+            onChange={(v) => set('sleepHours', v)}
+          />
+        </div>
       </Section>
 
-      <Section title="Body" hint="All optional.">
-        <div className="form-grid three">
+      <Section title="Body" hint="All optional." icon={Ruler} tone="physical">
+        <div className="grid gap-4 sm:grid-cols-3">
           <NumberField
             label="Weight"
             unit="kg"
@@ -179,6 +271,7 @@ function EntryEditor({ date, today }: { date: string; today: string }) {
           />
           <NumberField
             label="Steps"
+            unit="steps"
             step="1"
             min={0}
             max={100000}
@@ -197,35 +290,38 @@ function EntryEditor({ date, today }: { date: string; today: string }) {
         </div>
       </Section>
 
-      <Section title="Workouts" hint="Tap to add, then set the minutes.">
+      <Section title="Workouts" hint="Tap to add, then set the minutes." icon={Dumbbell} tone="physical">
         <ActivityList
           rows={form.workouts}
           onChange={(rows) => set('workouts', rows)}
           chips={WORKOUT_CHIPS}
           itemLabel="Workout"
+          tone="physical"
           minutesRequired
         />
       </Section>
 
-      <Section title="Mental strength" hint="Anything that looked after your mind.">
+      <Section title="Mental strength" hint="Anything that looked after your mind." icon={Brain} tone="mental">
         <ActivityList
           rows={form.mentalActivities}
           onChange={(rows) => set('mentalActivities', rows)}
           chips={MENTAL_CHIPS}
           itemLabel="Activity"
+          tone="mental"
         />
       </Section>
 
-      <Section title="Outdoor" hint="Time spent outside.">
+      <Section title="Outdoor" hint="Time spent outside." icon={Sun} tone="outdoor">
         <ActivityList
           rows={form.outdoorActivities}
           onChange={(rows) => set('outdoorActivities', rows)}
           chips={OUTDOOR_CHIPS}
           itemLabel="Activity"
+          tone="outdoor"
         />
       </Section>
 
-      <Section title="Good things" hint="Small wins count.">
+      <Section title="Good things" hint="Small wins count." icon={Sparkles}>
         <TextList
           rows={form.goodThings}
           onChange={(rows) => set('goodThings', rows)}
@@ -234,45 +330,84 @@ function EntryEditor({ date, today }: { date: string; today: string }) {
         />
       </Section>
 
-      <Section title="Learnings">
+      <Section title="Learnings" hint="Anything new, big or small." icon={BookOpen} tone="learning">
         <LearningList rows={form.learnings} onChange={(rows) => set('learnings', rows)} />
       </Section>
 
-      <Section title="Present moment" hint="How are you, right now?">
-        <textarea
-          className="present-moment"
-          aria-label="Present moment"
-          rows={4}
-          maxLength={2000}
-          placeholder="Write a few words…"
-          value={form.presentMoment}
-          onChange={(e) => set('presentMoment', e.target.value)}
-        />
-        <p className="char-count">{form.presentMoment.length} / 2000</p>
+      <Section title="Present moment" hint="How are you, right now?" icon={Feather}>
+        <div className="space-y-1.5">
+          <Textarea
+            className="min-h-32 font-serif text-lg leading-relaxed md:text-lg"
+            aria-label="Present moment"
+            rows={4}
+            maxLength={2000}
+            placeholder="Write a few words…"
+            value={form.presentMoment}
+            onChange={(e) => set('presentMoment', e.target.value)}
+          />
+          <p className="text-right text-xs text-muted-foreground tabular-nums">{form.presentMoment.length} / 2000</p>
+        </div>
       </Section>
 
-      <div className="save-bar">
-        <div className="save-status" role="status">
-          {error ? (
-            <span className="text-error">{error}</span>
-          ) : notice ? (
-            <span className="text-success">Saved ✓ {notice}</span>
-          ) : dirty ? (
-            <span className="muted">Unsaved changes</span>
-          ) : isSaved ? (
-            <span className="text-success">Saved ✓</span>
-          ) : (
-            <span className="muted">Not logged for {dayName} yet</span>
-          )}
+      {/* Sticks to the bottom of the screen (above the tab bar on phones) */}
+      <div className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-20 md:bottom-4">
+        <div className="flex items-center justify-between gap-3 rounded-2xl border bg-card/85 p-2.5 pl-4 shadow-soft backdrop-blur-lg">
+          <p className="min-w-0 text-sm" role="status">
+            {error ? (
+              <span className="text-destructive">{error}</span>
+            ) : dirty ? (
+              <span className="text-muted-foreground">Unsaved changes</span>
+            ) : isSaved ? (
+              <span className="font-medium text-success">Saved ✓</span>
+            ) : (
+              <span className="text-muted-foreground">Not logged for {dayName} yet</span>
+            )}
+          </p>
+          <Button type="submit" size="lg" className="min-w-28" disabled={saving || isSaved}>
+            {saving ? (
+              <>
+                <Loader2 className="animate-spin" aria-hidden /> Saving…
+              </>
+            ) : isSaved ? (
+              <>
+                <Check aria-hidden /> Saved
+              </>
+            ) : (
+              <>
+                <Save aria-hidden /> Save
+              </>
+            )}
+          </Button>
         </div>
-        <button type="submit" disabled={saving || isSaved}>
-          {saving ? 'Saving…' : isSaved ? 'Saved ✓' : 'Save'}
-        </button>
       </div>
 
-      <p className="muted center">
-        <Link to="/history">See your history</Link>
+      <p className="text-center text-sm">
+        <Link to="/history" className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
+          See your history
+        </Link>
       </p>
+
+      <Dialog
+        open={blocker.state === 'blocked'}
+        onOpenChange={(open) => {
+          if (!open) blocker.reset?.()
+        }}
+      >
+        <DialogContent showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>Leave without saving?</DialogTitle>
+            <DialogDescription>You have unsaved changes for {dayName}. If you leave now they'll be lost.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => blocker.reset?.()}>
+              Keep editing
+            </Button>
+            <Button type="button" variant="destructive" onClick={() => blocker.proceed?.()}>
+              Leave without saving
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </form>
   )
 }

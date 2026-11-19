@@ -1,5 +1,7 @@
 import { Navigate, RouterProvider, createBrowserRouter } from 'react-router-dom'
+import { Toaster } from './components/ui/sonner'
 import { AuthProvider } from './context/AuthProvider'
+import { ThemeProvider } from './context/ThemeProvider'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { Layout } from './components/Layout'
 import { Login } from './pages/Login'
@@ -32,9 +34,12 @@ const router = createBrowserRouter([
 
 function App() {
   return (
-    <AuthProvider>
-      <RouterProvider router={router} />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <RouterProvider router={router} />
+      </AuthProvider>
+      <Toaster position="top-center" />
+    </ThemeProvider>
   )
 }
 

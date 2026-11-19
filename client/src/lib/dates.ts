@@ -57,3 +57,38 @@ export function relativeDay(date: string, today: string = todayInTimezone()): st
   if (date === addDays(today, -1)) return 'Yesterday'
   return formatDate(date, today)
 }
+
+/** e.g. "Thursday, 19 November". */
+export function formatLongDate(date: string): string {
+  return toUtc(date).toLocaleDateString(undefined, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    timeZone: 'UTC',
+  })
+}
+
+/** The hour (0–23) right now in the app's timezone. */
+export function hourInTimezone(tz: string = APP_TIMEZONE, now: Date = new Date()): number {
+  const hour = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', hourCycle: 'h23' }).format(now)
+  return Number(hour) % 24
+}
+
+/** "Good morning" / "Good afternoon" / "Good evening". */
+export function greeting(hour: number = hourInTimezone()): string {
+  if (hour >= 5 && hour < 12) return 'Good morning'
+  if (hour >= 12 && hour < 17) return 'Good afternoon'
+  return 'Good evening'
+}
+
+/** "YYYY-MM-DD" → a local Date at midnight (for the calendar picker). */
+export function toLocalDate(date: string): Date {
+  const [y, m, d] = date.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
+/** A local Date → "YYYY-MM-DD" (from the calendar picker). */
+export function fromLocalDate(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}

@@ -1,14 +1,13 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
-import { useAuth } from '../context/useAuth'
+import { FullPageLoader } from '@/components/StatusViews'
+import { useAuth } from '@/context/useAuth'
 
 // Wraps routes that need a logged-in user.
 export function ProtectedRoute() {
   const { user, loading } = useAuth()
   const location = useLocation()
 
-  if (loading) {
-    return <p className="loading">Loading…</p>
-  }
+  if (loading) return <FullPageLoader />
 
   if (!user) {
     // Remember where they were going so login can send them back
