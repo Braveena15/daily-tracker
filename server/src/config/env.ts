@@ -11,6 +11,13 @@ const envSchema = z.object({
     .min(32, "JWT_SECRET must be at least 32 characters long. Generate one with: node -e \"console.log(require('crypto').randomBytes(48).toString('hex'))\""),
   ALLOW_REGISTRATION: z.string().default("false"),
   CLIENT_URL: z.url({ error: "CLIENT_URL must be a full URL, for example http://localhost:5173" }),
+  // 32 random bytes as 64 hex characters. Encrypts diary and thought-log text. Losing it loses that text.
+  DIARY_ENCRYPTION_KEY: z
+    .string({ error: "DIARY_ENCRYPTION_KEY is required" })
+    .regex(
+      /^[0-9a-fA-F]{64}$/,
+      "DIARY_ENCRYPTION_KEY must be exactly 64 hex characters. Generate one with: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"",
+    ),
 });
 
 const parsed = envSchema.safeParse(process.env);

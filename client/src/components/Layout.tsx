@@ -1,9 +1,19 @@
-import { CalendarDays, CalendarRange, LayoutDashboard, LogOut, SquarePen, UserRound, UtensilsCrossed } from 'lucide-react'
+import {
+  CalendarDays,
+  CalendarRange,
+  LayoutDashboard,
+  LogOut,
+  Sparkles,
+  SquarePen,
+  UserRound,
+  UtensilsCrossed,
+} from 'lucide-react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { useAuth } from '@/context/useAuth'
 import { useLogout } from '@/hooks/useLogout'
+import { MIND_PAGES } from '@/lib/mind'
 import { cn } from '@/lib/utils'
 
 type NavItem = {
@@ -15,18 +25,25 @@ type NavItem = {
   alsoActiveOn?: string[]
   /** Paths that highlight this item only in the phone tab bar (where the page has no tab of its own) */
   alsoActiveOnMobile?: string[]
-  /** Desktop sidebar only; on phones it is reached from another page */
+  /** Desktop sidebar only; on phones it's reached another way */
   sidebarOnly?: boolean
+  /** Phone tab bar only */
+  mobileOnly?: boolean
 }
+
+const MIND_PATHS = ['/mind', ...MIND_PAGES.map((p) => p.to)]
 
 const NAV: NavItem[] = [
   { to: '/today', label: 'Today', icon: SquarePen },
   // My Foods lives inside Meals, so the Meals tab stays highlighted there
   { to: '/meals', label: 'Meals', icon: UtensilsCrossed, alsoActiveOn: ['/foods'] },
+  // Phones get one "Mind" tab; the sidebar lists the Mind pages in their own section
+  { to: '/mind', label: 'Mind', icon: Sparkles, alsoActiveOn: MIND_PATHS, mobileOnly: true },
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true, alsoActiveOnMobile: ['/review'] },
   { to: '/review', label: 'Weekly review', icon: CalendarRange, sidebarOnly: true },
   { to: '/history', label: 'History', icon: CalendarDays },
-  { to: '/profile', label: 'Profile', icon: UserRound },
+  // On phones, Profile is in the account menu (top right of each page)
+  { to: '/profile', label: 'Profile', icon: UserRound, sidebarOnly: true },
 ]
 
 /** NavLink's own match, plus any extra paths that belong to the same tab. */
@@ -50,48 +67,52 @@ export function Layout() {
   )
 }
 
+function SidebarLink({ item, isOn }: { item: NavItem; isOn: (item: NavItem, matched: boolean) => boolean }) {
+  const { to, label, icon: Icon, end } = item
+  return (
+    <NavLink
+      to={to}
+      end={end}
+      className={({ isActive }) =>
+        cn(
+          'flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all outline-none focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.98]',
+          isOn(item, isActive)
+            ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+            : 'text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground',
+        )
+      }
+    >
+      {({ isActive }) => (
+        <>
+          <Icon className={cn('size-5 transition-colors', isOn(item, isActive) && 'text-primary')} aria-hidden />
+          {label}
+        </>
+      )}
+    </NavLink>
+  )
+}
+
 function Sidebar() {
   const isOn = useIsActive(false)
   const { user } = useAuth()
   const { loggingOut, logout } = useLogout()
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-sidebar-border bg-sidebar px-4 py-6 md:flex">
+    <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col overflow-y-auto border-r border-sidebar-border bg-sidebar px-4 py-6 md:flex">
       <p className="px-3 font-heading text-xl font-semibold tracking-tight">🌱 Daily Tracker</p>
 
-      <nav aria-label="Main" className="mt-8 flex flex-col gap-1">
-        {NAV.map((item) => {
-          const { to, label, icon: Icon, end } = item
-          return (
-          <NavLink
-            key={to}
-            to={to}
-            end={end}
-            className={({ isActive: matched }) => {
-              const isActive = isOn(item, matched)
-              return cn(
-                'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all outline-none focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.98]',
-                isActive
-                  ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground',
-              )
-            }}
-          >
-            {({ isActive: matched }) => {
-              const isActive = isOn(item, matched)
-              return (
-              <>
-                <Icon className={cn('size-5 transition-colors', isActive && 'text-primary')} aria-hidden />
-                {label}
-              </>
-              )
-            }}
-          </NavLink>
-          )
-        })}
+      <nav aria-label="Main" className="mt-6 flex flex-col gap-0.5">
+        {NAV.filter((item) => !item.mobileOnly).map((item) => (
+          <SidebarLink key={item.to} item={item} isOn={isOn} />
+        ))}
+
+        <p className="mt-5 mb-1 px-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase">Mind</p>
+        {MIND_PAGES.map((page) => (
+          <SidebarLink key={page.to} item={page} isOn={isOn} />
+        ))}
       </nav>
 
-      <div className="mt-auto space-y-4">
+      <div className="mt-auto space-y-4 pt-6">
         <div className="px-3">
           <p className="truncate text-sm font-medium">{user?.name}</p>
           <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
@@ -125,36 +146,32 @@ function BottomTabs() {
         {NAV.filter((item) => !item.sidebarOnly).map((item) => {
           const { to, label, icon: Icon, end } = item
           return (
-          <NavLink
-            key={to}
-            to={to}
-            end={end}
-            className={({ isActive: matched }) => {
-              const isActive = isOn(item, matched)
-              return cn(
-                'group flex flex-col items-center gap-1 pt-2 pb-2.5 text-[11px] font-medium transition-colors outline-none focus-visible:bg-muted',
-                isActive ? 'text-foreground' : 'text-muted-foreground',
-              )
-            }}
-          >
-            {({ isActive: matched }) => {
-              const isActive = isOn(item, matched)
-              return (
-              <>
-                <span
-                  className={cn(
-                    'grid h-8 w-12 place-items-center rounded-full transition-all group-active:scale-90',
-                    isActive && 'bg-secondary text-primary',
-                  )}
-                  aria-hidden
-                >
-                  <Icon className="size-5" />
-                </span>
-                {label}
-              </>
-              )
-            }}
-          </NavLink>
+            <NavLink
+              key={to}
+              to={to}
+              end={end}
+              className={({ isActive }) =>
+                cn(
+                  'group flex flex-col items-center gap-1 pt-2 pb-2.5 text-[11px] font-medium transition-colors outline-none focus-visible:bg-muted',
+                  isOn(item, isActive) ? 'text-foreground' : 'text-muted-foreground',
+                )
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  <span
+                    className={cn(
+                      'grid h-8 w-12 place-items-center rounded-full transition-all group-active:scale-90',
+                      isOn(item, isActive) && 'bg-secondary text-primary',
+                    )}
+                    aria-hidden
+                  >
+                    <Icon className="size-5" />
+                  </span>
+                  {label}
+                </>
+              )}
+            </NavLink>
           )
         })}
       </div>

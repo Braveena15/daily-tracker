@@ -12,6 +12,14 @@ import { History } from './pages/History'
 import { Meals } from './pages/Meals'
 import { Foods } from './pages/Foods'
 import { Review } from './pages/Review'
+import { Mind } from './pages/Mind'
+import { Diary } from './pages/Diary'
+import { DiaryEditor } from './pages/DiaryEditor'
+import { Thoughts } from './pages/Thoughts'
+import { ThoughtFlow } from './pages/ThoughtFlow'
+import { Lift } from './pages/Lift'
+import { Purpose } from './pages/Purpose'
+import { Motivation } from './pages/Motivation'
 import { Profile } from './pages/Profile'
 
 // A "data router", which the Today page needs to warn about unsaved changes (useBlocker).
@@ -30,6 +38,16 @@ const router = createBrowserRouter([
           { path: '/foods', element: <Foods /> },
           { path: '/history', element: <History /> },
           { path: '/review', element: <Review /> },
+          { path: '/mind', element: <Mind /> },
+          { path: '/diary', element: <Diary /> },
+          { path: '/diary/new', element: <DiaryEditor /> },
+          { path: '/diary/:id', element: <DiaryEditor /> },
+          { path: '/thoughts', element: <Thoughts /> },
+          // One route for "new" and existing logs, so saving partway keeps your place
+          { path: '/thoughts/:id', element: <ThoughtFlow /> },
+          { path: '/lift', element: <Lift /> },
+          { path: '/purpose', element: <Purpose /> },
+          { path: '/motivation', element: <Motivation /> },
           { path: '/profile', element: <Profile /> },
         ],
       },

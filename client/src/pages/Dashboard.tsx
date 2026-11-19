@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { IconBubble } from '@/components/IconBubble'
 import { PageHeader } from '@/components/PageHeader'
 import { EmptyState, ErrorNotice } from '@/components/StatusViews'
+import { LowMoodCard } from '@/components/mind/Support'
 import { JourneyRow } from '@/components/progress/JourneyCards'
 import { CaloriesChartCard, InsightsCard, ScoreTrendCard, WeightCard } from '@/components/progress/ProgressCharts'
 import { TodayScores } from '@/components/progress/TodayScores'
@@ -31,6 +32,7 @@ export function Dashboard() {
       />
 
       <div className="space-y-4 md:space-y-6">
+        <WellbeingNote />
         <JourneyRow />
         <TodayScores />
         <ScoreTrendCard />
@@ -49,6 +51,12 @@ export function Dashboard() {
       </section>
     </>
   )
+}
+
+/** A gentle note with support contacts when mood has been low on most recent days. */
+function WellbeingNote() {
+  const { data } = useFetch<{ lowMoodStreak: boolean }>('/wellbeing/check')
+  return data?.lowMoodStreak ? <LowMoodCard /> : null
 }
 
 function StatCard({
