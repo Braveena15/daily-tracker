@@ -7,7 +7,9 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "vitest run"
+    "test": "vitest run",
+    "seed:demo": "tsx src/scripts/seedDemo.ts",
+    "seed:demo:clear": "tsx src/scripts/seedDemo.ts --clear"
   },
   "keywords": [],
   "author": "",

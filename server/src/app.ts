@@ -9,6 +9,8 @@ import { profileRouter } from "./routes/profileRoutes";
 import { entriesRouter } from "./routes/entriesRoutes";
 import { foodsRouter } from "./routes/foodsRoutes";
 import { mealsRouter } from "./routes/mealsRoutes";
+import { progressRouter } from "./routes/progressRoutes";
+import { scoresRouter } from "./routes/scoresRoutes";
 import { errorHandler, notFound } from "./middleware/errorHandler";
 
 export const app = express();
@@ -27,6 +29,8 @@ app.use("/api/profile", profileRouter);
 app.use("/api/entries", entriesRouter);
 app.use("/api/foods", foodsRouter);
 app.use("/api/meals", mealsRouter);
+app.use("/api/scores", scoresRouter);
+app.use("/api/progress", progressRouter);
 
 app.use(notFound);
 app.use(errorHandler);

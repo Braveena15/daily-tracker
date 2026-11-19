@@ -1,0 +1,245 @@
+import type { ReactNode } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
+import {
+  ArrowDown,
+  ArrowRight,
+  ArrowUp,
+  BookOpen,
+  Brain,
+  CalendarCheck,
+  ChevronLeft,
+  ChevronRight,
+  Dumbbell,
+  Gauge,
+  Smile,
+  Sparkles,
+  Trophy,
+  UtensilsCrossed,
+  type LucideIcon,
+} from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
+import { IconBubble } from '@/components/IconBubble'
+import { PageHeader } from '@/components/PageHeader'
+import { ErrorNotice } from '@/components/StatusViews'
+import { useFetch } from '@/hooks/useFetch'
+import { addDays, formatDate, isValidDateString, relativeDay, todayInTimezone, toLocalDate } from '@/lib/dates'
+import { kcal } from '@/lib/meals'
+import type { WeeklyReviewResponse } from '@/lib/progress'
+import type { Tone } from '@/lib/tones'
+import { cn } from '@/lib/utils'
+
+/** "13–19 Nov" or "28 Oct – 3 Nov". */
+function weekLabel(from: string, to: string): string {
+  const a = toLocalDate(from)
+  const b = toLocalDate(to)
+  const month = (d: Date) => d.toLocaleDateString(undefined, { month: 'short' })
+  return a.getMonth() === b.getMonth()
+    ? `${a.getDate()}–${b.getDate()} ${month(b)}`
+    : `${a.getDate()} ${month(a)} – ${b.getDate()} ${month(b)}`
+}
+
+export function Review() {
+  const [params, setParams] = useSearchParams()
+  const today = todayInTimezone()
+  const requested = params.get('week')
+  const weekEnding = isValidDateString(requested) && requested <= today ? requested : today
+  const { data, error } = useFetch<WeeklyReviewResponse>(`/progress/weekly-review?weekEnding=${weekEnding}`)
+
+  function goTo(next: string) {
+    setParams(next >= today ? {} : { week: next })
+  }
+
+  return (
+    <>
+      <PageHeader title="Weekly review" description="This week compared with the week before." />
+
+      <div className="space-y-4 md:space-y-6">
+        <Card size="sm" className="flex-row items-center justify-between gap-2 px-(--card-spacing)">
+          <Button variant="ghost" size="icon" aria-label="Previous week" onClick={() => goTo(addDays(weekEnding, -7))}>
+            <ChevronLeft />
+          </Button>
+          <div className="text-center">
+            <p className="font-heading text-lg font-semibold">{weekLabel(addDays(weekEnding, -6), weekEnding)}</p>
+            <p className="text-xs text-muted-foreground">{weekEnding === today ? 'The last 7 days' : `Week ending ${formatDate(weekEnding)}`}</p>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Next week"
+            disabled={weekEnding >= today}
+            onClick={() => goTo(addDays(weekEnding, 7))}
+          >
+            <ChevronRight />
+          </Button>
+        </Card>
+
+        {error ? <ErrorNotice>{error}</ErrorNotice> : !data ? <ReviewSkeleton /> : <ReviewBody data={data} today={today} />}
+      </div>
+    </>
+  )
+}
+
+type Direction = 'higher-is-good' | 'neutral'
+
+function Delta({ diff, unit = '', direction = 'higher-is-good', digits = 0 }: { diff: number | null; unit?: string; direction?: Direction; digits?: number }) {
+  if (diff === null) return <span className="text-xs text-muted-foreground">No data last week</span>
+  const rounded = Number(diff.toFixed(digits))
+  if (rounded === 0) return <span className="text-xs text-muted-foreground">Same as last week</span>
+
+  const up = rounded > 0
+  const Icon = up ? ArrowUp : ArrowDown
+  // Up on a "more is better" number is a soft green; down is shown calmly in grey, never red
+  const colour = direction === 'neutral' || !up ? 'bg-muted text-muted-foreground' : 'bg-success/15 text-success'
+  return (
+    <span className={cn('inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-medium tabular-nums', colour)}>
+      <Icon className="size-3" aria-hidden />
+      <span className="sr-only">{up ? 'up' : 'down'}</span>
+      {Math.abs(rounded).toFixed(digits)}
+      {unit} vs last week
+    </span>
+  )
+}
+
+function StatCard({
+  icon,
+  tone = 'primary',
+  label,
+  value,
+  previous,
+  delta,
+}: {
+  icon: LucideIcon
+  tone?: Tone
+  label: string
+  value: string
+  previous: string
+  delta: ReactNode
+}) {
+  return (
+    <Card size="sm">
+      <CardContent className="space-y-2">
+        <div className="flex items-center gap-2">
+          <IconBubble icon={icon} tone={tone} className="size-8 rounded-lg [&_svg]:size-4" />
+          <p className="text-sm text-muted-foreground">{label}</p>
+        </div>
+        <p className="font-heading text-2xl font-semibold tabular-nums">{value}</p>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          {delta}
+          <span className="text-xs text-muted-foreground">Last week: {previous}</span>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+const show = (n: number | null, suffix = '') => (n === null ? '—' : `${n.toLocaleString()}${suffix}`)
+
+function ReviewBody({ data, today }: { data: WeeklyReviewResponse; today: string }) {
+  const { thisWeek: w, lastWeek: p, differences: d } = data
+
+  return (
+    <>
+      <Card className="bg-secondary/60 ring-primary/15">
+        <CardContent className="flex items-start gap-3">
+          <IconBubble icon={Sparkles} className="bg-card" />
+          <div>
+            <p className="font-heading text-lg leading-snug font-semibold text-secondary-foreground">{data.message}</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {w.daysLogged} of 7 days logged{w.mealDays > 0 && ` · meals on ${w.mealDays}`}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {w.bestDay && (
+        <Link
+          to={`/today?date=${w.bestDay.date}`}
+          className="flex items-center gap-3 rounded-2xl bg-card p-4 shadow-soft ring-1 ring-foreground/[0.06] transition-all outline-none hover:-translate-y-0.5 hover:ring-primary/30 focus-visible:ring-3 focus-visible:ring-ring/50"
+        >
+          <IconBubble icon={Trophy} tone="learning" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm text-muted-foreground">Best day</p>
+            <p className="font-medium">
+              {relativeDay(w.bestDay.date, today)} · overall score {w.bestDay.overall}
+            </p>
+          </div>
+          <ArrowRight className="size-4 text-muted-foreground" aria-hidden />
+        </Link>
+      )}
+
+      <section aria-labelledby="scores-heading" className="space-y-3">
+        <h2 id="scores-heading" className="text-xl font-semibold">
+          Average scores
+        </h2>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatCard icon={Gauge} label="Overall" value={show(w.avgOverall)} previous={show(p.avgOverall)} delta={<Delta diff={d.avgOverall} />} />
+          <StatCard icon={Dumbbell} tone="physical" label="Physical" value={show(w.avgPhysical)} previous={show(p.avgPhysical)} delta={<Delta diff={d.avgPhysical} />} />
+          <StatCard icon={Brain} tone="mental" label="Mental" value={show(w.avgMental)} previous={show(p.avgMental)} delta={<Delta diff={d.avgMental} />} />
+          <StatCard icon={BookOpen} tone="learning" label="Learning" value={show(w.avgLearning)} previous={show(p.avgLearning)} delta={<Delta diff={d.avgLearning} />} />
+        </div>
+      </section>
+
+      <section aria-labelledby="week-heading" className="space-y-3">
+        <h2 id="week-heading" className="text-xl font-semibold">
+          Your week
+        </h2>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <StatCard
+            icon={Dumbbell}
+            tone="physical"
+            label="Workouts"
+            value={`${w.workouts} · ${w.workoutMinutes} min`}
+            previous={`${p.workouts} · ${p.workoutMinutes} min`}
+            delta={<Delta diff={d.workoutMinutes} unit=" min" />}
+          />
+          <StatCard
+            icon={BookOpen}
+            tone="learning"
+            label="Learning time"
+            value={`${w.learningMinutes} min`}
+            previous={`${p.learningMinutes} min`}
+            delta={<Delta diff={d.learningMinutes} unit=" min" />}
+          />
+          <StatCard icon={Smile} tone="mental" label="Average mood" value={show(w.avgMood, '/10')} previous={show(p.avgMood, '/10')} delta={<Delta diff={d.avgMood} digits={1} />} />
+          <StatCard
+            icon={UtensilsCrossed}
+            label="Average calories"
+            value={w.avgKcal === null ? '—' : `${kcal(w.avgKcal)} kcal`}
+            previous={p.avgKcal === null ? '—' : `${kcal(p.avgKcal)} kcal`}
+            delta={
+              <span className="text-xs text-muted-foreground">
+                {data.calorieTarget === null
+                  ? 'No target set'
+                  : w.avgKcal === null
+                    ? `Target ${kcal(data.calorieTarget)}`
+                    : `${kcal(Math.abs(w.avgKcal - data.calorieTarget))} ${w.avgKcal >= data.calorieTarget ? 'over' : 'under'} target`}
+              </span>
+            }
+          />
+          <StatCard
+            icon={CalendarCheck}
+            label="Days logged"
+            value={`${w.daysLogged} of 7`}
+            previous={`${p.daysLogged} of 7`}
+            delta={<Delta diff={d.daysLogged} unit={Math.abs(d.daysLogged ?? 0) === 1 ? ' day' : ' days'} />}
+          />
+        </div>
+      </section>
+    </>
+  )
+}
+
+function ReviewSkeleton() {
+  return (
+    <div className="space-y-4" aria-busy="true" aria-label="Loading weekly review">
+      <Skeleton className="h-24 w-full rounded-2xl" />
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {[0, 1, 2, 3].map((i) => (
+          <Skeleton key={i} className="h-28 rounded-2xl" />
+        ))}
+      </div>
+    </div>
+  )
+}

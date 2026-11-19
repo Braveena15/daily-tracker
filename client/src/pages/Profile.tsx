@@ -1,8 +1,11 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
-import { Loader2, Save } from 'lucide-react'
+import { CalendarDays, Loader2, Save } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { Calendar } from '@/components/ui/calendar'
 import { Card, CardContent, CardFooter } from '@/components/ui/card'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Separator } from '@/components/ui/separator'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -11,6 +14,7 @@ import { InputWithUnit } from '@/components/InputWithUnit'
 import { PageHeader } from '@/components/PageHeader'
 import { ErrorNotice } from '@/components/StatusViews'
 import { api } from '@/lib/api'
+import { formatDate, formatLongDate, fromLocalDate, todayInTimezone, toLocalDate } from '@/lib/dates'
 import {
   ACTIVITY_OPTIONS,
   WEEKLY_GOAL_OPTIONS,
@@ -83,16 +87,120 @@ function Field({
   )
 }
 
+// ---------- Goals ----------
+
+type NumberGoal = 'stepGoal' | 'activeCalorieGoal' | 'workoutMinutesGoal' | 'learningMinutesGoal' | 'journeyLengthDays'
+type Goals = Record<NumberGoal, number> & { journeyStartDate: string | null; journeyStartResolved: string }
+type GoalsForm = Record<NumberGoal, string> & { journeyStartDate: string } // '' = automatic
+type ProfileResponse = { profile: ProfileData; goals: Goals }
+
+const GOAL_INPUTS: { key: NumberGoal; label: string; unit: string; min: number; max: number; hint: string }[] = [
+  { key: 'stepGoal', label: 'Daily steps', unit: 'steps', min: 1000, max: 50000, hint: 'Default 8,000' },
+  { key: 'activeCalorieGoal', label: 'Active calories', unit: 'kcal', min: 50, max: 3000, hint: 'Used when no steps are logged · default 400' },
+  { key: 'workoutMinutesGoal', label: 'Workout time', unit: 'min', min: 5, max: 300, hint: 'Per day · default 30' },
+  { key: 'learningMinutesGoal', label: 'Learning time', unit: 'min', min: 5, max: 600, hint: 'Per day · default 30' },
+  { key: 'journeyLengthDays', label: 'Journey length', unit: 'days', min: 7, max: 1000, hint: 'Default 100' },
+]
+
+function toGoalsForm(goals: Goals): GoalsForm {
+  return {
+    stepGoal: String(goals.stepGoal),
+    activeCalorieGoal: String(goals.activeCalorieGoal),
+    workoutMinutesGoal: String(goals.workoutMinutesGoal),
+    learningMinutesGoal: String(goals.learningMinutesGoal),
+    journeyLengthDays: String(goals.journeyLengthDays),
+    journeyStartDate: goals.journeyStartDate ?? '',
+  }
+}
+
+/** Empty goal boxes go back to their defaults (null); '' journey start means automatic. */
+function toGoalsBody(form: GoalsForm) {
+  const numbers = Object.fromEntries(
+    GOAL_INPUTS.map(({ key }) => [key, form[key].trim() === '' ? null : Number(form[key])]),
+  ) as Record<NumberGoal, number | null>
+  return { ...numbers, journeyStartDate: form.journeyStartDate || null }
+}
+
+/** A date button with a calendar; "Use automatic" clears the choice. */
+function JourneyStartPicker({
+  value,
+  fallback,
+  onChange,
+}: {
+  value: string
+  fallback: string
+  onChange: (value: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const today = todayInTimezone()
+  const shown = value || fallback
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button id="journeyStartDate" type="button" variant="outline" className="w-full justify-start rounded-xl font-normal">
+          <CalendarDays className="text-muted-foreground" aria-hidden />
+          {formatLongDate(shown)}
+          {!value && <span className="ml-auto text-xs text-muted-foreground">automatic</span>}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-2" align="start">
+        <Calendar
+          mode="single"
+          selected={toLocalDate(shown)}
+          defaultMonth={toLocalDate(shown)}
+          endMonth={toLocalDate(today)}
+          disabled={{ after: toLocalDate(today) }}
+          onSelect={(picked) => {
+            if (!picked) return
+            onChange(fromLocalDate(picked))
+            setOpen(false)
+          }}
+        />
+        {value && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="w-full"
+            onClick={() => {
+              onChange('')
+              setOpen(false)
+            }}
+          >
+            Use automatic (first check-in)
+          </Button>
+        )}
+      </PopoverContent>
+    </Popover>
+  )
+}
+
 export function Profile() {
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
+  const [goals, setGoals] = useState<GoalsForm>({
+    stepGoal: '',
+    activeCalorieGoal: '',
+    workoutMinutesGoal: '',
+    learningMinutesGoal: '',
+    journeyLengthDays: '',
+    journeyStartDate: '',
+  })
+  const [journeyStartResolved, setJourneyStartResolved] = useState(todayInTimezone())
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  function show(data: ProfileResponse) {
+    setForm(toForm(data.profile))
+    setGoals(toGoalsForm(data.goals))
+    setJourneyStartResolved(data.goals.journeyStartResolved)
+  }
+
   useEffect(() => {
     api
-      .get<{ profile: ProfileData }>('/profile')
-      .then((data) => setForm(toForm(data.profile)))
+      .get<ProfileResponse>('/profile')
+      .then(show)
       .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Could not load your profile'))
       .finally(() => setLoading(false))
   }, [])
@@ -101,18 +209,23 @@ export function Profile() {
     setForm((f) => ({ ...f, [field]: value }))
   }
 
+  function updateGoal(field: keyof GoalsForm, value: string) {
+    setGoals((g) => ({ ...g, [field]: value }))
+  }
+
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(null)
 
     const profile = toProfile(form)
-    const badNumber = Object.entries(profile).find(([, v]) => typeof v === 'number' && Number.isNaN(v))
+    const goalsBody = toGoalsBody(goals)
+    const badNumber = Object.entries({ ...profile, ...goalsBody }).find(([, v]) => typeof v === 'number' && Number.isNaN(v))
     if (badNumber) return setError('Please enter numbers only')
 
     setSaving(true)
     try {
-      const data = await api.put<{ profile: ProfileData }>('/profile', profile)
-      setForm(toForm(data.profile))
+      const data = await api.put<ProfileResponse>('/profile', { ...profile, ...goalsBody })
+      show(data)
       toast.success('Profile saved ✓')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save your profile')
@@ -244,6 +357,49 @@ export function Profile() {
                   </Select>
                 </Field>
               </div>
+
+              <Separator />
+
+              <section aria-labelledby="goals-heading" className="space-y-5">
+                <div>
+                  <h2 id="goals-heading" className="text-xl font-semibold">
+                    Goals
+                  </h2>
+                  <p className="text-sm text-muted-foreground">Used for your daily scores and the journey progress bar.</p>
+                </div>
+                <div className="grid gap-5 md:grid-cols-2">
+                  {GOAL_INPUTS.map((g) => (
+                    <Field key={g.key} id={g.key} label={g.label} hint={g.hint}>
+                      <InputWithUnit
+                        id={g.key}
+                        unit={g.unit}
+                        type="number"
+                        inputMode="numeric"
+                        step="1"
+                        min={g.min}
+                        max={g.max}
+                        value={goals[g.key]}
+                        onChange={(e) => updateGoal(g.key, e.target.value)}
+                      />
+                    </Field>
+                  ))}
+                  <Field
+                    id="journeyStartDate"
+                    label="Journey start"
+                    hint={
+                      goals.journeyStartDate
+                        ? 'Day 1 of your journey'
+                        : `Automatic: your first check-in (${formatDate(journeyStartResolved)})`
+                    }
+                  >
+                    <JourneyStartPicker
+                      value={goals.journeyStartDate}
+                      fallback={journeyStartResolved}
+                      onChange={(v) => updateGoal('journeyStartDate', v)}
+                    />
+                  </Field>
+                </div>
+              </section>
             </CardContent>
 
             <CardFooter className="justify-end">

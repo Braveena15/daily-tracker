@@ -187,6 +187,29 @@ export async function getWeeklyStats(req: Request, res: Response): Promise<void>
   res.json({ from, to, calorieTarget, days, ...weeklySummary(days, calorieTarget) });
 }
 
+/** GET /api/meals/stats/daily?days=14 — kcal per day for the last N days (null = nothing logged). */
+export async function getDailyStats(req: Request, res: Response): Promise<void> {
+  const days = req.query.days === undefined ? 14 : Number(req.query.days);
+  if (!Number.isInteger(days) || days < 1 || days > 90) {
+    throw new AppError(400, '"days" must be a whole number from 1 to 90');
+  }
+  const to = today();
+  const from = addDays(to, -(days - 1));
+
+  const [rows, user] = await Promise.all([
+    MealDayModel.find({ userId: req.userId, date: { $gte: from, $lte: to }, "items.0": { $exists: true } }).lean(),
+    UserModel.findById(req.userId).lean(),
+  ]);
+  const kcalByDate = new Map(rows.map((r) => [r.date, dayTotals(r.items as StoredItem[]).kcal]));
+
+  res.json({
+    from,
+    to,
+    calorieTarget: (user && buildSummary(user)?.calorieTarget) ?? null,
+    days: listDates(from, to).map((date) => ({ date, kcal: kcalByDate.get(date) ?? null })),
+  });
+}
+
 /**
  * GET /api/meals/stats/low-intake — true if each of the last 3 logged days was below the safe
  * minimum for the user's sex. Today is left out because it's usually still in progress.

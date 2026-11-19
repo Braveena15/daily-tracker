@@ -25,6 +25,27 @@ export const PROFILE_FIELDS = [
 ] as const;
 export type ProfileField = (typeof PROFILE_FIELDS)[number];
 
+// Personal goals used by the daily scores and the journey progress bar.
+// Every goal has a default, so scores work before the user changes anything.
+export const GOAL_LIMITS = {
+  stepGoal: { min: 1000, max: 50_000, default: 8000 },
+  activeCalorieGoal: { min: 50, max: 3000, default: 400 },
+  workoutMinutesGoal: { min: 5, max: 300, default: 30 },
+  learningMinutesGoal: { min: 5, max: 600, default: 30 },
+  journeyLengthDays: { min: 7, max: 1000, default: 100 },
+} as const;
+
+export const NUMBER_GOAL_FIELDS = Object.keys(GOAL_LIMITS) as (keyof typeof GOAL_LIMITS)[];
+export const GOAL_FIELDS = [...NUMBER_GOAL_FIELDS, "journeyStartDate"] as const;
+export type GoalField = (typeof GOAL_FIELDS)[number];
+
+const goal = (key: keyof typeof GOAL_LIMITS) => ({
+  type: Number,
+  min: GOAL_LIMITS[key].min,
+  max: GOAL_LIMITS[key].max,
+  default: GOAL_LIMITS[key].default,
+});
+
 const weight = {
   type: Number,
   min: PROFILE_LIMITS.weightKg.min,
@@ -59,6 +80,15 @@ const userSchema = new Schema(
         message: "Weekly goal must be 0, 0.25, 0.5, 0.75 or 1 kg",
       },
     },
+
+    // Goals (see GOAL_LIMITS). Older accounts without them get the defaults when read.
+    stepGoal: goal("stepGoal"),
+    activeCalorieGoal: goal("activeCalorieGoal"),
+    workoutMinutesGoal: goal("workoutMinutesGoal"),
+    learningMinutesGoal: goal("learningMinutesGoal"),
+    journeyLengthDays: goal("journeyLengthDays"),
+    // "YYYY-MM-DD". When not set, the journey starts on the first logged day (or today).
+    journeyStartDate: { type: String, match: /^\d{4}-\d{2}-\d{2}$/ },
   },
   {
     timestamps: true,

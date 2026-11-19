@@ -1,4 +1,4 @@
-import { CalendarDays, LayoutDashboard, LogOut, SquarePen, UserRound, UtensilsCrossed } from 'lucide-react'
+import { CalendarDays, CalendarRange, LayoutDashboard, LogOut, SquarePen, UserRound, UtensilsCrossed } from 'lucide-react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/ThemeToggle'
@@ -6,20 +6,35 @@ import { useAuth } from '@/context/useAuth'
 import { useLogout } from '@/hooks/useLogout'
 import { cn } from '@/lib/utils'
 
-const NAV: { to: string; label: string; icon: typeof SquarePen; end?: boolean; alsoActiveOn?: string[] }[] = [
+type NavItem = {
+  to: string
+  label: string
+  icon: typeof SquarePen
+  end?: boolean
+  /** Other paths that highlight this item */
+  alsoActiveOn?: string[]
+  /** Paths that highlight this item only in the phone tab bar (where the page has no tab of its own) */
+  alsoActiveOnMobile?: string[]
+  /** Desktop sidebar only; on phones it is reached from another page */
+  sidebarOnly?: boolean
+}
+
+const NAV: NavItem[] = [
   { to: '/today', label: 'Today', icon: SquarePen },
   // My Foods lives inside Meals, so the Meals tab stays highlighted there
   { to: '/meals', label: 'Meals', icon: UtensilsCrossed, alsoActiveOn: ['/foods'] },
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
+  { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true, alsoActiveOnMobile: ['/review'] },
+  { to: '/review', label: 'Weekly review', icon: CalendarRange, sidebarOnly: true },
   { to: '/history', label: 'History', icon: CalendarDays },
   { to: '/profile', label: 'Profile', icon: UserRound },
 ]
 
 /** NavLink's own match, plus any extra paths that belong to the same tab. */
-function useIsActive() {
+function useIsActive(mobile: boolean) {
   const { pathname } = useLocation()
-  return (item: (typeof NAV)[number], isActive: boolean) =>
-    isActive || (item.alsoActiveOn ?? []).some((p) => pathname.startsWith(p))
+  return (item: NavItem, isActive: boolean) =>
+    isActive ||
+    [...(item.alsoActiveOn ?? []), ...(mobile ? (item.alsoActiveOnMobile ?? []) : [])].some((p) => pathname.startsWith(p))
 }
 
 // Page frame for logged-in pages: a sidebar on desktop, a bottom tab bar on phones.
@@ -36,7 +51,7 @@ export function Layout() {
 }
 
 function Sidebar() {
-  const isOn = useIsActive()
+  const isOn = useIsActive(false)
   const { user } = useAuth()
   const { loggingOut, logout } = useLogout()
 
@@ -100,14 +115,14 @@ function Sidebar() {
 }
 
 function BottomTabs() {
-  const isOn = useIsActive()
+  const isOn = useIsActive(true)
   return (
     <nav
       aria-label="Main"
       className="fixed inset-x-0 bottom-0 z-30 border-t bg-card/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-lg md:hidden"
     >
       <div className="mx-auto grid max-w-lg grid-cols-5">
-        {NAV.map((item) => {
+        {NAV.filter((item) => !item.sidebarOnly).map((item) => {
           const { to, label, icon: Icon, end } = item
           return (
           <NavLink

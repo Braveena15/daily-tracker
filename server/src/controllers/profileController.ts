@@ -1,6 +1,16 @@
 import type { Request, Response } from "express";
 import { z } from "zod";
-import { PROFILE_FIELDS, PROFILE_LIMITS, UserModel, maxBirthYear, type ProfileField } from "../models/User";
+import {
+  GOAL_LIMITS,
+  PROFILE_FIELDS,
+  PROFILE_LIMITS,
+  UserModel,
+  maxBirthYear,
+  type ProfileField,
+  type User,
+} from "../models/User";
+import { goalNumbers, journeyStart } from "../services/dayData";
+import { isValidDateString, todayInTimezone } from "../utils/dates";
 import { AppError } from "../utils/AppError";
 import { ACTIVITY_LEVELS, WEEKLY_GOALS } from "../utils/calories";
 import { buildSummary, missingSummaryFields } from "../services/profileSummary";
@@ -41,7 +51,45 @@ function updateSchema() {
       .literal(WEEKLY_GOALS, { error: "Weekly goal must be 0, 0.25, 0.5, 0.75 or 1 kg" })
       .nullable()
       .optional(),
+
+    // Goals: null resets a goal to its default
+    stepGoal: goalField("Step goal", "stepGoal"),
+    activeCalorieGoal: goalField("Active calorie goal", "activeCalorieGoal"),
+    workoutMinutesGoal: goalField("Workout minutes goal", "workoutMinutesGoal"),
+    learningMinutesGoal: goalField("Learning minutes goal", "learningMinutesGoal"),
+    journeyLengthDays: goalField("Journey length", "journeyLengthDays"),
+    // null = automatic (the first check-in)
+    journeyStartDate: z
+      .string({ error: "Journey start must be a date" })
+      .refine(isValidDateString, "Journey start must be a real date in YYYY-MM-DD format")
+      .refine((d) => d <= todayInTimezone(), "Your journey can't start in the future")
+      .nullable()
+      .optional(),
   });
+}
+
+function goalField(label: string, key: keyof typeof GOAL_LIMITS) {
+  const { min, max } = GOAL_LIMITS[key];
+  const range = `${label} must be between ${min.toLocaleString("en-US")} and ${max.toLocaleString("en-US")}`;
+  return z
+    .number({ error: `${label} must be a number` })
+    .int(`${label} must be a whole number`)
+    .min(min, range)
+    .max(max, range)
+    .nullable()
+    .optional();
+}
+
+/**
+ * Goals with defaults filled in. journeyStartDate is what the user chose (null = automatic);
+ * journeyStartResolved is the date actually used (the first check-in, or today).
+ */
+async function pickGoals(userId: string | undefined, user: User) {
+  return {
+    ...goalNumbers(user),
+    journeyStartDate: user.journeyStartDate ?? null,
+    journeyStartResolved: await journeyStart(userId, user),
+  };
 }
 
 type Profile = { [K in ProfileField]?: unknown };
@@ -53,7 +101,7 @@ function pickProfile(user: Record<string, unknown>): Profile {
 export async function getProfile(req: Request, res: Response): Promise<void> {
   const user = await UserModel.findById(req.userId).lean();
   if (!user) throw new AppError(401, "Please log in to continue");
-  res.json({ profile: pickProfile(user) });
+  res.json({ profile: pickProfile(user), goals: await pickGoals(req.userId, user) });
 }
 
 export async function updateProfile(req: Request, res: Response): Promise<void> {
@@ -73,7 +121,7 @@ export async function updateProfile(req: Request, res: Response): Promise<void> 
   ).lean();
   if (!user) throw new AppError(401, "Please log in to continue");
 
-  res.json({ profile: pickProfile(user) });
+  res.json({ profile: pickProfile(user), goals: await pickGoals(req.userId, user) });
 }
 
 // Readable names for the "missing fields" message
