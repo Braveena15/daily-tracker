@@ -59,7 +59,8 @@ export function Layout() {
   return (
     <div className="min-h-dvh md:pl-64">
       <Sidebar />
-      <main className="mx-auto w-full max-w-5xl px-4 pt-6 pb-28 sm:px-6 md:px-10 md:pt-10 md:pb-12">
+      {/* pb: room for the bottom tab bar, plus the iPhone home bar below it */}
+      <main className="mx-auto w-full max-w-5xl px-4 pt-6 pb-[calc(7rem+env(safe-area-inset-bottom))] sm:px-6 md:px-10 md:pt-10 md:pb-12">
         <Outlet />
       </main>
       <BottomTabs />

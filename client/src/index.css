@@ -213,6 +213,11 @@
   }
   body {
     @apply min-h-dvh bg-background text-foreground antialiased;
+    /* viewport-fit=cover lets the page reach under the iPhone notch and home bar, so keep content
+       inside the safe area. The bottom is handled by the tab bar and the main area's padding. */
+    padding-top: env(safe-area-inset-top);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
   h1,
   h2,

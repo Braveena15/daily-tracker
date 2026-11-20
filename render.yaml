@@ -1,0 +1,33 @@
+# Render Blueprint: one Node web service. The Express API serves the built React client.
+# Secret values are never stored here. "sync: false" means Render asks for each value when you
+# create the Blueprint, and you can change them later under the service's Environment tab.
+services:
+  - type: web
+    name: daily-tracker
+    runtime: node
+    region: singapore
+    plan: free
+    buildCommand: npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      # Not a secret: switches the server to production mode (serves the client, secure cookies)
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: DIARY_ENCRYPTION_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        sync: false
+      - key: AI_DATA_MODE
+        sync: false
+      - key: ALLOW_REGISTRATION
+        sync: false
+      - key: AI_DAILY_LIMIT
+        sync: false

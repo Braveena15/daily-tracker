@@ -1,3 +1,4 @@
+import path from "node:path";
 import express from "express";
 import helmet from "helmet";
 import cors from "cors";
@@ -24,15 +25,32 @@ import { aiRouter } from "./routes/aiRoutes";
 import { healthSyncRouter } from "./routes/healthSyncRoutes";
 import { errorHandler, notFound } from "./middleware/errorHandler";
 import { requestLogger } from "./middleware/requestLogger";
+import { serveClient } from "./middleware/serveClient";
 
 export const app = express();
+
+// Render (and most hosts) put a proxy in front of the app. Trusting the first hop gives the real
+// client IP to the rate limiters and lets Express see the original https for secure cookies.
+app.set("trust proxy", 1);
 
 // Development only: one log line per request (method, path, status, time). Never tokens or bodies.
 if (!env.isProduction) app.use(requestLogger);
 
-app.use(helmet());
-// Only the client app may call the API with cookies
-app.use(cors({ origin: env.CLIENT_URL, credentials: true }));
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        // Videos on the Motivation and Lift pages are privacy-enhanced YouTube embeds
+        "frame-src": ["https://www.youtube-nocookie.com"],
+        // Render serves everything over https already; this would break a local production test on http
+        "upgrade-insecure-requests": null,
+      },
+    },
+  }),
+);
+// Development only: the Vite dev server runs on another origin. In production the client is served
+// from this same server, so no cross-origin requests are allowed at all.
+if (env.CLIENT_URL && !env.isProduction) app.use(cors({ origin: env.CLIENT_URL, credentials: true }));
 // A full day of meals (up to 100 items) needs a larger body than everything else
 app.use("/api/meals", express.json({ limit: "100kb" }));
 // Diary entries can be up to 20,000 characters (up to 4 bytes each); thought logs have several long fields
@@ -58,6 +76,9 @@ app.use("/api/wellbeing", wellbeingRouter);
 app.use("/api/lift-me-up", liftRouter);
 app.use("/api/ai", aiRouter);
 app.use("/api/health-sync", healthSyncRouter);
+
+// Production: the built client (client/dist), with index.html for every other page
+if (env.isProduction) app.use(serveClient(path.resolve(__dirname, "../../client/dist")));
 
 app.use(notFound);
 app.use(errorHandler);

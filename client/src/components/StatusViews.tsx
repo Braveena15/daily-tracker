@@ -1,18 +1,37 @@
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { CircleAlert, type LucideIcon } from 'lucide-react'
 import { IconBubble } from '@/components/IconBubble'
 import type { Tone } from '@/lib/tones'
 import { cn } from '@/lib/utils'
 
-/** Whole-screen loading, used while we check whether you're logged in. */
+// The free hosting plan puts the server to sleep when it's idle; the first request wakes it up
+const SLOW_AFTER_MS = 3000
+
+/**
+ * Whole-screen loading, used while we check whether you're logged in.
+ * After 3 seconds it explains that the server may be waking up.
+ */
 export function FullPageLoader() {
+  const [slow, setSlow] = useState(false)
+  useEffect(() => {
+    const timer = setTimeout(() => setSlow(true), SLOW_AFTER_MS)
+    return () => clearTimeout(timer)
+  }, [])
+
   return (
-    <div className="grid min-h-dvh place-items-center" role="status">
-      <div className="flex flex-col items-center gap-3 text-muted-foreground">
+    <div className="grid min-h-dvh place-items-center px-6" role="status" aria-live="polite">
+      <div className="flex max-w-xs flex-col items-center gap-3 text-center text-muted-foreground">
         <span className="animate-pulse text-4xl" aria-hidden>
           🌱
         </span>
-        <span className="text-sm">Loading…</span>
+        {slow ? (
+          <>
+            <span className="font-medium text-foreground">Waking up the server… this can take up to a minute ☕</span>
+            <span className="text-sm">It naps when nobody's using it. Thanks for your patience!</span>
+          </>
+        ) : (
+          <span className="text-sm">Loading…</span>
+        )}
       </div>
     </div>
   )

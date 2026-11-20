@@ -1,5 +1,6 @@
 import { Navigate, RouterProvider, createBrowserRouter } from 'react-router-dom'
 import { Toaster } from './components/ui/sonner'
+import { PwaUpdater } from './components/PwaUpdater'
 import { AuthProvider } from './context/AuthProvider'
 import { ThemeProvider } from './context/ThemeProvider'
 import { ProtectedRoute } from './components/ProtectedRoute'
@@ -63,6 +64,7 @@ function App() {
         <RouterProvider router={router} />
       </AuthProvider>
       <Toaster position="top-center" />
+      <PwaUpdater />
     </ThemeProvider>
   )
 }
