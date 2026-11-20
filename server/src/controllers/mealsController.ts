@@ -50,13 +50,14 @@ async function findItems(userId: string | undefined, date: string): Promise<Stor
 async function buildDaySummary(userId: string | undefined, date: string, items: StoredItem[]) {
   const [user, entry] = await Promise.all([
     UserModel.findById(userId).lean(),
-    DailyEntryModel.findOne({ userId, date }).select("activeCalories").lean(),
+    DailyEntryModel.findOne({ userId, date }).select("activeCalories restingCalories").lean(),
   ]);
   const profile = user ? buildSummary(user) : null;
   const totals = dayTotals(items);
   const activeCalories = entry?.activeCalories ?? null;
 
-  const burn = profile ? estimatedBurn({ bmr: profile.bmr, tdee: profile.tdee, activeCalories }) : null;
+  const restingCalories = entry?.restingCalories ?? null;
+  const burn = profile ? estimatedBurn({ bmr: profile.bmr, tdee: profile.tdee, activeCalories, restingCalories }) : null;
   const balance =
     profile && burn ? calorieBalance({ eaten: totals.kcal, target: profile.calorieTarget, burn: burn.burn }) : null;
 

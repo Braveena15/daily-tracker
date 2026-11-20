@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { DailyEntryModel } from "../models/DailyEntry";
+import { CHECKED_IN, DailyEntryModel } from "../models/DailyEntry";
 import { journeyStart, loadUserContext } from "../services/dayData";
 import { computeInsights, computeWeeklyReview } from "../services/progressData";
 import { AppError } from "../utils/AppError";
@@ -67,7 +67,7 @@ export async function getWeeklyReview(req: Request, res: Response): Promise<void
 export async function getJourney(req: Request, res: Response): Promise<void> {
   const ctx = await loadUserContext(req.userId);
   const startDate = await journeyStart(req.userId, ctx.user);
-  const rows = await DailyEntryModel.find({ userId: req.userId, date: { $gte: startDate } }).select("date -_id").lean();
+  const rows = await DailyEntryModel.find({ userId: req.userId, date: { $gte: startDate }, ...CHECKED_IN }).select("date -_id").lean();
 
   res.json(
     journeyProgress({

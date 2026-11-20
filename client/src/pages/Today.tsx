@@ -15,6 +15,7 @@ import {
   Sun,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -32,17 +33,29 @@ import { DateBar } from '@/components/DateBar'
 import { PageHeader } from '@/components/PageHeader'
 import { useDateParam } from '@/hooks/useDateParam'
 import { ErrorNotice } from '@/components/StatusViews'
-import { ActivityList, LearningList, NumberField, RatingPicker, Section, TextList } from '@/components/CheckinFields'
+import {
+  ActivityList,
+  LearningList,
+  NumberField,
+  RatingPicker,
+  Section,
+  TextList,
+  WatchMark,
+} from '@/components/CheckinFields'
 import { aiRequests } from '@/lib/ai'
 import { api } from '@/lib/api'
 import { formatDate } from '@/lib/dates'
+import { dayOf, formatSyncTime, timeOf } from '@/lib/healthSync'
 import {
   MENTAL_CHIPS,
   OUTDOOR_CHIPS,
   WORKOUT_CHIPS,
   energyEmoji,
+  isCheckedIn,
   moodEmoji,
+  type DailyEntry,
   type EntryResponse,
+  type HealthSyncField,
   type SaveEntryResponse,
 } from '@/lib/entries'
 import { emptyForm, entryToForm, formToPayload, snapshot, type CheckinForm } from '@/lib/checkinForm'
@@ -85,7 +98,9 @@ function EditorSkeleton() {
 function EntryEditor({ date, today }: { date: string; today: string }) {
   const [form, setForm] = useState<CheckinForm>(emptyForm)
   const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null) // null while loading
+  // true once the day has a check-in (a day with only Apple Health data doesn't count yet)
   const [exists, setExists] = useState(false)
+  const [stored, setStored] = useState<DailyEntry | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -99,7 +114,8 @@ function EntryEditor({ date, today }: { date: string; today: string }) {
         const loaded = entry ? entryToForm(entry) : emptyForm()
         setForm(loaded)
         setSavedSnapshot(snapshot(loaded))
-        setExists(entry !== null)
+        setExists(isCheckedIn(entry))
+        setStored(entry)
       })
       .catch((err: unknown) => {
         if (!cancelled) setLoadError(err instanceof Error ? err.message : 'Could not load this day')
@@ -146,6 +162,7 @@ function EntryEditor({ date, today }: { date: string; today: string }) {
       setForm(saved)
       setSavedSnapshot(snapshot(saved))
       setExists(true)
+      setStored(data.entry)
       toast.success('Saved ✓', {
         description: data.profileWeightUpdated ? 'Your profile weight was updated too.' : undefined,
       })
@@ -161,6 +178,17 @@ function EntryEditor({ date, today }: { date: string; today: string }) {
 
   const isSaved = exists && !dirty
   const dayName = date === today ? 'today' : formatDate(date, today)
+
+  // ⌚ on a field while it still holds the value Apple Health synced (editing it removes the mark)
+  const syncedFields = new Set<HealthSyncField>(stored?.healthSync?.fields ?? [])
+  const fromWatch = (field: 'weightKg' | 'steps' | 'activeCalories' | 'sleepHours') =>
+    syncedFields.has(field) && stored !== null && form[field] === (stored[field] == null ? '' : String(stored[field]))
+  const sync = stored?.healthSync
+  const syncLabel = sync ? (dayOf(sync.syncedAt) === date ? timeOf(sync.syncedAt) : formatSyncTime(sync.syncedAt, today)) : null
+  const watchExtras = [
+    stored?.restingCalories != null && `Resting ${stored.restingCalories.toLocaleString()} kcal`,
+    stored?.exerciseMinutes != null && `Exercise ${stored.exerciseMinutes} min`,
+  ].filter(Boolean)
 
   return (
     <form className="space-y-4 md:space-y-6" onSubmit={handleSubmit} noValidate>
@@ -180,11 +208,24 @@ function EntryEditor({ date, today }: { date: string; today: string }) {
             placeholder="e.g. 7.5"
             value={form.sleepHours}
             onChange={(v) => set('sleepHours', v)}
+            fromWatch={fromWatch('sleepHours')}
           />
         </div>
       </Section>
 
-      <Section title="Body" hint="All optional." icon={Ruler} tone="physical">
+      <Section
+        title="Body"
+        hint="All optional."
+        icon={Ruler}
+        tone="physical"
+        aside={
+          syncLabel && (
+            <Badge variant="outline" className="gap-1 bg-card text-physical-foreground">
+              <span aria-hidden>⌚</span> Synced from Apple Watch · {syncLabel}
+            </Badge>
+          )
+        }
+      >
         <div className="grid gap-4 sm:grid-cols-3">
           <NumberField
             label="Weight"
@@ -194,15 +235,17 @@ function EntryEditor({ date, today }: { date: string; today: string }) {
             max={300}
             value={form.weightKg}
             onChange={(v) => set('weightKg', v)}
+            fromWatch={fromWatch('weightKg')}
           />
           <NumberField
             label="Steps"
             unit="steps"
             step="1"
             min={0}
-            max={100000}
+            max={200000}
             value={form.steps}
             onChange={(v) => set('steps', v)}
+            fromWatch={fromWatch('steps')}
           />
           <NumberField
             label="Active calories"
@@ -212,8 +255,14 @@ function EntryEditor({ date, today }: { date: string; today: string }) {
             max={10000}
             value={form.activeCalories}
             onChange={(v) => set('activeCalories', v)}
+            fromWatch={fromWatch('activeCalories')}
           />
         </div>
+        {watchExtras.length > 0 && (
+          <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <WatchMark /> {watchExtras.join(' · ')}
+          </p>
+        )}
       </Section>
 
       <Section title="Workouts" hint="Tap to add, then set the minutes." icon={Dumbbell} tone="physical">

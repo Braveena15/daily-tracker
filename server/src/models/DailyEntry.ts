@@ -5,8 +5,10 @@ export const ENTRY_LIMITS = {
   rating: { min: 1, max: 10 },
   sleepHours: { min: 0, max: 24 },
   weightKg: { min: 30, max: 300 },
-  steps: { min: 0, max: 100_000 },
+  steps: { min: 0, max: 200_000 },
   activeCalories: { min: 0, max: 10_000 },
+  restingCalories: { min: 0, max: 5000 },
+  workoutCalories: { min: 0, max: 10_000 },
   minutes: { min: 0, max: 1440 },
   activityName: 100,
   notes: 500,
@@ -22,9 +24,41 @@ const minutes = { type: Number, min: L.minutes.min, max: L.minutes.max };
 const notes = { type: String, trim: true, maxlength: L.notes };
 const activityName = { type: String, required: true, trim: true, maxlength: L.activityName };
 
+export const WORKOUT_SOURCES = ["manual", "watch"] as const;
+export type WorkoutSource = (typeof WORKOUT_SOURCES)[number];
+
 // _id: false: list items don't need their own ids
 const workoutSchema = new Schema(
-  { type: activityName, durationMin: { ...minutes, required: true }, notes },
+  {
+    type: activityName,
+    durationMin: { ...minutes, required: true },
+    notes,
+    // "watch" workouts come from Apple Health sync and are replaced on every sync
+    source: { type: String, enum: WORKOUT_SOURCES, default: "manual" },
+    calories: { type: Number, min: L.workoutCalories.min, max: L.workoutCalories.max },
+  },
+  { _id: false },
+);
+
+// Fields Apple Health sync can fill in (shown with a ⌚ in the app)
+export const HEALTH_SYNC_FIELDS = [
+  "activeCalories",
+  "restingCalories",
+  "steps",
+  "exerciseMinutes",
+  "weightKg",
+  "sleepHours",
+  "workouts",
+] as const;
+export type HealthSyncField = (typeof HEALTH_SYNC_FIELDS)[number];
+
+const healthSyncSchema = new Schema(
+  {
+    source: { type: String, enum: ["apple-health"], required: true },
+    syncedAt: { type: Date, required: true },
+    // Which fields currently hold watch values. A field is dropped from here when you change it by hand.
+    fields: { type: [{ type: String, enum: HEALTH_SYNC_FIELDS }], default: [] },
+  },
   { _id: false },
 );
 
@@ -39,7 +73,9 @@ const learningSchema = new Schema(
   { _id: false },
 );
 
-const rating = { type: Number, required: true, min: L.rating.min, max: L.rating.max };
+// Not required in the database: an Apple Health sync can create a day before you check in.
+// The check-in route (PUT /api/entries/:date) still requires mood, energy and sleep.
+const rating = { type: Number, min: L.rating.min, max: L.rating.max };
 
 const dailyEntrySchema = new Schema(
   {
@@ -50,11 +86,15 @@ const dailyEntrySchema = new Schema(
 
     mood: rating,
     energy: rating,
-    sleepHours: { type: Number, required: true, min: L.sleepHours.min, max: L.sleepHours.max },
+    sleepHours: { type: Number, min: L.sleepHours.min, max: L.sleepHours.max },
 
     weightKg: { type: Number, min: L.weightKg.min, max: L.weightKg.max },
     steps: { type: Number, min: L.steps.min, max: L.steps.max },
     activeCalories: { type: Number, min: L.activeCalories.min, max: L.activeCalories.max },
+    // Only set by Apple Health sync
+    restingCalories: { type: Number, min: L.restingCalories.min, max: L.restingCalories.max },
+    exerciseMinutes: minutes,
+    healthSync: { type: healthSyncSchema, default: undefined },
 
     workouts: { type: [workoutSchema], default: [] },
     mentalActivities: { type: [activitySchema], default: [] },
@@ -78,5 +118,15 @@ const dailyEntrySchema = new Schema(
 dailyEntrySchema.index({ userId: 1, date: 1 }, { unique: true });
 
 export type DailyEntry = InferSchemaType<typeof dailyEntrySchema>;
+
+// A day counts as "logged" (scores, streaks, history, insights) only once you've checked in.
+// Days that only hold Apple Health data don't count yet.
+export const CHECKED_IN = { mood: { $ne: null } } as const;
+
+export function isCheckedIn<T extends { mood?: number | null; energy?: number | null }>(
+  entry: T,
+): entry is T & { mood: number; energy: number } {
+  return entry.mood != null && entry.energy != null;
+}
 
 export const DailyEntryModel = model("DailyEntry", dailyEntrySchema);

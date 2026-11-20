@@ -1,5 +1,5 @@
 // The weekly review and insights, shared by the progress routes and the AI weekly reflection.
-import { DailyEntryModel } from "../models/DailyEntry";
+import { CHECKED_IN, DailyEntryModel, isCheckedIn } from "../models/DailyEntry";
 import { loadDays, loadUserContext, scoresFor, toScoreEntry } from "./dayData";
 import { addDays, listDates, todayInTimezone } from "../utils/dates";
 import { findInsights, type InsightDay } from "../utils/insights";
@@ -56,7 +56,9 @@ const INSIGHT_DAYS = 180;
 /** Up to 3 patterns from the last 180 days of check-ins. */
 export async function computeInsights(userId: string | undefined) {
   const to = todayInTimezone();
-  const rows = await DailyEntryModel.find({ userId, date: { $gte: addDays(to, -(INSIGHT_DAYS - 1)), $lte: to } }).lean();
+  const rows = (
+    await DailyEntryModel.find({ userId, date: { $gte: addDays(to, -(INSIGHT_DAYS - 1)), $lte: to }, ...CHECKED_IN }).lean()
+  ).filter(isCheckedIn);
 
   const days: InsightDay[] = rows.map((entry) => ({
     date: entry.date,

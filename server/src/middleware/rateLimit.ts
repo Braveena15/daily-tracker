@@ -1,4 +1,5 @@
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
+import { bearerToken, hashSyncToken } from "../utils/syncToken";
 
 // 10 login attempts per IP address every 15 minutes.
 export const loginLimiter = rateLimit({
@@ -16,4 +17,18 @@ export const aiRateLimit = rateLimit({
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: { message: "That's a lot of requests — please wait a moment and try again." },
+});
+
+// Apple Health sync: 30 requests an hour per token. The key is the token's hash, so raw tokens
+// are never kept in memory. Requests without a token are counted per IP address instead.
+export const healthSyncRateLimit = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 30,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const token = bearerToken(req.headers.authorization);
+    return token ? `token:${hashSyncToken(token)}` : `ip:${ipKeyGenerator(req.ip ?? "")}`;
+  },
+  message: { ok: false, message: "Too many syncs: the limit is 30 an hour. Please try again later." },
 });

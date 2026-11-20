@@ -1,5 +1,5 @@
 // Loads what the scores and progress routes need, so every route computes them the same way.
-import { DailyEntryModel } from "../models/DailyEntry";
+import { CHECKED_IN, DailyEntryModel, isCheckedIn } from "../models/DailyEntry";
 import { MealDayModel } from "../models/MealDay";
 import { GOAL_LIMITS, UserModel, type User } from "../models/User";
 import { buildSummary, type Summary } from "./profileSummary";
@@ -26,7 +26,7 @@ export function goalNumbers(user: Partial<Pick<User, keyof typeof GOAL_LIMITS>>)
 /** The journey start: the date the user chose, else their first check-in, else today. */
 export async function journeyStart(userId: string | undefined, user: { journeyStartDate?: string | null }): Promise<string> {
   if (user.journeyStartDate) return user.journeyStartDate;
-  const first = await DailyEntryModel.findOne({ userId }).sort({ date: 1 }).select("date").lean();
+  const first = await DailyEntryModel.findOne({ userId, ...CHECKED_IN }).sort({ date: 1 }).select("date").lean();
   return first?.date ?? todayInTimezone();
 }
 
@@ -51,8 +51,9 @@ export async function loadUserContext(userId: string | undefined): Promise<UserC
 type LeanEntry = Awaited<ReturnType<typeof loadEntries>> extends Map<string, infer E> ? E : never;
 
 async function loadEntries(userId: string | undefined, from: string, to: string) {
-  const rows = await DailyEntryModel.find({ userId, date: { $gte: from, $lte: to } }).lean();
-  return new Map(rows.map((r) => [r.date, r]));
+  // Check-ins only: a day with just Apple Health data has no scores yet
+  const rows = await DailyEntryModel.find({ userId, date: { $gte: from, $lte: to }, ...CHECKED_IN }).lean();
+  return new Map(rows.filter(isCheckedIn).map((r) => [r.date, r]));
 }
 
 /** Check-ins and eaten kcal (only for days with meals logged) for a date range. */

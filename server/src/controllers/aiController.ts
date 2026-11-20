@@ -18,7 +18,7 @@ import { usedToday } from "../ai/mongoStore";
 import { getEncouragement, type AiRequest, type AiResult } from "../ai/service";
 import { aiConfigured, aiDeps, aiMode } from "../config/ai";
 import { fieldCrypto } from "../config/encryption";
-import { DailyEntryModel } from "../models/DailyEntry";
+import { CHECKED_IN, DailyEntryModel } from "../models/DailyEntry";
 import { PurposeModel, ThoughtLogModel } from "../models/Mind";
 import { UserModel } from "../models/User";
 import { loadDays, loadUserContext, scoresFor, toScoreEntry } from "../services/dayData";
@@ -183,7 +183,7 @@ export async function boost(req: Request, res: Response): Promise<void> {
     loadDays(req.userId, from, to),
     basics(req.userId),
     PurposeModel.findOne({ userId: req.userId }).select("coreValues").lean(),
-    DailyEntryModel.find({ userId: req.userId }).select("date -_id").lean(),
+    DailyEntryModel.find({ userId: req.userId, ...CHECKED_IN }).select("date -_id").lean(),
     recentThoughtText(req.userId, addDays(to, -2), to),
   ]);
 

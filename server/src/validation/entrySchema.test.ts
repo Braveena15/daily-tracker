@@ -55,7 +55,13 @@ describe("entrySchema", () => {
     expect(errorOf({ ...minimal, mood: 6.5 })).toBe("Mood must be a whole number");
     expect(errorOf({ ...minimal, sleepHours: 25 })).toBe("Sleep must be between 0 and 24 hours");
     expect(errorOf({ ...minimal, weightKg: 20 })).toBe("Weight must be between 30 and 300 kg");
-    expect(errorOf({ ...minimal, steps: -1 })).toBe("Steps must be between 0 and 100000");
+    expect(errorOf({ ...minimal, steps: -1 })).toBe("Steps must be between 0 and 200000");
+  });
+
+  it("keeps the source and calories of watch workouts", () => {
+    const watch = { type: "Running", durationMin: 30, source: "watch", calories: 280 };
+    expect(entrySchema.parse({ ...minimal, workouts: [watch] }).workouts).toEqual([watch]);
+    expect(errorOf({ ...minimal, workouts: [{ type: "Run", durationMin: 5, source: "phone" }] })).toMatch(/manual|watch/);
   });
 
   it("requires minutes for workouts but not for other activities", () => {

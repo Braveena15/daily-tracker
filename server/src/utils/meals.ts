@@ -60,6 +60,8 @@ export type BurnSource = "watch" | "estimate";
 /**
  * Calories burned in the day.
  * - With the watch's active calories: BMR (burned at rest) + active calories (burned moving).
+ *   When Apple Health also sent resting calories, those replace the BMR estimate: they're the
+ *   watch's own measurement of what you burned at rest (so far today, like the active calories).
  * - Without: TDEE, which is BMR × an activity multiplier — a guess at the same thing.
  * Never both: TDEE already includes an estimate of activity, so adding active calories
  * to it would count your movement twice.
@@ -68,10 +70,12 @@ export function estimatedBurn(input: {
   bmr: number;
   tdee: number;
   activeCalories?: number | null;
+  restingCalories?: number | null;
 }): { burn: number; source: BurnSource } {
-  const { bmr, tdee, activeCalories } = input;
+  const { bmr, tdee, activeCalories, restingCalories } = input;
   if (activeCalories !== undefined && activeCalories !== null) {
-    return { burn: Math.round(bmr + activeCalories), source: "watch" };
+    const atRest = restingCalories ?? bmr;
+    return { burn: Math.round(atRest + activeCalories), source: "watch" };
   }
   return { burn: Math.round(tdee), source: "estimate" };
 }

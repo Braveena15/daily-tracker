@@ -2,7 +2,7 @@
 import type { Request, Response } from "express";
 import { isValidObjectId, type Model } from "mongoose";
 import { fieldCrypto } from "../config/encryption";
-import { DailyEntryModel } from "../models/DailyEntry";
+import { CHECKED_IN, DailyEntryModel, isCheckedIn } from "../models/DailyEntry";
 import { PurposeModel, QuoteModel, ThoughtLogModel, VideoModel } from "../models/Mind";
 import { AppError } from "../utils/AppError";
 import { BUILT_IN_QUOTES } from "../utils/builtInQuotes";
@@ -98,12 +98,12 @@ export async function deleteVideo(req: Request, res: Response): Promise<void> {
 
 /** GET /api/wellbeing/check — lowMoodStreak: mood ≤ 3 on at least 5 of the last 7 logged days. */
 export async function wellbeingCheck(req: Request, res: Response): Promise<void> {
-  const recent = await DailyEntryModel.find({ userId: req.userId })
+  const recent = await DailyEntryModel.find({ userId: req.userId, ...CHECKED_IN })
     .sort({ date: -1 })
     .limit(LOW_MOOD.days)
-    .select("mood -_id")
+    .select("mood energy -_id")
     .lean();
-  res.json({ lowMoodStreak: isLowMoodStreak(recent.map((e) => e.mood)) });
+  res.json({ lowMoodStreak: isLowMoodStreak(recent.filter(isCheckedIn).map((e) => e.mood)) });
 }
 
 /** GET /api/lift-me-up — good moments, purpose, a quote, a video and the last small step done. */

@@ -10,7 +10,7 @@ import { PageHeader } from '@/components/PageHeader'
 import { EmptyState, ErrorNotice } from '@/components/StatusViews'
 import { api } from '@/lib/api'
 import { addDays, formatDate, listDates, relativeDay, todayInTimezone } from '@/lib/dates'
-import { energyEmoji, moodEmoji, type DailyEntry, type EntriesListResponse } from '@/lib/entries'
+import { energyEmoji, isCheckedIn, moodEmoji, type CheckedInEntry, type EntriesListResponse } from '@/lib/entries'
 import { toneSoft } from '@/lib/tones'
 import { cn } from '@/lib/utils'
 
@@ -23,13 +23,13 @@ export function History() {
   const [today] = useState(() => todayInTimezone())
   const from = addDays(today, -(DAYS - 1))
 
-  const [entries, setEntries] = useState<Map<string, DailyEntry> | null>(null)
+  const [entries, setEntries] = useState<Map<string, CheckedInEntry> | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     api
       .get<EntriesListResponse>(`/entries?from=${from}&to=${today}`)
-      .then((data) => setEntries(new Map(data.entries.map((e) => [e.date, e]))))
+      .then((data) => setEntries(new Map(data.entries.filter(isCheckedIn).map((e) => [e.date, e]))))
       .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Could not load your history'))
   }, [from, today])
 
@@ -100,7 +100,7 @@ function DayHeading({ date, today }: { date: string; today: string }) {
   )
 }
 
-function DayCard({ date, today, entry }: { date: string; today: string; entry: DailyEntry }) {
+function DayCard({ date, today, entry }: { date: string; today: string; entry: CheckedInEntry }) {
   const learnings = entry.learnings.length
   const hasActivities =
     entry.workouts.length + entry.mentalActivities.length + entry.outdoorActivities.length + learnings > 0

@@ -75,6 +75,17 @@ describe("estimatedBurn", () => {
     });
   });
 
+  it("uses the watch's resting calories instead of BMR when both are synced", () => {
+    expect(estimatedBurn({ bmr: 1700, tdee: 2635, activeCalories: 450, restingCalories: 1550 })).toEqual({
+      burn: 2000,
+      source: "watch",
+    });
+  });
+
+  it("ignores resting calories without active calories (TDEE already covers the day)", () => {
+    expect(estimatedBurn({ bmr: 1700, tdee: 2635, restingCalories: 1550 })).toEqual({ burn: 2635, source: "estimate" });
+  });
+
   it("treats 0 active calories as a real watch reading", () => {
     expect(estimatedBurn({ bmr: 1700, tdee: 2635, activeCalories: 0 })).toEqual({ burn: 1700, source: "watch" });
   });

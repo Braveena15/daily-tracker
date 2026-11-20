@@ -1,6 +1,6 @@
 // Building blocks for the daily check-in form.
 import { useId, useState, type KeyboardEvent, type ReactNode } from 'react'
-import { Check, Plus, X, type LucideIcon } from 'lucide-react'
+import { Check, Plus, Watch, X, type LucideIcon } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -19,18 +19,21 @@ export function Section({
   hint,
   icon,
   tone = 'primary',
+  aside,
   children,
 }: {
   title: string
   hint?: string
   icon: LucideIcon
   tone?: Tone
+  /** Shown at the end of the heading row, e.g. a badge */
+  aside?: ReactNode
   children: ReactNode
 }) {
   const headingId = useId()
   return (
     <Card role="group" aria-labelledby={headingId} className="gap-5">
-      <div className="flex items-center gap-3 px-(--card-spacing)">
+      <div className="flex flex-wrap items-center gap-3 px-(--card-spacing)">
         <IconBubble icon={icon} tone={tone} />
         <div className="min-w-0">
           <h2 id={headingId} className="text-lg leading-tight font-semibold">
@@ -38,6 +41,7 @@ export function Section({
           </h2>
           {hint && <p className="mt-0.5 text-sm text-muted-foreground">{hint}</p>}
         </div>
+        {aside && <div className="ml-auto shrink-0">{aside}</div>}
       </div>
       <CardContent className="space-y-5">{children}</CardContent>
     </Card>
@@ -103,6 +107,7 @@ export function NumberField({
   min,
   max,
   placeholder,
+  fromWatch = false,
 }: {
   label: string
   unit?: string
@@ -112,11 +117,16 @@ export function NumberField({
   min?: number
   max?: number
   placeholder?: string
+  /** Shows a ⌚: the value came from Apple Health (it can still be edited) */
+  fromWatch?: boolean
 }) {
   const id = useId()
   return (
     <div className="space-y-2">
-      <Label htmlFor={id}>{label}</Label>
+      <Label htmlFor={id}>
+        {label}
+        {fromWatch && <WatchMark />}
+      </Label>
       <InputWithUnit
         id={id}
         unit={unit}
@@ -130,6 +140,16 @@ export function NumberField({
         onChange={(e) => onChange(e.target.value)}
       />
     </div>
+  )
+}
+
+/** A small ⌚ for values that came from Apple Health. */
+export function WatchMark({ className }: { className?: string }) {
+  return (
+    <span className={cn('text-physical-foreground', className)} title="From Apple Watch">
+      <Watch className="inline size-3.5 align-[-2px]" aria-hidden />
+      <span className="sr-only">(from Apple Watch)</span>
+    </span>
   )
 }
 
@@ -245,6 +265,13 @@ export function ActivityList({
                 label={`Remove ${row.type || itemLabel}`}
                 onClick={() => onChange(rows.filter((r) => r.key !== row.key))}
               />
+              {row.source === 'watch' && (
+                <p className="col-span-3 -mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <WatchMark />
+                  From Apple Watch{row.calories != null && ` · ${row.calories.toLocaleString()} kcal`} · replaced on the
+                  next sync
+                </p>
+              )}
               <Input
                 className="col-span-3"
                 aria-label={`${row.type || itemLabel} notes`}

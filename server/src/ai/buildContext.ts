@@ -279,6 +279,6 @@ export const entryText = (entry: ScoreEntry) => [
 ];
 
 /** Mood 3 or lower today means the reply ends with a gentle reminder about support. */
-export function isLowMoodToday(entry: { date: string; mood: number } | null | undefined, today: string): boolean {
-  return !!entry && entry.date === today && entry.mood <= 3;
+export function isLowMoodToday(entry: { date: string; mood?: number | null } | null | undefined, today: string): boolean {
+  return !!entry && entry.date === today && entry.mood != null && entry.mood <= 3;
 }

@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
-import { DailyEntryModel } from "../models/DailyEntry";
-import { UserModel } from "../models/User";
+import { CHECKED_IN, DailyEntryModel } from "../models/DailyEntry";
+import { updateProfileWeightIfLatest } from "../services/profileWeight";
+import { fieldsStillFromWatch } from "../utils/healthSyncMerge";
 import { AppError } from "../utils/AppError";
 import { addDays, daysBetween, isValidDateString, todayInTimezone } from "../utils/dates";
 import { calculateStreaks } from "../utils/streaks";
@@ -64,6 +65,15 @@ export async function saveByDate(req: Request, res: Response): Promise<void> {
     }
   }
 
+  // A watch value you changed by hand loses its ⌚ mark (see utils/healthSyncMerge.ts)
+  const before = await DailyEntryModel.findOne({ userId: req.userId, date })
+    .select("weightKg steps activeCalories sleepHours healthSync")
+    .lean();
+  const marked = before?.healthSync?.fields ?? [];
+  if (marked.length > 0) {
+    $set["healthSync.fields"] = fieldsStillFromWatch(marked, before ?? {}, body);
+  }
+
   // Upsert: update this day's entry, or create it if it doesn't exist yet.
   const entry = await DailyEntryModel.findOneAndUpdate(
     { userId: req.userId, date },
@@ -72,17 +82,8 @@ export async function saveByDate(req: Request, res: Response): Promise<void> {
   );
 
   // If this is the most recent day with a weight, it becomes the profile's current weight.
-  let profileWeightUpdated = false;
-  if (body.weightKg != null) {
-    const latest = await DailyEntryModel.findOne({ userId: req.userId, weightKg: { $ne: null } })
-      .sort({ date: -1 })
-      .select("date")
-      .lean();
-    if (latest?.date === date) {
-      await UserModel.updateOne({ _id: req.userId }, { $set: { currentWeightKg: body.weightKg } });
-      profileWeightUpdated = true;
-    }
-  }
+  const profileWeightUpdated =
+    body.weightKg != null ? await updateProfileWeightIfLatest(req.userId, date, body.weightKg) : false;
 
   res.json({ date, entry, profileWeightUpdated });
 }
@@ -104,7 +105,8 @@ export async function listEntries(req: Request, res: Response): Promise<void> {
     throw new AppError(400, `You can load at most ${MAX_RANGE_DAYS} days at a time`);
   }
 
-  const entries = await DailyEntryModel.find({ userId: req.userId, date: { $gte: from, $lte: to } }).sort({
+  // Check-ins only: days that so far only hold Apple Health data are left out
+  const entries = await DailyEntryModel.find({ userId: req.userId, date: { $gte: from, $lte: to }, ...CHECKED_IN }).sort({
     date: -1,
   });
   res.json({ from, to, entries });
@@ -112,7 +114,7 @@ export async function listEntries(req: Request, res: Response): Promise<void> {
 
 export async function getStreak(req: Request, res: Response): Promise<void> {
   // Only the date strings are needed, so this stays light even after years of entries.
-  const rows = await DailyEntryModel.find({ userId: req.userId }).select("date -_id").lean();
+  const rows = await DailyEntryModel.find({ userId: req.userId, ...CHECKED_IN }).select("date -_id").lean();
   const todayDate = today();
   res.json({ today: todayDate, ...calculateStreaks(rows.map((r) => r.date), todayDate) });
 }

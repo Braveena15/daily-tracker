@@ -9,4 +9,6 @@ import { app } from "./app";
 
 void connectDB();
 
-app.listen(env.PORT, () => console.log(`🚀 Server running on http://localhost:${env.PORT}`));
+// 0.0.0.0 = every network interface, so a phone on the same Wi-Fi can reach the server during development
+// (at http://<this computer's Wi-Fi IP>:PORT). Your firewall may ask to allow Node the first time.
+app.listen(env.PORT, "0.0.0.0", () => console.log(`🚀 Server running on http://localhost:${env.PORT} (and on your local network)`));

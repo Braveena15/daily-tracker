@@ -92,13 +92,19 @@ const userSchema = new Schema(
 
     // false = never call the AI for this user; pre-written messages are shown instead
     aiEnabled: { type: Boolean, default: true },
+
+    // Apple Health sync. Only the SHA-256 hash of the token is stored, never the token itself.
+    // sparse: users without a token don't take part in the unique index.
+    healthSyncTokenHash: { type: String, select: false, unique: true, sparse: true },
+    healthSyncTokenCreatedAt: { type: Date },
+    lastHealthSyncAt: { type: Date },
   },
   {
     timestamps: true,
     toJSON: {
-      // Shape of a user whenever it is sent as JSON: never includes the password hash.
+      // Shape of a user whenever it is sent as JSON: never includes the password or sync token hash.
       transform: (_doc, ret: Record<string, unknown>) => {
-        const { _id, __v, passwordHash, ...rest } = ret;
+        const { _id, __v, passwordHash, healthSyncTokenHash, ...rest } = ret;
         return { id: String(_id), ...rest };
       },
     },

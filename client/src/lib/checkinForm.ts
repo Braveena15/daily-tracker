@@ -1,12 +1,20 @@
 // Converts between a saved DailyEntry and the check-in form's editable state.
 // Inputs hold strings (an empty string means "not filled in").
-import type { Activity, DailyEntry, EntryInput, Learning, Workout } from './entries'
+import type { Activity, DailyEntry, EntryInput, Learning, Workout, WorkoutSource } from './entries'
 
 // Every list row gets a stable key so React keeps inputs in place when rows are removed.
 let keyCounter = 0
 export const newKey = () => `row-${++keyCounter}`
 
-export type ActivityRow = { key: string; type: string; durationMin: string; notes: string }
+// source and calories are only set on workouts from Apple Health; they're kept as they are when saving
+export type ActivityRow = {
+  key: string
+  type: string
+  durationMin: string
+  notes: string
+  source?: WorkoutSource
+  calories?: number
+}
 export type LearningRow = { key: string; topic: string; details: string; minutes: string }
 export type TextRow = { key: string; text: string }
 
@@ -45,13 +53,20 @@ export function emptyForm(): CheckinForm {
 const str = (n: number | null | undefined) => (n === null || n === undefined ? '' : String(n))
 
 function activityRows(items: (Workout | Activity)[]): ActivityRow[] {
-  return items.map((a) => ({ key: newKey(), type: a.type, durationMin: str(a.durationMin), notes: a.notes ?? '' }))
+  return items.map((a) => ({
+    key: newKey(),
+    type: a.type,
+    durationMin: str(a.durationMin),
+    notes: a.notes ?? '',
+    ...('source' in a && a.source === 'watch' && { source: a.source }),
+    ...('calories' in a && a.calories != null && { calories: a.calories }),
+  }))
 }
 
 export function entryToForm(entry: DailyEntry): CheckinForm {
   return {
-    mood: entry.mood,
-    energy: entry.energy,
+    mood: entry.mood ?? null,
+    energy: entry.energy ?? null,
     sleepHours: str(entry.sleepHours),
     weightKg: str(entry.weightKg),
     steps: str(entry.steps),
@@ -96,7 +111,13 @@ function activities(rows: ActivityRow[], section: string, minutesRequired: boole
       if (minutesRequired && (durationMin === undefined || durationMin < 1)) {
         throw new FormError(`Enter how many minutes "${type}" took`)
       }
-      return { type, durationMin, notes: r.notes.trim() || undefined }
+      return {
+        type,
+        durationMin,
+        notes: r.notes.trim() || undefined,
+        ...(r.source && { source: r.source }),
+        ...(r.calories !== undefined && { calories: r.calories }),
+      }
     })
 }
 

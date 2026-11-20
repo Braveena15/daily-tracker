@@ -1,6 +1,6 @@
 // Validation for PUT /api/entries/:date. Kept separate from the controller so it can be unit tested.
 import { z } from "zod";
-import { ENTRY_LIMITS as L } from "../models/DailyEntry";
+import { ENTRY_LIMITS as L, WORKOUT_SOURCES } from "../models/DailyEntry";
 
 function numberIn(label: string, min: number, max: number, unit = "") {
   const range = `${label} must be between ${min} and ${max}${unit}`;
@@ -40,6 +40,9 @@ export const entrySchema = z.strictObject({
       type: activityName("Workout"),
       durationMin: minutes("Workout").min(1, "Please enter how many minutes each workout took"),
       notes,
+      // Set on workouts from Apple Health sync; the form sends them back unchanged
+      source: z.enum(WORKOUT_SOURCES).optional(),
+      calories: numberIn("Workout calories", L.workoutCalories.min, L.workoutCalories.max, " kcal").optional(),
     }),
   ),
   mentalActivities: list(
