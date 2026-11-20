@@ -8,7 +8,7 @@
 // both record the same night, so the same 2 hours can appear twice; adding them up as-is would
 // report 2 hours as 4. Merging turns "23:00–01:00" + "23:30–01:30" into one "23:00–01:30".
 import type { ScoreLine } from "./scores";
-import { addDays, DEFAULT_TIMEZONE } from "./dates";
+import { DEFAULT_TIMEZONE, todayInTimezone } from "./dates";
 
 export type SleepStage = "inBed" | "asleep" | "core" | "deep" | "rem" | "awake";
 /** start and end are epoch milliseconds; end is always after start. */
@@ -80,15 +80,39 @@ export function mergeIntervals(intervals: Interval[]): Interval[] {
 
 const minutesOf = (intervals: Interval[]) => intervals.reduce((sum, i) => sum + (i.end - i.start), 0) / MINUTE;
 
-/**
- * The night that ends on `date` (the morning you wake up): from 18:00 the evening before
- * to 18:00 on `date`, Asia/Colombo time. Samples are clipped to it.
- */
-export function nightWindow(date: string): Interval {
-  return {
-    start: Date.parse(`${addDays(date, -1)}T18:00:00${LOCAL_OFFSET}`),
-    end: Date.parse(`${date}T18:00:00${LOCAL_OFFSET}`),
-  };
+// ---------- Picking the night ----------
+// The Shortcut sends the last 2 days of samples, so they can hold two nights (and naps).
+// Asleep time is grouped into sessions: a gap of more than 3 hours starts a new one.
+// The night for a date is the session whose last asleep sample ends on that date
+// (Asia/Colombo); if several do (a nap and the night), the longest is the main sleep.
+
+export const SESSION_GAP_MIN = 3 * 60;
+
+/** A stretch of sleep: from the first asleep minute to the last, and how long was spent asleep. */
+export type SleepSession = { start: number; end: number; asleepMin: number };
+
+/** Asleep samples grouped into sessions, oldest first. Awake and In Bed samples don't start or extend a session. */
+export function sleepSessions(samples: SleepSample[]): SleepSession[] {
+  const sessions: SleepSession[] = [];
+  for (const i of mergeIntervals(samples.filter((s) => ASLEEP_STAGES.has(s.stage)))) {
+    const last = sessions[sessions.length - 1];
+    const minutes = (i.end - i.start) / MINUTE;
+    // Merged intervals are sorted and don't overlap, so `last.end` is the latest end so far
+    if (last && (i.start - last.end) / MINUTE <= SESSION_GAP_MIN) {
+      last.end = i.end;
+      last.asleepMin += minutes;
+    } else {
+      sessions.push({ start: i.start, end: i.end, asleepMin: minutes });
+    }
+  }
+  return sessions;
+}
+
+/** The main sleep ending on `date`: the longest session whose last asleep sample ends that day. */
+export function sessionEndingOn(samples: SleepSample[], date: string): SleepSession | null {
+  const endingThatDay = sleepSessions(samples).filter((s) => todayInTimezone(DEFAULT_TIMEZONE, new Date(s.end)) === date);
+  // Longest first; on a tie, the later one
+  return endingThatDay.sort((a, b) => b.asleepMin - a.asleepMin || b.end - a.end)[0] ?? null;
 }
 
 const localTime = new Intl.DateTimeFormat("en-GB", {
@@ -117,9 +141,13 @@ export type NightSummary = {
 
 const MIN_AWAKE_PERIOD_MIN = 2;
 
-/** The night ending on `date`, or null when the samples hold no sleep for it. "In Bed" is ignored. */
+/**
+ * The night ending on `date` (see sessionEndingOn), or null when the samples hold no sleep
+ * ending that day. Samples from every other session are ignored. "In Bed" is ignored.
+ */
 export function summariseNight(samples: SleepSample[], date: string): NightSummary | null {
-  const night = nightWindow(date);
+  const night = sessionEndingOn(samples, date);
+  if (!night) return null;
   const inNight = samples
     .map((s) => ({ ...s, start: Math.max(s.start, night.start), end: Math.min(s.end, night.end) }))
     .filter((s) => s.end > s.start);

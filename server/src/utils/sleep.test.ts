@@ -12,6 +12,7 @@ import {
   parseStage,
   sleepHoursFrom,
   sleepScore,
+  sleepSessions,
   summariseNight,
 } from "./sleep";
 
@@ -154,20 +155,85 @@ describe("summariseNight", () => {
     expect(summariseNight(samples, "2026-11-20")).toMatchObject({ awakeCount: 1, awakeMin: 4 });
   });
 
-  it("only uses the night ending on the date (18:00 the evening before to 18:00)", () => {
-    const samples = parseSleepSamples(
-      [
-        line("2026-11-18T23:00:00+05:30", "2026-11-19T06:00:00+05:30", "Core"), // the night before
-        line(t(19, "17:00"), t(19, "19:00"), "Core"), // only 18:00–19:00 is in this night
-        line(t(19, "23:00"), t(20, "05:00"), "Core"),
-      ].join("\n"),
-    );
-    expect(summariseNight(samples, "2026-11-20")).toMatchObject({ totalSleepMin: 60 + 360, bedtime: "18:00", wakeTime: "05:00" });
-  });
-
   it("returns null when there's no sleep for the night", () => {
     expect(summariseNight([], "2026-11-20")).toBeNull();
     expect(summariseNight(parseSleepSamples(line(t(19, "22:00"), t(20, "07:00"), "In Bed")), "2026-11-20")).toBeNull();
+  });
+});
+
+describe("picking the night ending on the sync date", () => {
+  const n18 = (hhmm: string) => `2026-11-18T${hhmm}:00+05:30`;
+
+  // The night before (18th → 19th): asleep 22:30 → 06:00, woken once for 15 min
+  const PREVIOUS_NIGHT = [
+    line(n18("22:15"), t(19, "06:10"), "In Bed"),
+    line(n18("22:30"), t(19, "00:30"), "Core"),
+    line(t(19, "00:30"), t(19, "01:30"), "Deep"),
+    line(t(19, "01:30"), t(19, "01:45"), "Awake"),
+    line(t(19, "01:45"), t(19, "04:00"), "Core"),
+    line(t(19, "04:00"), t(19, "06:00"), "REM"),
+  ];
+  const PREVIOUS_EXPECTED = {
+    totalSleepMin: 120 + 60 + 135 + 120,
+    deepMin: 60,
+    remMin: 120,
+    coreMin: 255,
+    awakeCount: 1,
+    awakeMin: 15,
+    bedtime: "22:30",
+    wakeTime: "06:00",
+  };
+  // What the Shortcut sends now: the last 2 days, both nights mixed together and out of order
+  const TWO_NIGHTS_LINES = [...WATCH_NIGHT, ...PREVIOUS_NIGHT].reverse();
+  const TWO_NIGHTS = parseSleepSamples(TWO_NIGHTS_LINES.join("\n"));
+
+  it("uses only the night ending on the date, ignoring the night before", () => {
+    expect(summariseNight(TWO_NIGHTS, "2026-11-20")).toEqual(EXPECTED_NIGHT);
+  });
+
+  it("uses only the night before when syncing the previous date", () => {
+    expect(summariseNight(TWO_NIGHTS, "2026-11-19")).toEqual(PREVIOUS_EXPECTED);
+  });
+
+  it("returns null when no night ends on the date", () => {
+    expect(summariseNight(TWO_NIGHTS, "2026-11-21")).toBeNull();
+    expect(summariseNight(TWO_NIGHTS, "2026-11-18")).toBeNull();
+  });
+
+  it("keeps the longest session as the main sleep when a nap ends the same day", () => {
+    const nap = [line(t(20, "14:00"), t(20, "14:40"), "Core"), line(t(20, "14:40"), t(20, "14:50"), "Awake")];
+    const samples = parseSleepSamples([...TWO_NIGHTS_LINES, ...nap].join("\n"));
+    expect(summariseNight(samples, "2026-11-20")).toEqual(EXPECTED_NIGHT);
+    // On its own, the nap is that day's sleep
+    expect(summariseNight(parseSleepSamples(nap.join("\n")), "2026-11-20")).toMatchObject({ totalSleepMin: 40, bedtime: "14:00" });
+  });
+
+  it("starts a new session after a gap of more than 3 hours", () => {
+    const sessions = sleepSessions(
+      parseSleepSamples(
+        [
+          line(t(19, "20:00"), t(19, "21:00"), "Core"),
+          line(t(20, "00:00"), t(20, "02:00"), "Core"), // exactly 3 h later: same session
+          line(t(20, "02:00"), t(20, "05:01"), "Awake"), // awake time doesn't join sessions
+          line(t(20, "05:01"), t(20, "07:00"), "Core"), // 3 h 1 min later: a new session
+        ].join("\n"),
+      ),
+    );
+    expect(sessions).toEqual([
+      { start: Date.parse(t(19, "20:00")), end: Date.parse(t(20, "02:00")), asleepMin: 180 },
+      { start: Date.parse(t(20, "05:01")), end: Date.parse(t(20, "07:00")), asleepMin: 119 },
+    ]);
+  });
+
+  it("goes by the Asia/Colombo date of the last asleep sample", () => {
+    // Asleep 20:00 → 00:30: ends after midnight in Colombo, so it's the night ending on the 20th
+    const late = parseSleepSamples(line(t(19, "20:00"), t(20, "00:30"), "Core"));
+    expect(summariseNight(late, "2026-11-20")).toMatchObject({ totalSleepMin: 270 });
+    expect(summariseNight(late, "2026-11-19")).toBeNull();
+    // Asleep 19:00 → 23:50 the same evening ends on the 19th
+    const early = parseSleepSamples(line(t(19, "19:00"), t(19, "23:50"), "Core"));
+    expect(summariseNight(early, "2026-11-19")).toMatchObject({ totalSleepMin: 290 });
+    expect(summariseNight(early, "2026-11-20")).toBeNull();
   });
 });
 
