@@ -58,6 +58,17 @@ describe("healthSyncSchema", () => {
     });
   });
 
+  it("coerces watch and phone steps like the other fields", () => {
+    expect(parse({ stepsWatch: "6,120", stepsPhone: "8 450.6", activeCalories: "0" })).toEqual({
+      stepsWatch: 6120,
+      stepsPhone: 8451,
+      activeCalories: 0,
+    });
+    expect(parse({ stepsWatch: "", stepsPhone: null })).toEqual({});
+    expect(errorOf({ stepsPhone: "many" })).toBe("stepsPhone must be a number");
+    expect(errorOf({ stepsWatch: -5 })).toBe("stepsWatch must be between 0 and 200000");
+  });
+
   it("drops empty values instead of failing", () => {
     expect(parse({ steps: "", weightKg: null, sleepHours: "8" })).toEqual({ sleepHours: 8 });
   });

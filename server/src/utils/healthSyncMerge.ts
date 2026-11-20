@@ -1,6 +1,9 @@
 // How an Apple Health sync is merged into a day's entry. Pure functions, so the rules are easy to test.
 //
 // - activeCalories, restingCalories, steps, exerciseMinutes: overwritten (the watch is the source of truth).
+// - steps: when stepsWatch and/or stepsPhone are sent, the larger of them is used and "steps" is ignored.
+// - activeCalories: 0 means the watch wasn't worn, so it's skipped. The stored value is kept and the
+//   day isn't marked as having watch calories, so the calorie burn falls back to the TDEE estimate.
 // - weightKg, sleepHours: only filled in when the day doesn't have them yet (manual entries win).
 // - workouts: the day's previous watch workouts are replaced by the new ones, so syncing twice
 //   doesn't add them twice. Manual workouts are never touched.
@@ -43,8 +46,9 @@ export function planHealthMerge(existing: MergeTarget, input: HealthSyncInput, s
   const keptFields: HealthSyncField[] = [];
 
   for (const field of OVERWRITE_FIELDS) {
-    const value = input[field];
+    const value = field === "steps" ? syncedSteps(input) : input[field];
     if (value === undefined) continue;
+    if (field === "activeCalories" && value === 0) continue;
     set[field] = value;
     updatedFields.push(field);
   }
@@ -78,6 +82,12 @@ export function planHealthMerge(existing: MergeTarget, input: HealthSyncInput, s
   set.healthSync = { source: "apple-health", syncedAt, fields: [...fields] };
 
   return { set, updatedFields, keptFields };
+}
+
+/** The steps to store: the larger of stepsWatch/stepsPhone when either is sent, otherwise steps. */
+export function syncedSteps(input: Pick<HealthSyncInput, "steps" | "stepsWatch" | "stepsPhone">): number | undefined {
+  const split = [input.stepsWatch, input.stepsPhone].filter((n): n is number => n !== undefined);
+  return split.length > 0 ? Math.max(...split) : input.steps;
 }
 
 /**

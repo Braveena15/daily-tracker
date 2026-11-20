@@ -74,6 +74,10 @@ export const healthSyncSchema = z.object({
   activeCalories: optNum("activeCalories", L.activeCalories.min, L.activeCalories.max, 0, " kcal"),
   restingCalories: optNum("restingCalories", L.restingCalories.min, L.restingCalories.max, 0, " kcal"),
   steps: optNum("steps", L.steps.min, L.steps.max, 0),
+  // Steps counted by the watch and by the phone separately. When either is sent, the larger one is
+  // stored as steps and the plain "steps" field is ignored (see planHealthMerge).
+  stepsWatch: optNum("stepsWatch", L.steps.min, L.steps.max, 0),
+  stepsPhone: optNum("stepsPhone", L.steps.min, L.steps.max, 0),
   exerciseMinutes: optNum("exerciseMinutes", L.minutes.min, L.minutes.max, 0, " minutes"),
   weightKg: optNum("weightKg", L.weightKg.min, L.weightKg.max, 1, " kg"),
   sleepHours: optNum("sleepHours", L.sleepHours.min, L.sleepHours.max, 2, " hours"),

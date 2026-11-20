@@ -1,4 +1,4 @@
-import { fieldsStillFromWatch, planHealthMerge, type MergeTarget, type StoredWorkout } from "./healthSyncMerge";
+import { fieldsStillFromWatch, planHealthMerge, syncedSteps, type MergeTarget, type StoredWorkout } from "./healthSyncMerge";
 
 const at = new Date("2026-11-20T15:30:00Z");
 
@@ -23,6 +23,44 @@ describe("planHealthMerge", () => {
       at,
     );
     expect(plan.set).toMatchObject({ steps: 9000, activeCalories: 600, restingCalories: 1600, exerciseMinutes: 45 });
+  });
+
+  it("stores the larger of watch and phone steps and ignores plain steps", () => {
+    expect(planHealthMerge(null, { stepsWatch: 6000, stepsPhone: 8500, steps: 100 }, at).set.steps).toBe(8500);
+    expect(planHealthMerge(null, { stepsWatch: 9100, stepsPhone: 4000 }, at).set.steps).toBe(9100);
+    // Only one of them sent: that one wins over plain steps
+    expect(planHealthMerge(null, { stepsPhone: 3200, steps: 9999 }, at).set.steps).toBe(3200);
+    expect(planHealthMerge(null, { stepsWatch: 0, steps: 9999 }, at).set.steps).toBe(0);
+    const plan = planHealthMerge(null, { stepsWatch: 7000 }, at);
+    expect(plan.updatedFields).toEqual(["steps"]);
+    expect(plan.set).not.toHaveProperty("stepsWatch");
+    expect(plan.set).not.toHaveProperty("stepsPhone");
+  });
+
+  it("uses plain steps when neither watch nor phone steps are sent", () => {
+    expect(syncedSteps({ steps: 5000 })).toBe(5000);
+    expect(syncedSteps({})).toBeUndefined();
+  });
+
+  it("ignores zero or missing active calories so the burn falls back to the TDEE estimate", () => {
+    const zero = planHealthMerge(null, { activeCalories: 0, steps: 1200 }, at);
+    expect(zero.set).not.toHaveProperty("activeCalories");
+    expect(zero.updatedFields).toEqual(["steps"]);
+    expect(zero.set.healthSync).toMatchObject({ fields: ["steps"] });
+
+    const missing = planHealthMerge(null, { steps: 1200 }, at);
+    expect(missing.set).not.toHaveProperty("activeCalories");
+    expect(missing.updatedFields).not.toContain("activeCalories");
+  });
+
+  it("keeps an earlier synced active calories value when a later sync sends 0", () => {
+    const plan = planHealthMerge(
+      { workouts: [], healthSync: { fields: ["activeCalories"] } },
+      { activeCalories: 0, restingCalories: 1600 },
+      at,
+    );
+    expect(plan.set).not.toHaveProperty("activeCalories");
+    expect(plan.updatedFields).toEqual(["restingCalories"]);
   });
 
   it("only fills weight and sleep when the day doesn't have them", () => {

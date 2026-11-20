@@ -86,7 +86,7 @@ export async function healthSync(req: Request, res: Response): Promise<void> {
   if (!hasData) {
     throw invalid(
       res,
-      "Nothing to sync: send at least one of activeCalories, restingCalories, steps, exerciseMinutes, weightKg, sleepHours or workouts",
+      "Nothing to sync: send at least one of activeCalories, restingCalories, steps (or stepsWatch/stepsPhone), exerciseMinutes, weightKg, sleepHours or workouts",
       "no health fields sent",
     );
   }
