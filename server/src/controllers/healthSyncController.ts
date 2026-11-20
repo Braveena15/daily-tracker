@@ -3,6 +3,7 @@
 import type { Request, Response } from "express";
 import { DailyEntryModel } from "../models/DailyEntry";
 import { UserModel } from "../models/User";
+import { addLogNote } from "../middleware/requestLogger";
 import { AppError } from "../utils/AppError";
 import { planHealthMerge } from "../utils/healthSyncMerge";
 import { updateProfileWeightIfLatest } from "../services/profileWeight";
@@ -50,18 +51,24 @@ export async function revokeSyncToken(req: Request, res: Response): Promise<void
 
 // ---------- Sync (Bearer token only) ----------
 
+/** A 400 whose reason also goes into the development request log (messages never contain the token). */
+function invalid(res: Response, message: string, logNote: string = message): AppError {
+  addLogNote(res, `validation failed: ${logNote}`);
+  return new AppError(400, message);
+}
+
 /** POST /api/health-sync — merges Apple Health data into one day's entry. */
 export async function healthSync(req: Request, res: Response): Promise<void> {
   const raw: unknown = req.body;
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
-    throw new AppError(400, 'Send a JSON object, e.g. {"steps": 8234}, with header "Content-Type: application/json"');
+    throw invalid(res, 'Send a JSON object, e.g. {"steps": 8234}, with header "Content-Type: application/json"', "body is not a JSON object");
   }
 
   const parsed = healthSyncSchema.safeParse(raw);
   if (!parsed.success) {
-    const issue = parsed.error.issues[0];
-    const where = issue?.path.length ? `${issue.path.join(".")}: ` : "";
-    throw new AppError(400, `${where}${issue?.message ?? "Invalid body"}`);
+    // The response shows the first problem; the dev log lists every field that failed and why
+    const problems = parsed.error.issues.map((i) => `${i.path.length ? `${i.path.join(".")}: ` : ""}${i.message}`);
+    throw invalid(res, problems[0] ?? "Invalid body", problems.join(" | "));
   }
   const input = parsed.data;
   // Unknown keys are ignored but reported back, which helps spot typos in the Shortcut
@@ -71,15 +78,16 @@ export async function healthSync(req: Request, res: Response): Promise<void> {
   try {
     date = resolveSyncDate(input.date);
   } catch (err) {
-    if (err instanceof SyncDateError) throw new AppError(400, err.message);
+    if (err instanceof SyncDateError) throw invalid(res, `date: ${err.message}`);
     throw err;
   }
 
   const hasData = HEALTH_SYNC_KEYS.some((k) => k !== "date" && input[k] !== undefined);
   if (!hasData) {
-    throw new AppError(
-      400,
+    throw invalid(
+      res,
       "Nothing to sync: send at least one of activeCalories, restingCalories, steps, exerciseMinutes, weightKg, sleepHours or workouts",
+      "no health fields sent",
     );
   }
 

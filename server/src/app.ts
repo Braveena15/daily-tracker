@@ -23,8 +23,12 @@ import {
 import { aiRouter } from "./routes/aiRoutes";
 import { healthSyncRouter } from "./routes/healthSyncRoutes";
 import { errorHandler, notFound } from "./middleware/errorHandler";
+import { requestLogger } from "./middleware/requestLogger";
 
 export const app = express();
+
+// Development only: one log line per request (method, path, status, time). Never tokens or bodies.
+if (!env.isProduction) app.use(requestLogger);
 
 app.use(helmet());
 // Only the client app may call the API with cookies
