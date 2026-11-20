@@ -151,6 +151,23 @@ describe("minimal mode never sends free text", () => {
     });
   });
 
+  it("sends the sleep score and hours, but never the night's details or samples", () => {
+    // A stored entry carries the full sleep summary; only the score number may reach the AI
+    const withSleep = {
+      ...entry,
+      sleepScore: 88,
+      sleep: { bedtime: "23:00", wakeTime: "06:30", deepMin: 60, breakdown: [{ reason: "SECRET_SLEEP_REASON" }] },
+      sleepSamples: "2026-11-19T23:00:00+05:30;2026-11-20T06:30:00+05:30;Core",
+      appleSleepScore: 91,
+    } as ScoreEntry & { date: string };
+    const daily = buildDailyContext({ entry: withSleep, scores: { physical: 1, mental: 2, learning: 3, overall: 2 }, nutrition: null, today: TODAY });
+    expect(daily.data).toMatchObject({ sleepHours: 7.5, sleepScore: 88 });
+    const sent = json(daily);
+    for (const leak of ["SECRET_SLEEP_REASON", "bedtime", "wakeTime", "deepMin", "Core", "+05:30", "appleSleepScore"]) {
+      expect(sent).not.toContain(leak);
+    }
+  });
+
   it("only sends the app's own value words", () => {
     const boost = allMinimalPayloads()[3]!;
     expect(boost.data.values).toEqual(["growth", "kindness"]);

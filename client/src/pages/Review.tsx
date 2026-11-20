@@ -11,6 +11,7 @@ import {
   ChevronRight,
   Dumbbell,
   Gauge,
+  Moon,
   Smile,
   Sparkles,
   Trophy,
@@ -212,6 +213,22 @@ function ReviewBody({ data, today }: { data: WeeklyReviewResponse; today: string
             value={`${w.learningMinutes} min`}
             previous={`${p.learningMinutes} min`}
             delta={<Delta diff={d.learningMinutes} unit=" min" />}
+          />
+          <StatCard
+            icon={Moon}
+            tone="mental"
+            label="Average sleep"
+            value={show(w.avgSleepHours, ' h')}
+            previous={show(p.avgSleepHours, ' h')}
+            delta={<Delta diff={d.avgSleepHours} unit=" h" digits={1} direction="neutral" />}
+          />
+          <StatCard
+            icon={Moon}
+            tone="mental"
+            label="Average sleep score"
+            value={show(w.avgSleepScore, '/100')}
+            previous={show(p.avgSleepScore, '/100')}
+            delta={<Delta diff={d.avgSleepScore} />}
           />
           <StatCard icon={Smile} tone="mental" label="Average mood" value={show(w.avgMood, '/10')} previous={show(p.avgMood, '/10')} delta={<Delta diff={d.avgMood} digits={1} />} />
           <StatCard

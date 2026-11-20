@@ -43,6 +43,17 @@ describe("entrySchema", () => {
     expect(errorOf({ ...minimal, weightKg: null, steps: null, activeCalories: null })).toBeUndefined();
   });
 
+  it("accepts an optional Apple Sleep Score from 0 to 100", () => {
+    expect(entrySchema.parse({ ...minimal, appleSleepScore: 84 }).appleSleepScore).toBe(84);
+    expect(errorOf({ ...minimal, appleSleepScore: null })).toBeUndefined();
+    expect(errorOf({ ...minimal, appleSleepScore: 101 })).toBe("Apple Sleep Score must be between 0 and 100");
+    expect(errorOf({ ...minimal, appleSleepScore: 84.5 })).toBe("Apple Sleep Score must be a whole number");
+  });
+
+  it("doesn't let a check-in change the watch's sleep summary", () => {
+    expect(errorOf({ ...minimal, sleep: { score: 100 } })).toBeDefined();
+  });
+
   it("requires mood, energy and sleep", () => {
     expect(errorOf({ energy: 5, sleepHours: 7 })).toBe("Mood must be a number");
     expect(errorOf({ mood: 5, sleepHours: 7 })).toBe("Energy must be a number");

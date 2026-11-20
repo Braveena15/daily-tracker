@@ -62,6 +62,8 @@ export type WeekSummary = {
   avgLearning: number | null
   avgOverall: number | null
   avgMood: number | null
+  avgSleepHours: number | null
+  avgSleepScore: number | null
   workouts: number
   workoutMinutes: number
   learningMinutes: number
@@ -76,10 +78,29 @@ export type WeeklyReviewResponse = {
   thisWeek: WeekSummary
   lastWeek: WeekSummary
   differences: Record<
-    'daysLogged' | 'avgPhysical' | 'avgMental' | 'avgLearning' | 'avgOverall' | 'avgMood' | 'workouts' | 'workoutMinutes' | 'learningMinutes' | 'avgKcal',
+    | 'daysLogged'
+    | 'avgPhysical'
+    | 'avgMental'
+    | 'avgLearning'
+    | 'avgOverall'
+    | 'avgMood'
+    | 'avgSleepHours'
+    | 'avgSleepScore'
+    | 'workouts'
+    | 'workoutMinutes'
+    | 'learningMinutes'
+    | 'avgKcal',
     number | null
   >
   message: string
+}
+
+export type SleepResponse = {
+  from: string
+  to: string
+  days: { date: string; hours: number | null; score: number | null }[]
+  avgHours: number | null
+  avgScore: number | null
 }
 
 /** "19 Nov" — short dates for chart axes. */

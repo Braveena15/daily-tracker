@@ -30,6 +30,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import { AiMessageCard } from '@/components/ai/AiMessageCard'
 import { DateBar } from '@/components/DateBar'
+import { SleepCard } from '@/components/SleepCard'
 import { PageHeader } from '@/components/PageHeader'
 import { useDateParam } from '@/hooks/useDateParam'
 import { ErrorNotice } from '@/components/StatusViews'
@@ -198,7 +199,8 @@ function EntryEditor({ date, today }: { date: string; today: string }) {
       </Section>
 
       <Section title="Sleep" icon={Moon} tone="mental">
-        <div className="sm:max-w-xs">
+        {stored?.sleep && <SleepCard sleep={stored.sleep} />}
+        <div className="grid gap-4 sm:grid-cols-2">
           <NumberField
             label="Hours slept last night"
             unit="hours"
@@ -209,6 +211,16 @@ function EntryEditor({ date, today }: { date: string; today: string }) {
             value={form.sleepHours}
             onChange={(v) => set('sleepHours', v)}
             fromWatch={fromWatch('sleepHours')}
+          />
+          <NumberField
+            label="Apple Sleep Score (from your Watch)"
+            unit="/ 100"
+            step="1"
+            min={0}
+            max={100}
+            placeholder="Optional"
+            value={form.appleSleepScore}
+            onChange={(v) => set('appleSleepScore', v)}
           />
         </div>
       </Section>

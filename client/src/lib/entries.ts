@@ -13,6 +13,8 @@ export type EntryInput = {
   weightKg?: number | null
   steps?: number | null
   activeCalories?: number | null
+  /** Typed in from the Watch, for comparison */
+  appleSleepScore?: number | null
   workouts: Workout[]
   mentalActivities: Activity[]
   outdoorActivities: Activity[]
@@ -30,6 +32,24 @@ export type HealthSyncField =
   | 'sleepHours'
   | 'workouts'
 
+export type SleepScoreLine = { label: string; points: number; max: number; reason: string }
+
+/** A night from Apple Health sleep samples, with the score Daily Tracker calculated. */
+export type SleepSummary = {
+  totalSleepMin: number
+  deepMin: number
+  remMin: number
+  coreMin: number
+  awakeCount: number
+  awakeMin: number
+  /** "HH:mm", Asia/Colombo */
+  bedtime: string
+  wakeTime: string
+  score: number
+  breakdown: SleepScoreLine[]
+  source: 'watch'
+}
+
 /**
  * A stored day. Mood, energy and sleep can be missing when the day so far only holds
  * Apple Health data (it was synced before you checked in).
@@ -42,6 +62,8 @@ export type DailyEntry = Omit<EntryInput, 'mood' | 'energy' | 'sleepHours'> & {
   sleepHours?: number | null
   restingCalories?: number | null
   exerciseMinutes?: number | null
+  /** Only set by Apple Health sync */
+  sleep?: SleepSummary | null
   /** fields: which values currently come from the watch */
   healthSync?: { source: 'apple-health'; syncedAt: string; fields: HealthSyncField[] } | null
   createdAt: string

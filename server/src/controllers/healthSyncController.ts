@@ -5,7 +5,9 @@ import { DailyEntryModel } from "../models/DailyEntry";
 import { UserModel } from "../models/User";
 import { addLogNote } from "../middleware/requestLogger";
 import { AppError } from "../utils/AppError";
-import { planHealthMerge } from "../utils/healthSyncMerge";
+import { addDays } from "../utils/dates";
+import { planHealthMerge, type StoredSleep } from "../utils/healthSyncMerge";
+import { formatDuration, parseSleepSamples, sleepScore, summariseNight } from "../utils/sleep";
 import { updateProfileWeightIfLatest } from "../services/profileWeight";
 import { generateSyncToken, hashSyncToken } from "../utils/syncToken";
 import {
@@ -86,7 +88,7 @@ export async function healthSync(req: Request, res: Response): Promise<void> {
   if (!hasData) {
     throw invalid(
       res,
-      "Nothing to sync: send at least one of activeCalories, restingCalories, steps (or stepsWatch/stepsPhone), exerciseMinutes, weightKg, sleepHours or workouts",
+      "Nothing to sync: send at least one of activeCalories, restingCalories, steps (or stepsWatch/stepsPhone), exerciseMinutes, weightKg, sleepHours, sleepSamples or workouts",
       "no health fields sent",
     );
   }
@@ -94,8 +96,9 @@ export async function healthSync(req: Request, res: Response): Promise<void> {
   const existing = await DailyEntryModel.findOne({ userId: req.userId, date })
     .select("weightKg sleepHours workouts healthSync")
     .lean();
+  const sleep = input.sleepSamples === undefined ? null : await nightFromSamples(req.userId, date, input.sleepSamples);
   const syncedAt = new Date();
-  const plan = planHealthMerge(existing, input, syncedAt);
+  const plan = planHealthMerge(existing, input, syncedAt, sleep);
 
   await DailyEntryModel.updateOne(
     { userId: req.userId, date },
@@ -116,5 +119,27 @@ export async function healthSync(req: Request, res: Response): Promise<void> {
       note: "keptFields already had a value for this day, so they weren't overwritten",
     }),
     ...(ignoredFields.length > 0 && { ignoredFields }),
+    ...(input.sleepSamples !== undefined && {
+      sleep: sleep
+        ? { slept: formatDuration(sleep.totalSleepMin), score: sleep.score, bedtime: sleep.bedtime, wakeTime: sleep.wakeTime }
+        : { note: `No sleep found in sleepSamples for the night ending on ${date}` },
+    }),
   });
+}
+
+const BASELINE_DAYS = 14;
+
+/** The night ending on `date`, scored against the bedtimes of the previous 14 nights that have sleep data. */
+async function nightFromSamples(userId: string | undefined, date: string, text: string): Promise<StoredSleep | null> {
+  const night = summariseNight(parseSleepSamples(text), date);
+  if (!night) return null;
+  const previous = await DailyEntryModel.find({
+    userId,
+    date: { $gte: addDays(date, -BASELINE_DAYS), $lte: addDays(date, -1) },
+    "sleep.bedtime": { $exists: true },
+  })
+    .select("sleep.bedtime -_id")
+    .lean();
+  const bedtimes = previous.flatMap((e) => (e.sleep?.bedtime ? [e.sleep.bedtime] : []));
+  return { ...night, ...sleepScore(night, bedtimes), source: "watch" };
 }

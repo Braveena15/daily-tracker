@@ -1,9 +1,9 @@
-// Dashboard charts: score trends, weight, calories and insights.
+// Dashboard charts: score trends, weight, calories, sleep and insights.
 // Charts follow one style: thin lines and bars, quiet grid, a legend whenever there's more than
 // one series, a tooltip on hover/tap, and a friendly empty state when there's nothing to draw.
 import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, BarChart3, LineChart as LineIcon, Lightbulb, Scale, UtensilsCrossed } from 'lucide-react'
+import { ArrowRight, BarChart3, LineChart as LineIcon, Lightbulb, Moon, Scale, UtensilsCrossed } from 'lucide-react'
 import {
   Bar,
   BarChart,
@@ -41,6 +41,7 @@ import {
   type DailyKcalResponse,
   type InsightsResponse,
   type ScoresListResponse,
+  type SleepResponse,
   type WeightResponse,
 } from '@/lib/progress'
 import type { LucideIcon } from 'lucide-react'
@@ -334,6 +335,94 @@ export function CaloriesChartCard() {
               </span>
             )}
             {logged.length} of 14 days logged · days without meals are left blank
+          </p>
+        </>
+      )}
+    </ChartCard>
+  )
+}
+
+// ---------- Sleep ----------
+
+const sleepConfig = {
+  hours: { label: 'Hours slept', color: 'var(--chart-mental)' },
+  score: { label: 'Sleep score', color: 'var(--chart-learning)' },
+} satisfies ChartConfig
+
+/** Hours slept as bars, our sleep score as a line, for the last 14 nights. */
+export function SleepChartCard() {
+  const animate = useAnimate()
+  const { data, error } = useFetch<SleepResponse>('/progress/sleep?days=14')
+  const nights = data?.days.filter((d) => d.hours !== null).length ?? 0
+  const scored = data?.days.some((d) => d.score !== null) ?? false
+
+  return (
+    <ChartCard
+      icon={Moon}
+      title="Sleep"
+      description={
+        data && nights > 0
+          ? [data.avgHours !== null && `Avg ${data.avgHours} h`, data.avgScore !== null && `score ${data.avgScore}`].filter(Boolean).join(' · ')
+          : 'Last 14 nights'
+      }
+    >
+      {error ? (
+        <ErrorNotice>{error}</ErrorNotice>
+      ) : !data ? (
+        <ChartSkeleton />
+      ) : nights === 0 ? (
+        <EmptyState icon={Moon} title="No sleep logged yet" className="py-10">
+          Log your hours in the check-in, or sync sleep from Apple Health.
+        </EmptyState>
+      ) : (
+        <>
+          <ChartContainer config={sleepConfig} className={CHART_CLASS}>
+            <ComposedChart data={data.days} margin={{ left: 0, right: 0, top: 8 }}>
+              <CartesianGrid vertical={false} />
+              <XAxis dataKey="date" {...AXIS} minTickGap={20} tickFormatter={shortDate} />
+              <YAxis
+                yAxisId="hours"
+                {...AXIS}
+                width={30}
+                allowDecimals={false}
+                domain={[0, (dataMax: number) => Math.max(10, Math.ceil(dataMax))]}
+                tickFormatter={(v: number) => `${v}h`}
+              />
+              <YAxis yAxisId="score" orientation="right" {...AXIS} width={30} domain={[0, 100]} ticks={[0, 50, 100]} hide={!scored} />
+              <ChartTooltip
+                cursor={false}
+                content={
+                  <ChartTooltipContent
+                    labelFormatter={(_, p) => tooltipDate(String(p[0]?.payload.date))}
+                    formatter={(value, name) => (
+                      <div className="flex w-full justify-between gap-4">
+                        <span className="text-muted-foreground">{sleepConfig[name as keyof typeof sleepConfig]?.label}</span>
+                        <span className="font-medium tabular-nums">{name === 'hours' ? `${value} h` : `${value}/100`}</span>
+                      </div>
+                    )}
+                  />
+                }
+              />
+              <ChartLegend content={<ChartLegendContent />} />
+              <Bar yAxisId="hours" dataKey="hours" fill="var(--color-hours)" radius={[4, 4, 0, 0]} maxBarSize={28} isAnimationActive={animate} />
+              {scored && (
+                <Line
+                  yAxisId="score"
+                  dataKey="score"
+                  type="monotone"
+                  stroke="var(--color-score)"
+                  strokeWidth={2}
+                  dot={{ r: 2.5, strokeWidth: 0, fill: 'var(--color-score)' }}
+                  activeDot={{ r: 4 }}
+                  connectNulls={false}
+                  isAnimationActive={animate}
+                />
+              )}
+            </ComposedChart>
+          </ChartContainer>
+          <p className="text-xs text-muted-foreground">
+            {nights} of 14 nights logged
+            {scored ? ' · the score is calculated by Daily Tracker from Apple Health sleep' : ' · sync sleep from Apple Health to see a sleep score'}
           </p>
         </>
       )}

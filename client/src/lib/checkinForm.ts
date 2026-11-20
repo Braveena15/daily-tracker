@@ -25,6 +25,7 @@ export type CheckinForm = {
   weightKg: string
   steps: string
   activeCalories: string
+  appleSleepScore: string
   workouts: ActivityRow[]
   mentalActivities: ActivityRow[]
   outdoorActivities: ActivityRow[]
@@ -41,6 +42,7 @@ export function emptyForm(): CheckinForm {
     weightKg: '',
     steps: '',
     activeCalories: '',
+    appleSleepScore: '',
     workouts: [],
     mentalActivities: [],
     outdoorActivities: [],
@@ -71,6 +73,7 @@ export function entryToForm(entry: DailyEntry): CheckinForm {
     weightKg: str(entry.weightKg),
     steps: str(entry.steps),
     activeCalories: str(entry.activeCalories),
+    appleSleepScore: str(entry.appleSleepScore),
     workouts: activityRows(entry.workouts),
     mentalActivities: activityRows(entry.mentalActivities),
     outdoorActivities: activityRows(entry.outdoorActivities),
@@ -121,6 +124,13 @@ function activities(rows: ActivityRow[], section: string, minutesRequired: boole
     })
 }
 
+function appleSleepScore(value: string): number | null {
+  const n = optionalNumber(value, 'Apple Sleep Score')
+  if (n === undefined) return null
+  if (!Number.isInteger(n) || n < 0 || n > 100) throw new FormError('Apple Sleep Score must be a whole number from 0 to 100')
+  return n
+}
+
 export type PayloadResult = { ok: true; payload: EntryInput } | { ok: false; error: string }
 
 export function formToPayload(form: CheckinForm): PayloadResult {
@@ -151,6 +161,7 @@ export function formToPayload(form: CheckinForm): PayloadResult {
         weightKg: optionalNumber(form.weightKg, 'Weight') ?? null,
         steps: optionalNumber(form.steps, 'Steps') ?? null,
         activeCalories: optionalNumber(form.activeCalories, 'Active calories') ?? null,
+        appleSleepScore: appleSleepScore(form.appleSleepScore),
         workouts: activities(form.workouts, 'workout', true) as Workout[],
         mentalActivities: activities(form.mentalActivities, 'mental strength', false),
         outdoorActivities: activities(form.outdoorActivities, 'outdoor', false),

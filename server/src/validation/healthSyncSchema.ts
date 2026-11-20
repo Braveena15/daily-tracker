@@ -7,6 +7,7 @@ import { addDays, isValidDateString, todayInTimezone } from "../utils/dates";
 
 export const MAX_SYNC_AGE_DAYS = 14;
 export const MAX_SYNC_WORKOUTS = 20;
+export const MAX_SLEEP_SAMPLES_LENGTH = 200_000;
 
 /**
  * Turns what a Shortcut sends into a number.
@@ -81,6 +82,17 @@ export const healthSyncSchema = z.object({
   exerciseMinutes: optNum("exerciseMinutes", L.minutes.min, L.minutes.max, 0, " minutes"),
   weightKg: optNum("weightKg", L.weightKg.min, L.weightKg.max, 1, " kg"),
   sleepHours: optNum("sleepHours", L.sleepHours.min, L.sleepHours.max, 2, " hours"),
+  // One sample per line: "startISO;endISO;stage" (see utils/sleep.ts). A list of lines is accepted too.
+  sleepSamples: z.preprocess(
+    (v) => {
+      const text = Array.isArray(v) && v.every((line) => typeof line === "string") ? v.join("\n") : v;
+      return typeof text === "string" && text.trim() === "" ? undefined : text;
+    },
+    z
+      .string({ error: 'sleepSamples must be text, one "start;end;stage" sample per line' })
+      .max(MAX_SLEEP_SAMPLES_LENGTH, "sleepSamples is too long: send one night at a time")
+      .optional(),
+  ),
   workouts: z
     .array(workoutSchema, { error: "workouts must be a list" })
     .max(MAX_SYNC_WORKOUTS, `You can sync up to ${MAX_SYNC_WORKOUTS} workouts a day`)

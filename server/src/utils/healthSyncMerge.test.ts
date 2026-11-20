@@ -1,4 +1,11 @@
-import { fieldsStillFromWatch, planHealthMerge, syncedSteps, type MergeTarget, type StoredWorkout } from "./healthSyncMerge";
+import {
+  fieldsStillFromWatch,
+  planHealthMerge,
+  syncedSteps,
+  type MergeTarget,
+  type StoredSleep,
+  type StoredWorkout,
+} from "./healthSyncMerge";
 
 const at = new Date("2026-11-20T15:30:00Z");
 
@@ -70,6 +77,27 @@ describe("planHealthMerge", () => {
     );
     expect(plan.set).not.toHaveProperty("activeCalories");
     expect(plan.updatedFields).toEqual(["restingCalories"]);
+  });
+
+  it("stores watch sleep and overwrites sleepHours from it, even over a manual value", () => {
+    const sleep: StoredSleep = {
+      totalSleepMin: 434,
+      deepMin: 60,
+      remMin: 110,
+      coreMin: 264,
+      awakeCount: 2,
+      awakeMin: 16,
+      bedtime: "23:00",
+      wakeTime: "06:30",
+      score: 95,
+      breakdown: [],
+      source: "watch",
+    };
+    const plan = planHealthMerge({ sleepHours: 6, workouts: [] }, { sleepHours: 8 }, at, sleep);
+    expect(plan.set.sleep).toEqual(sleep);
+    expect(plan.set.sleepHours).toBe(7.23);
+    expect(plan.updatedFields).toEqual(["sleepHours"]);
+    expect(plan.keptFields).toEqual([]);
   });
 
   it("only fills weight and sleep when the day doesn't have them", () => {

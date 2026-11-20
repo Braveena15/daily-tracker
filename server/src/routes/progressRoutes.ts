@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getInsights, getJourney, getWeeklyReview, getWeight } from "../controllers/progressController";
+import { getInsights, getJourney, getSleep, getWeeklyReview, getWeight } from "../controllers/progressController";
 import { requireAuth } from "../middleware/requireAuth";
 
 export const progressRouter = Router();
@@ -10,3 +10,4 @@ progressRouter.get("/weight", getWeight);
 progressRouter.get("/weekly-review", getWeeklyReview);
 progressRouter.get("/journey", getJourney);
 progressRouter.get("/insights", getInsights);
+progressRouter.get("/sleep", getSleep);

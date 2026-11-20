@@ -4,6 +4,7 @@ import {
   encouragement,
   expectedWeeklyChange,
   journeyProgress,
+  sleepSeries,
   summariseWeek,
   weekDifferences,
   weekRanges,
@@ -95,6 +96,8 @@ const reviewDay = (date: string, overrides: Partial<ReviewDay> = {}): ReviewDay 
   learning: 50,
   overall: 60,
   mood: 7,
+  sleepHours: 7.5,
+  sleepScore: 80,
   workouts: 1,
   workoutMinutes: 30,
   learningMinutes: 20,
@@ -102,7 +105,7 @@ const reviewDay = (date: string, overrides: Partial<ReviewDay> = {}): ReviewDay 
   ...overrides,
 });
 const unlogged = (date: string): ReviewDay =>
-  reviewDay(date, { physical: null, mental: null, learning: null, overall: null, mood: null, workouts: 0, workoutMinutes: 0, learningMinutes: 0, kcal: null });
+  reviewDay(date, { physical: null, mental: null, learning: null, overall: null, mood: null, sleepHours: null, sleepScore: null, workouts: 0, workoutMinutes: 0, learningMinutes: 0, kcal: null });
 
 describe("summariseWeek", () => {
   it("averages only logged days and finds the best day", () => {
@@ -123,9 +126,22 @@ describe("summariseWeek", () => {
     });
   });
 
+  it("averages sleep hours and sleep score over the nights that have them", () => {
+    const week = summariseWeek(
+      [
+        reviewDay("2026-11-13", { sleepHours: 7, sleepScore: 90 }),
+        reviewDay("2026-11-14", { sleepHours: 6.25, sleepScore: null }), // typed in, no watch sleep
+        unlogged("2026-11-15"),
+      ],
+      "2026-11-13",
+      "2026-11-19",
+    );
+    expect(week).toMatchObject({ avgSleepHours: 6.6, avgSleepScore: 90 });
+  });
+
   it("has nulls for an empty week", () => {
     const week = summariseWeek([unlogged("2026-11-13")], "2026-11-13", "2026-11-19");
-    expect(week).toMatchObject({ daysLogged: 0, avgOverall: null, avgMood: null, bestDay: null });
+    expect(week).toMatchObject({ daysLogged: 0, avgOverall: null, avgMood: null, avgSleepHours: null, avgSleepScore: null, bestDay: null });
   });
 });
 
@@ -158,5 +174,19 @@ describe("weekRanges", () => {
       previous: { from: "2026-11-06", to: "2026-11-12" },
     });
     expect(addDays("2026-11-13", -1)).toBe("2026-11-12");
+  });
+});
+
+describe("sleepSeries", () => {
+  it("has one point per day, with nulls for nights without data", () => {
+    const nights = new Map([
+      ["2026-11-18", { hours: 7.23, score: 95 }],
+      ["2026-11-20", { hours: 6, score: null }],
+    ]);
+    expect(sleepSeries(nights, "2026-11-18", "2026-11-20")).toEqual([
+      { date: "2026-11-18", hours: 7.23, score: 95 },
+      { date: "2026-11-19", hours: null, score: null },
+      { date: "2026-11-20", hours: 6, score: null },
+    ]);
   });
 });

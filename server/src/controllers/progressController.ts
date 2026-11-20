@@ -8,6 +8,7 @@ import {
   changeSinceStart,
   expectedWeeklyChange,
   journeyProgress,
+  sleepSeries,
   weeklyChangeFromAverage,
   weightSeries,
 } from "../utils/progress";
@@ -50,6 +51,35 @@ export async function getWeight(req: Request, res: Response): Promise<void> {
     changeSinceStartKg: changeSinceStart(weights, start),
     weeklyChangeKg: weeklyChangeFromAverage(series),
     expectedWeeklyChangeKg: ctx.summary ? expectedWeeklyChange(ctx.summary.calorieTarget, ctx.summary.tdee) : null,
+  });
+}
+
+/** GET /api/progress/sleep?days=14 — hours slept and sleep score per day, including watch-only days. */
+export async function getSleep(req: Request, res: Response): Promise<void> {
+  const days = req.query.days === undefined ? 14 : Number(req.query.days);
+  if (!Number.isInteger(days) || days < 7 || days > 90) {
+    throw new AppError(400, '"days" must be a whole number from 7 to 90');
+  }
+  const to = today();
+  const from = addDays(to, -(days - 1));
+  const rows = await DailyEntryModel.find({ userId: req.userId, date: { $gte: from, $lte: to }, sleepHours: { $ne: null } })
+    .select("date sleepHours sleep.score -_id")
+    .lean();
+  const nights = new Map(rows.map((r) => [r.date, { hours: r.sleepHours ?? null, score: r.sleep?.score ?? null }]));
+  const points = sleepSeries(nights, from, to);
+  const average = (values: (number | null)[], digits: number) => {
+    const present = values.filter((v): v is number => v !== null);
+    if (present.length === 0) return null;
+    const f = 10 ** digits;
+    return Math.round((present.reduce((s, v) => s + v, 0) / present.length) * f) / f;
+  };
+
+  res.json({
+    from,
+    to,
+    days: points,
+    avgHours: average(points.map((p) => p.hours), 1),
+    avgScore: average(points.map((p) => p.score), 0),
   });
 }
 

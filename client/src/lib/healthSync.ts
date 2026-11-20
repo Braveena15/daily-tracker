@@ -44,6 +44,7 @@ export const EXAMPLE_BODY = `{
   "exerciseMinutes": 42,
   "weightKg": 72.4,
   "sleepHours": 7.5,
+  "sleepSamples": "2026-11-19T23:05:00+05:30;2026-11-20T01:10:00+05:30;Core\\n2026-11-20T01:10:00+05:30;2026-11-20T02:00:00+05:30;Deep",
   "workouts": [
     { "type": "Running", "durationMin": 30, "calories": 280 }
   ]

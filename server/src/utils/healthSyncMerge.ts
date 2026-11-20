@@ -6,10 +6,16 @@
 // - activeCalories: 0 means the watch wasn't worn, so it's skipped. The stored value is kept and the
 //   day isn't marked as having watch calories, so the calorie burn falls back to the TDEE estimate.
 // - weightKg, sleepHours: only filled in when the day doesn't have them yet (manual entries win).
+// - sleep (from sleepSamples): stored, and sleepHours is overwritten from it — the watch's
+//   measured sleep is more accurate than a typed guess.
 // - workouts: the day's previous watch workouts are replaced by the new ones, so syncing twice
 //   doesn't add them twice. Manual workouts are never touched.
 import { ENTRY_LIMITS, type HealthSyncField, type WorkoutSource } from "../models/DailyEntry";
 import type { HealthSyncInput } from "../validation/healthSyncSchema";
+import { sleepHoursFrom, type NightSummary, type SleepScore } from "./sleep";
+
+/** A night's sleep as stored on the entry. */
+export type StoredSleep = NightSummary & SleepScore & { source: "watch" };
 
 export type StoredWorkout = {
   type: string;
@@ -41,7 +47,12 @@ export type MergePlan = {
 
 const isWatch = (w: StoredWorkout) => w.source === "watch";
 
-export function planHealthMerge(existing: MergeTarget, input: HealthSyncInput, syncedAt: Date): MergePlan {
+export function planHealthMerge(
+  existing: MergeTarget,
+  input: HealthSyncInput,
+  syncedAt: Date,
+  sleep: StoredSleep | null = null,
+): MergePlan {
   const set: Record<string, unknown> = {};
   const updatedFields: HealthSyncField[] = [];
   const keptFields: HealthSyncField[] = [];
@@ -55,6 +66,12 @@ export function planHealthMerge(existing: MergeTarget, input: HealthSyncInput, s
   }
 
   for (const field of FILL_IF_EMPTY_FIELDS) {
+    if (field === "sleepHours" && sleep) {
+      set.sleep = sleep;
+      set.sleepHours = sleepHoursFrom(sleep.totalSleepMin);
+      updatedFields.push("sleepHours");
+      continue;
+    }
     const value = input[field];
     if (value === undefined) continue;
     if (existing?.[field] == null) {

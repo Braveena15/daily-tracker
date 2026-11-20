@@ -24,6 +24,8 @@ export type ScoreEntry = {
   mood: number;
   energy: number;
   sleepHours?: number | null;
+  /** Our calculated sleep score (0–100), when the watch synced sleep samples */
+  sleepScore?: number | null;
   steps?: number | null;
   activeCalories?: number | null;
   workouts: Activity[];
@@ -117,6 +119,11 @@ function nutritionLine(food: NutritionInput): ScoreLine {
 function sleepLine(entry: ScoreEntry): ScoreLine {
   const line = { label: "Sleep", max: 20 };
   const h = entry.sleepHours;
+  // A sleep score from the watch beats hours alone: it also counts consistency and interruptions
+  if (entry.sleepScore != null) {
+    const points = Math.round((entry.sleepScore / 100) * 20);
+    return { ...line, points, reason: `Sleep score ${entry.sleepScore}/100${h != null ? ` (${h} h)` : ""}${tick(entry.sleepScore >= 80)}` };
+  }
   if (h == null) return { ...line, points: 0, reason: "No sleep logged" };
   if (h >= 7 && h <= 9) return { ...line, points: 20, reason: `${h} h — in the 7–9 h sweet spot ✓` };
   if ((h >= 6 && h < 7) || (h > 9 && h <= 10)) return { ...line, points: 12, reason: `${h} h — close to 7–9 h` };

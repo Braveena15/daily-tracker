@@ -90,6 +90,19 @@ describe("physicalScore", () => {
     expect(line(physicalScore(empty, goals, noMeals), "Nutrition")).toMatchObject({ points: 0, reason: "No meals logged" });
   });
 
+  it("uses the sleep score instead of hours when the watch synced sleep", () => {
+    const sleep = (sleepScore: number | null, sleepHours: number | null = 4) =>
+      line(physicalScore({ ...empty, sleepHours, sleepScore }, goals, noMeals), "Sleep");
+    expect(sleep(95).points).toBe(19);
+    expect(sleep(72).points).toBe(14); // 14.4
+    expect(sleep(100).points).toBe(20);
+    expect(sleep(0).points).toBe(0);
+    expect(sleep(95, 7.23).reason).toBe("Sleep score 95/100 (7.23 h) ✓");
+    expect(sleep(60, null).reason).toBe("Sleep score 60/100");
+    // No sleep score: the hours rule (4 h → 5 points)
+    expect(sleep(null).points).toBe(5);
+  });
+
   it("scores sleep bands", () => {
     const sleep = (h: number | null) => line(physicalScore({ ...empty, sleepHours: h }, goals, noMeals), "Sleep").points;
     expect(sleep(7)).toBe(20);

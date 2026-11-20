@@ -100,6 +100,9 @@ export type ReviewDay = {
   learning: number | null;
   overall: number | null;
   mood: number | null;
+  sleepHours: number | null;
+  /** Our calculated sleep score, when the watch synced sleep */
+  sleepScore: number | null;
   workouts: number;
   workoutMinutes: number;
   learningMinutes: number;
@@ -116,6 +119,8 @@ export type WeekSummary = {
   avgLearning: number | null;
   avgOverall: number | null;
   avgMood: number | null;
+  avgSleepHours: number | null;
+  avgSleepScore: number | null;
   workouts: number;
   workoutMinutes: number;
   learningMinutes: number;
@@ -144,6 +149,8 @@ export function summariseWeek(days: ReviewDay[], from: string, to: string): Week
     avgLearning: avg(days.map((d) => d.learning)),
     avgOverall: avg(days.map((d) => d.overall)),
     avgMood: avg(days.map((d) => d.mood), round1),
+    avgSleepHours: avg(days.map((d) => d.sleepHours), round1),
+    avgSleepScore: avg(days.map((d) => d.sleepScore)),
     workouts: days.reduce((s, d) => s + d.workouts, 0),
     workoutMinutes: days.reduce((s, d) => s + d.workoutMinutes, 0),
     learningMinutes: days.reduce((s, d) => s + d.learningMinutes, 0),
@@ -160,6 +167,8 @@ const COMPARED = [
   "avgLearning",
   "avgOverall",
   "avgMood",
+  "avgSleepHours",
+  "avgSleepScore",
   "workouts",
   "workoutMinutes",
   "learningMinutes",
@@ -173,7 +182,7 @@ export function weekDifferences(current: WeekSummary, previous: WeekSummary): Re
     COMPARED.map((key) => {
       const a = current[key];
       const b = previous[key];
-      return [key, a === null || b === null ? null : key === "avgMood" ? round1(a - b) : a - b];
+      return [key, a === null || b === null ? null : key === "avgMood" || key === "avgSleepHours" ? round1(a - b) : a - b];
     }),
   ) as Record<Compared, number | null>;
 }
@@ -201,4 +210,17 @@ export function weekRanges(weekEnding: string) {
     current: { from, to: weekEnding },
     previous: { from: addDays(from, -7), to: addDays(from, -1) },
   };
+}
+
+// ---------- Sleep ----------
+
+export type SleepPoint = { date: string; hours: number | null; score: number | null };
+
+/** One point per day from `from` to `to`: hours slept and our sleep score (null when missing). */
+export function sleepSeries(
+  nights: Map<string, { hours: number | null; score: number | null }>,
+  from: string,
+  to: string,
+): SleepPoint[] {
+  return listDates(from, to).map((date) => ({ date, hours: nights.get(date)?.hours ?? null, score: nights.get(date)?.score ?? null }));
 }

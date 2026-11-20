@@ -69,6 +69,16 @@ describe("healthSyncSchema", () => {
     expect(errorOf({ stepsWatch: -5 })).toBe("stepsWatch must be between 0 and 200000");
   });
 
+  it("accepts sleepSamples as text or as a list of lines", () => {
+    const a = "2026-11-19T23:00:00+05:30;2026-11-20T06:30:00+05:30;Core";
+    const b = "2026-11-20T02:00:00+05:30;2026-11-20T02:10:00+05:30;Awake";
+    expect(parse({ sleepSamples: `${a}\n${b}` }).sleepSamples).toBe(`${a}\n${b}`);
+    expect(parse({ sleepSamples: [a, b] }).sleepSamples).toBe(`${a}\n${b}`);
+    expect(parse({ sleepSamples: "  " })).toEqual({});
+    expect(errorOf({ sleepSamples: 42 })).toMatch(/sleepSamples must be text/);
+    expect(errorOf({ sleepSamples: "x".repeat(200_001) })).toMatch(/too long/);
+  });
+
   it("drops empty values instead of failing", () => {
     expect(parse({ steps: "", weightKg: null, sleepHours: "8" })).toEqual({ sleepHours: 8 });
   });

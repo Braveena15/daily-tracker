@@ -10,6 +10,7 @@ export const ENTRY_LIMITS = {
   restingCalories: { min: 0, max: 5000 },
   workoutCalories: { min: 0, max: 10_000 },
   minutes: { min: 0, max: 1440 },
+  score: { min: 0, max: 100 },
   activityName: 100,
   notes: 500,
   goodThing: 300,
@@ -62,6 +63,36 @@ const healthSyncSchema = new Schema(
   { _id: false },
 );
 
+// Sleep from Apple Health sleep samples, with our own score (see utils/sleep.ts).
+// Raw samples are never stored, only this summary.
+const sleepMinutes = { type: Number, required: true, min: L.minutes.min, max: L.minutes.max };
+const clockTime = { type: String, required: true, match: /^\d{2}:\d{2}$/ };
+const sleepSchema = new Schema(
+  {
+    totalSleepMin: sleepMinutes,
+    deepMin: sleepMinutes,
+    remMin: sleepMinutes,
+    coreMin: sleepMinutes,
+    awakeCount: { type: Number, required: true, min: 0, max: 500 },
+    awakeMin: sleepMinutes,
+    // "HH:mm", Asia/Colombo
+    bedtime: clockTime,
+    wakeTime: clockTime,
+    score: { type: Number, required: true, min: L.score.min, max: L.score.max },
+    breakdown: {
+      type: [
+        new Schema(
+          { label: String, points: Number, max: Number, reason: String },
+          { _id: false },
+        ),
+      ],
+      default: [],
+    },
+    source: { type: String, enum: ["watch"], required: true },
+  },
+  { _id: false },
+);
+
 const activitySchema = new Schema({ type: activityName, durationMin: minutes, notes }, { _id: false });
 
 const learningSchema = new Schema(
@@ -87,6 +118,10 @@ const dailyEntrySchema = new Schema(
     mood: rating,
     energy: rating,
     sleepHours: { type: Number, min: L.sleepHours.min, max: L.sleepHours.max },
+    // Only set by Apple Health sync
+    sleep: { type: sleepSchema, default: undefined },
+    // Typed in by hand from the Watch, for comparison; not used in any score
+    appleSleepScore: { type: Number, min: L.score.min, max: L.score.max },
 
     weightKg: { type: Number, min: L.weightKg.min, max: L.weightKg.max },
     steps: { type: Number, min: L.steps.min, max: L.steps.max },

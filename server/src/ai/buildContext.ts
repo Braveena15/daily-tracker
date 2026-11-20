@@ -4,7 +4,7 @@
 // - Diary entries are never sent. Nothing here accepts diary data at all.
 // - Names, emails and account details are never sent. Nothing here accepts them.
 // - "minimal" mode sends only structured, non-identifying data: relative days ("today"),
-//   scores, mood/energy numbers, sleep hours, activity types and minutes, feeling names and
+//   scores, mood/energy numbers, sleep hours and sleep score (never raw sleep samples), activity types and minutes, feeling names and
 //   intensities, thinking-trap types, and counts. No free text written by the user.
 //   Even activity and feeling names are free text when the user types their own
 //   ("Walk with Sarah"), so only the app's built-in names are sent; anything else becomes "other".
@@ -78,6 +78,7 @@ export function entryFacts(entry: ScoreEntry & { date: string }, today: string) 
     mood: entry.mood,
     energy: entry.energy,
     sleepHours: entry.sleepHours ?? null,
+    sleepScore: entry.sleepScore ?? null,
     steps: entry.steps ?? null,
     activeCalories: entry.activeCalories ?? null,
     workouts: activities(entry.workouts, "other workout"),
@@ -181,6 +182,8 @@ type WeekNumbers = {
   avgLearning: number | null;
   avgOverall: number | null;
   avgMood: number | null;
+  avgSleepHours: number | null;
+  avgSleepScore: number | null;
   workouts: number;
   workoutMinutes: number;
   learningMinutes: number;
