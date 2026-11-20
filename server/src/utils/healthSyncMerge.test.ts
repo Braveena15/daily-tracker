@@ -25,16 +25,25 @@ describe("planHealthMerge", () => {
     expect(plan.set).toMatchObject({ steps: 9000, activeCalories: 600, restingCalories: 1600, exerciseMinutes: 45 });
   });
 
-  it("stores the larger of watch and phone steps and ignores plain steps", () => {
-    expect(planHealthMerge(null, { stepsWatch: 6000, stepsPhone: 8500, steps: 100 }, at).set.steps).toBe(8500);
-    expect(planHealthMerge(null, { stepsWatch: 9100, stepsPhone: 4000 }, at).set.steps).toBe(9100);
-    // Only one of them sent: that one wins over plain steps
-    expect(planHealthMerge(null, { stepsPhone: 3200, steps: 9999 }, at).set.steps).toBe(3200);
-    expect(planHealthMerge(null, { stepsWatch: 0, steps: 9999 }, at).set.steps).toBe(0);
-    const plan = planHealthMerge(null, { stepsWatch: 7000 }, at);
+  it("prefers watch steps over phone steps when the watch counted any (2026 watch, 3084 phone → 2026)", () => {
+    const plan = planHealthMerge(null, { stepsWatch: 2026, stepsPhone: 3084 }, at);
+    expect(plan.set.steps).toBe(2026);
     expect(plan.updatedFields).toEqual(["steps"]);
     expect(plan.set).not.toHaveProperty("stepsWatch");
     expect(plan.set).not.toHaveProperty("stepsPhone");
+    expect(syncedSteps({ stepsWatch: 9100, stepsPhone: 4000 })).toBe(9100);
+  });
+
+  it("falls back to phone steps when the watch counted 0 or wasn't sent", () => {
+    expect(syncedSteps({ stepsWatch: 0, stepsPhone: 3084 })).toBe(3084);
+    expect(syncedSteps({ stepsPhone: 3084 })).toBe(3084);
+    expect(syncedSteps({ stepsWatch: 0 })).toBe(0);
+  });
+
+  it("ignores plain steps when watch or phone steps are sent", () => {
+    expect(syncedSteps({ stepsWatch: 2026, steps: 9999 })).toBe(2026);
+    expect(syncedSteps({ stepsPhone: 3200, steps: 9999 })).toBe(3200);
+    expect(syncedSteps({ stepsWatch: 0, steps: 9999 })).toBe(0);
   });
 
   it("uses plain steps when neither watch nor phone steps are sent", () => {
