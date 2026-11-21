@@ -3,8 +3,18 @@
 import { GoogleGenAI } from "@google/genai";
 import { SYSTEM_INSTRUCTION } from "./prompts";
 
+/** Per-call settings. Without them the app's shared system instruction and a plain-text reply are used. */
+export type GenerateOptions = {
+  /** Replaces the shared system instruction (e.g. the AI friend's voice) */
+  systemInstruction?: string;
+  /** Ask for a JSON reply (the caller parses and checks it); it isn't shortened */
+  json?: boolean;
+  /** For longer replies (default 10 s) */
+  timeoutMs?: number;
+};
+
 /** Sends one prompt and returns the reply text, or throws. */
-export type Generate = (prompt: string) => Promise<string>;
+export type Generate = (prompt: string, options?: GenerateOptions) => Promise<string>;
 
 export class AiUnavailableError extends Error {
   constructor(reason: "timeout" | "blocked" | "empty" | "failed") {
@@ -23,14 +33,14 @@ export function createGemini(options: { apiKey: string; model: string; timeoutMs
   const ai = new GoogleGenAI({ apiKey: options.apiKey });
   const timeoutMs = options.timeoutMs ?? TIMEOUT_MS;
 
-  return async (prompt) => {
+  return async (prompt, callOptions = {}) => {
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
     const timeout = new Promise<never>((_, reject) => {
       timer = setTimeout(() => {
         controller.abort();
         reject(new AiUnavailableError("timeout"));
-      }, timeoutMs);
+      }, callOptions.timeoutMs ?? timeoutMs);
     });
 
     try {
@@ -39,8 +49,9 @@ export function createGemini(options: { apiKey: string; model: string; timeoutMs
           model: options.model,
           contents: prompt,
           config: {
-            systemInstruction: SYSTEM_INSTRUCTION,
+            systemInstruction: callOptions.systemInstruction ?? SYSTEM_INSTRUCTION,
             temperature: 0.7,
+            ...(callOptions.json && { responseMimeType: "application/json" }),
             maxOutputTokens: MAX_OUTPUT_TOKENS,
             abortSignal: controller.signal,
           },
@@ -54,6 +65,8 @@ export function createGemini(options: { apiKey: string; model: string; timeoutMs
 
       const text = response.text?.trim();
       if (!text) throw new AiUnavailableError("empty");
+      // JSON is checked by the caller instead (cutting it would break it)
+      if (callOptions.json) return text;
       return text.length > MAX_REPLY_CHARS ? `${text.slice(0, MAX_REPLY_CHARS).trimEnd()}…` : text;
     } catch (err) {
       if (err instanceof AiUnavailableError) throw err;

@@ -1,6 +1,7 @@
 import { Schema, model } from "mongoose";
 
-export const AI_TASKS = ["thought", "daily", "weekly", "boost"] as const;
+// "friend": the AI friend's conversation about one thought log (encrypted; see ai/friend.ts)
+export const AI_TASKS = ["thought", "daily", "weekly", "boost", "friend"] as const;
 
 // One saved message per user per thing (e.g. one daily note per date, one reflection per week),
 // so the same request doesn't call the AI twice.
@@ -11,7 +12,8 @@ const aiMessageSchema = new Schema(
     // What it's about: a thought-log id, a date, or a week-ending date
     refId: { type: String, required: true },
     date: { type: String, required: true, match: /^\d{4}-\d{2}-\d{2}$/ },
-    content: { type: String, required: true, maxlength: 4000 },
+    // Up to 4000 characters for notes; an AI friend conversation is longer (and encrypted)
+    content: { type: String, required: true, maxlength: 60_000 },
     source: { type: String, enum: ["ai", "fallback"], required: true },
   },
   { timestamps: true },

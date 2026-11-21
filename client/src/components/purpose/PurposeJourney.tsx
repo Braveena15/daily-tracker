@@ -53,8 +53,12 @@ export function PurposeStatsRow({ stats }: { stats: PurposeStats }) {
   )
 }
 
-/** `onSetToday`: what "Set today's purpose" does (default: go to the Today page's purpose card). */
-export function DailyPurposes({ onSetToday }: { onSetToday?: () => void } = {}) {
+/**
+ * `onSetToday`: what "Set today's purpose" does (default: go to the Today page's purpose card).
+ * `todayCardAbove`: the page already shows today's purpose card right above (the Purpose page), so
+ * this list doesn't repeat the "set today's purpose" prompts: with no daily purposes it isn't shown.
+ */
+export function DailyPurposes({ onSetToday, todayCardAbove = false }: { onSetToday?: () => void; todayCardAbove?: boolean } = {}) {
   const navigate = useNavigate()
   const today = todayInTimezone()
   // The server decides what "today" is (Asia/Colombo) and always includes it
@@ -65,6 +69,8 @@ export function DailyPurposes({ onSetToday }: { onSetToday?: () => void } = {}) 
       <Target aria-hidden /> Set today's purpose
     </Button>
   )
+
+  if (todayCardAbove && data?.isEmpty) return null
 
   return (
     <Card>
@@ -104,11 +110,13 @@ export function DailyPurposes({ onSetToday }: { onSetToday?: () => void } = {}) 
                   <PurposeDayView purpose={data.today} />
                 </li>
               ) : (
-                // Past days exist but today has no purpose yet
-                <li className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed p-4">
-                  <p className="text-sm text-muted-foreground">No purpose set for today yet.</p>
-                  {setTodayButton}
-                </li>
+                // Past days exist but today has no purpose yet (unless the card above already offers it)
+                !todayCardAbove && (
+                  <li className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed p-4">
+                    <p className="text-sm text-muted-foreground">No purpose set for today yet.</p>
+                    {setTodayButton}
+                  </li>
+                )
               )}
               {data.past.map((day) => (
                 <li key={day.date}>

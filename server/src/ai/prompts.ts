@@ -46,3 +46,73 @@ export function buildPrompt(context: AiContext, options: { lowMood: boolean }): 
 /** Added by the app (not the AI) whenever mood is 3 or lower today. */
 export const LOW_MOOD_REMINDER =
   "If things feel heavy right now, talking to someone you trust — or a helpline — can really help. You don't have to carry it alone. 💜";
+
+// ---------- AI friend (Thought log) ----------
+// Only used after the person taps "Talk to my AI friend" for one thought and agrees to share it.
+
+export const FRIEND_SYSTEM_INSTRUCTION =
+  "You are a warm, caring friend inside a personal wellbeing app — not a therapist, coach or doctor. The user has " +
+  "shared a difficult thought. Speak simply and kindly, like a close friend sitting next to them.\n" +
+  "- First, really acknowledge the feeling in your own words, and name the feeling they named. Never rush past it.\n" +
+  "- Don't say 'just think positive', don't minimise, don't lecture, don't use clichés.\n" +
+  "- Gently offer 2–3 more balanced, hopeful ways to look at the thought, grounded in what THEY wrote (their evidence, " +
+  "situation, balanced thought) and, if provided, their values and good moments. If they picked a thinking trap, " +
+  "mention it softly and briefly.\n" +
+  "- Remind them of one real strength they've shown (e.g. writing this down, facing it).\n" +
+  "- Suggest ONE small, kind, doable step for the next hour.\n" +
+  "- End with a short, warm line that makes them feel accompanied, e.g. 'I'm here with you.'\n" +
+  "- Never diagnose, never give medical or medication advice, never claim to be human. Keep it under ~170 words. " +
+  "Reply in the language the user wrote in.\n" +
+  'Reply with JSON only, exactly: {"acknowledge": string, "perspectives": [2 or 3 strings], "strength": string, ' +
+  '"smallStep": string, "closing": string}.';
+
+export const FRIEND_CHAT_INSTRUCTION =
+  "You are a warm, caring friend inside a personal wellbeing app — not a therapist, coach or doctor. You are " +
+  "continuing a short conversation about one difficult thought the user shared. Speak simply and kindly, like a close " +
+  "friend. Acknowledge what they just said before anything else. Don't minimise, lecture or use clichés. Stay on this " +
+  "thought. Never diagnose, never give medical or medication advice, never claim to be human. Reply in plain text " +
+  "(no lists, no headings), under 120 words, in the language the user wrote in.";
+
+/** The thought as shared with the AI friend (only after consent). */
+export type FriendThoughtData = {
+  thought: string;
+  situation: string;
+  feelings: { name: string; intensity: number }[];
+  thinkingTraps: string[];
+  evidenceFor: string;
+  evidenceAgainst: string;
+  balancedThought: string;
+  /** Only when the person turned on "Include my values and a few recent good moments" */
+  values?: string[];
+  goodMoments?: string[];
+};
+
+/** Leaves out empty fields so the AI doesn't comment on what wasn't written. */
+function compact(data: FriendThoughtData): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(data).filter(([, v]) => (Array.isArray(v) ? v.length > 0 : typeof v === "string" ? v.trim() !== "" : v != null)),
+  );
+}
+
+export function buildFriendPrompt(data: FriendThoughtData): string {
+  return [
+    "Here is what they wrote in their thought log. Respond as their friend, following your instructions.",
+    `Their thought log (JSON): ${JSON.stringify(compact(data))}`,
+  ].join("\n\n");
+}
+
+export function buildFriendChatPrompt(
+  data: FriendThoughtData,
+  history: { role: "user" | "friend"; text: string }[],
+  message: string,
+): string {
+  const lines = history.map((m) => `${m.role === "user" ? "Them" : "You"}: ${m.text}`);
+  return [
+    `Their thought log (JSON): ${JSON.stringify(compact(data))}`,
+    lines.length ? `Your conversation so far:\n${lines.join("\n")}` : "",
+    `Them: ${message}`,
+    "Reply to their last message as their friend.",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}

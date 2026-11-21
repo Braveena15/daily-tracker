@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { ErrorNotice } from '@/components/StatusViews'
 import { AiMessageCard } from '@/components/ai/AiMessageCard'
 import { SupportButton, SupportDialog } from '@/components/mind/Support'
+import { AiFriend } from '@/components/mind/AiFriend'
 import { aiRequests } from '@/lib/ai'
 import { api } from '@/lib/api'
 import {
@@ -88,12 +89,17 @@ export function ThoughtFlow() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [support, setSupport] = useState(false)
+  // The log as last saved on the server: its date, and whether it's private (for the AI friend)
+  const [saved, setSaved] = useState<{ date: string; isPrivate: boolean } | null>(null)
 
   useEffect(() => {
     if (!id || form) return
     api
       .get<ThoughtResponse>(`/thoughts/${id}`)
-      .then(({ log }) => setForm(toForm(log)))
+      .then(({ log }) => {
+        setForm(toForm(log))
+        setSaved({ date: log.date, isPrivate: log.isPrivate })
+      })
       .catch((err: unknown) => setLoadError(err instanceof Error ? err.message : 'Could not open this log'))
   }, [id, form])
 
@@ -124,6 +130,7 @@ export function ThoughtFlow() {
       const data = id
         ? await api.put<ThoughtResponse>(`/thoughts/${id}`, form)
         : await api.post<ThoughtResponse>('/thoughts', form)
+      setSaved({ date: data.log.date, isPrivate: data.log.isPrivate })
       if (!id) {
         setId(data.log.id)
         navigate(`/thoughts/${data.log.id}`, { replace: true })
@@ -149,7 +156,20 @@ export function ThoughtFlow() {
     if (await save(true)) setDone(true)
   }
 
-  if (done && id) return <FinishScreen id={id} form={form} support={support} onSupportChange={setSupport} />
+  // Never offer to share while "Keep this private" is on, even before it's saved
+  const friendPrivate = form.isPrivate || (saved?.isPrivate ?? false)
+
+  if (done && id) {
+    return (
+      <FinishScreen
+        id={id}
+        form={form}
+        support={support}
+        onSupportChange={setSupport}
+        friend={saved && <AiFriend thoughtId={id} thoughtDate={saved.date} isPrivate={friendPrivate} />}
+      />
+    )
+  }
 
   return (
     <div className="mx-auto max-w-xl">
@@ -220,6 +240,16 @@ export function ThoughtFlow() {
         </span>
         <Switch checked={form.isPrivate} onCheckedChange={(v) => set('isPrivate', v)} aria-label="Keep this private" />
       </label>
+
+      {/* A saved log: talk it through with the AI friend */}
+      {id && saved && form.thought.trim() && (
+        <Card className="mt-6">
+          <CardContent className="space-y-3">
+            <h2 className="text-center text-lg font-semibold">Talk it through</h2>
+            <AiFriend thoughtId={id} thoughtDate={saved.date} isPrivate={friendPrivate} />
+          </CardContent>
+        </Card>
+      )}
 
       <div className="mt-6 flex justify-center">
         <SupportButton />
@@ -419,11 +449,14 @@ function FinishScreen({
   form,
   support,
   onSupportChange,
+  friend,
 }: {
   id: string
   form: Form
   support: boolean
   onSupportChange: (v: boolean) => void
+  /** The AI friend (only shared after a tap) */
+  friend: ReactNode
 }) {
   const before = strongestFeeling(form.feelings)
   const after = form.intensityAfter ?? before?.intensityBefore ?? null
@@ -456,6 +489,8 @@ function FinishScreen({
 
       {/* Encouragement (or support contacts, if the words suggested it) */}
       <AiMessageCard key={id} title="A note for you" request={aiRequests.thought(id)} className="text-left" />
+
+      {friend}
 
       {form.smallStep && (
         <Card size="sm" className="text-left">

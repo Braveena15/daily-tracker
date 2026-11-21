@@ -156,7 +156,7 @@ export function Purpose() {
           {/* Today's purpose can be set right here too (it's the same as the card on the Today page).
               key: picks up new core values and statement after the purpose above is saved */}
           <TodayPurposeEditor key={`${saves}-${today}`} today={today} onSaved={() => setDaySaves((n) => n + 1)} />
-          <DailyPurposes key={`${daySaves}-${today}`} onSetToday={scrollToToday} />
+          <DailyPurposes key={`${daySaves}-${today}`} onSetToday={scrollToToday} todayCardAbove />
           <PurposeEvolution key={saves} />
         </div>
       )}
