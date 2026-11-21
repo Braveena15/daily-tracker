@@ -34,6 +34,7 @@ import {
 import type { Tone } from '@/lib/tones'
 import { EnergyLabel, MoodBadge } from '@/components/MoodFace'
 import { SupportButton } from '@/components/mind/Support'
+import { WeeklyGoalReminder } from '@/components/day/WeeklyGoalReminder'
 
 export function Today() {
   // ?date=YYYY-MM-DD picks a past day; anything missing, invalid or in the future means today
@@ -98,8 +99,11 @@ function DayEditor({ date, today }: { date: string; today: string }) {
   return (
     <div className="space-y-4 md:space-y-6">
       {/* key: start fresh when the saved purpose changes from another tab or device */}
-      <div id="purpose" className="scroll-mt-4">
+      <div id="purpose" className="scroll-mt-4 space-y-2">
         <PurposeCard key={entry?.dailyPurpose?.setAt ?? 'none'} purpose={entry?.dailyPurpose ?? null} isToday={isToday} actions={actions} />
+        {isToday && (
+          <WeeklyGoalReminder today={today} purpose={entry?.dailyPurpose ?? null} addIntention={actions.addIntention} />
+        )}
       </div>
 
       <Section

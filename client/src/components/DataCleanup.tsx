@@ -13,7 +13,7 @@ import { ErrorNotice } from '@/components/StatusViews'
 import { api } from '@/lib/api'
 import { journeyDate } from '@/lib/journey'
 
-type Counts = { days: number; mealDays: number; diaryEntries: number; thoughtLogs: number; aiMessages: number }
+type Counts = { days: number; mealDays: number; diaryEntries: number; thoughtLogs: number; aiMessages: number; weeklyGoals: number }
 type CountsResponse = { journeyStartDate: string; counts: Counts; total: number }
 
 const LABELS: [keyof Counts, string, string][] = [
@@ -22,6 +22,7 @@ const LABELS: [keyof Counts, string, string][] = [
   ['diaryEntries', 'diary entry', 'diary entries'],
   ['thoughtLogs', 'thought log', 'thought logs'],
   ['aiMessages', 'AI message', 'AI messages'],
+  ['weeklyGoals', 'weekly goal', 'weekly goals'],
 ]
 
 export function DataCleanup() {

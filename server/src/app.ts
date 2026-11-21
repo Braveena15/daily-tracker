@@ -11,6 +11,7 @@ import { entriesRouter } from "./routes/entriesRoutes";
 import { foodsRouter } from "./routes/foodsRoutes";
 import { mealsRouter } from "./routes/mealsRoutes";
 import { progressRouter } from "./routes/progressRoutes";
+import { weeklyGoalRouter } from "./routes/weeklyGoalRoutes";
 import { scoresRouter } from "./routes/scoresRoutes";
 import {
   diaryRouter,
@@ -67,6 +68,7 @@ app.use("/api/foods", foodsRouter);
 app.use("/api/meals", mealsRouter);
 app.use("/api/scores", scoresRouter);
 app.use("/api/progress", progressRouter);
+app.use("/api/weekly-goals", weeklyGoalRouter);
 app.use("/api/diary", diaryRouter);
 app.use("/api/thoughts", thoughtsRouter);
 app.use("/api/purpose", purposeRouter);

@@ -6,6 +6,7 @@ import { DiaryEntryModel, ThoughtLogModel } from "../models/Mind";
 import { UserModel } from "../models/User";
 import { todayInTimezone } from "../utils/dates";
 import { earliestDate, resolveJourneyStart } from "../utils/journey";
+import { WeeklyGoalModel } from "../models/WeeklyGoal";
 
 /** The date of the user's first real entry: a logged day, a meal, a diary entry or a thought log. */
 export async function firstEntryDate(userId: string | undefined): Promise<string | null> {
@@ -38,6 +39,8 @@ function beforeStart(userId: string | undefined, start: string) {
     { key: "diaryEntries", model: DiaryEntryModel, filter },
     { key: "thoughtLogs", model: ThoughtLogModel, filter },
     { key: "aiMessages", model: AiMessageModel, filter },
+    // Weekly goals have no single date: those whose whole week ended before the start
+    { key: "weeklyGoals", model: WeeklyGoalModel, filter: { userId, weekEnd: { $lt: start } } },
   ] as const;
 }
 

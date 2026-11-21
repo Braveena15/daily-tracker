@@ -1,8 +1,9 @@
-import { Suspense, type ReactNode } from 'react'
+import { Suspense, useState, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ArrowDown, ArrowRight, ArrowUp, BookOpen, Brain, CalendarCheck, ChevronLeft, ChevronRight, Dumbbell, Gauge, LineChart as LineChartIcon, Moon, Smile, Sparkles, Target, Trophy, UtensilsCrossed, Wheat, type LucideIcon } from 'lucide-react'
+import { ArrowDown, ArrowRight, ArrowUp, BookOpen, Brain, CalendarCheck, ChevronLeft, ChevronRight, Dumbbell, Flag, Gauge, LineChart as LineChartIcon, Moon, Smile, Sparkles, Target, Trophy, UtensilsCrossed, Wheat, type LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/InfoTip'
+import { WeeklyGoalsCard, type GoalSuggestion } from '@/components/progress/WeeklyGoals'
 import { SCORE_HELP, type ScoreKey } from '@/lib/scoreHelp'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -49,6 +50,11 @@ export function Review() {
     setParams(next >= today ? {} : { week: next })
   }
 
+  // "Add as next week's goal" on the reflection hands its focus line to the goals card
+  const [goalSuggestion, setGoalSuggestion] = useState<GoalSuggestion | null>(null)
+  // Same rule as the server: next week's goal only from weeks in the journey whose next week isn't over
+  const canSetNextGoal = addDays(weekEnding, 7) >= today && (data === null || weekEnding >= data.journeyStartDate)
+
   return (
     <>
       <PageHeader title="Weekly review" description="This week compared with the week before." />
@@ -87,7 +93,16 @@ export function Review() {
           // This week's reflection appears straight away; past weeks wait for a tap, to save AI calls
           autoLoad={weekEnding === today}
           startLabel="Reflect on this week"
+          footer={(message) =>
+            message.focus && canSetNextGoal ? (
+              <Button variant="outline" size="sm" className="bg-card" onClick={() => setGoalSuggestion({ text: message.focus!, id: Date.now() })}>
+                <Flag aria-hidden /> Add as next week's goal
+              </Button>
+            ) : null
+          }
         />
+
+        <WeeklyGoalsCard key={weekEnding} weekEnding={weekEnding} suggestion={goalSuggestion} />
 
         {error ? <ErrorNotice>{error}</ErrorNotice> : !data ? <ReviewSkeleton /> : <ReviewBody data={data} today={today} />}
       </div>
