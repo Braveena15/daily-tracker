@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react'
+import { Suspense, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ArrowDown, ArrowRight, ArrowUp, BookOpen, Brain, CalendarCheck, ChevronLeft, ChevronRight, Dumbbell, Gauge, Moon, Smile, Sparkles, Target, Trophy, UtensilsCrossed, Wheat, type LucideIcon } from 'lucide-react'
+import { ArrowDown, ArrowRight, ArrowUp, BookOpen, Brain, CalendarCheck, ChevronLeft, ChevronRight, Dumbbell, Gauge, LineChart as LineChartIcon, Moon, Smile, Sparkles, Target, Trophy, UtensilsCrossed, Wheat, type LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/InfoTip'
 import { SCORE_HELP, type ScoreKey } from '@/lib/scoreHelp'
@@ -22,6 +22,11 @@ import { kcal } from '@/lib/meals'
 import type { WeeklyReviewResponse } from '@/lib/progress'
 import type { Tone } from '@/lib/tones'
 import { cn } from '@/lib/utils'
+import { lazyPage } from '@/lib/lazyPage'
+
+// Recharts loads only when the charts are shown
+const DailyScoresChart = lazyPage(() => import('@/components/progress/WeekScoreCharts').then((m) => m.DailyScoresChart))
+const WeekCompareChart = lazyPage(() => import('@/components/progress/WeekScoreCharts').then((m) => m.WeekCompareChart))
 
 /** "13–19 Nov" or "28 Oct – 3 Nov". */
 function weekLabel(from: string, to: string): string {
@@ -236,6 +241,8 @@ function ReviewBody({ data, today }: { data: WeeklyReviewResponse; today: string
         </div>
       </section>
 
+      <ScoreCharts data={data} hasLastWeek={hasLastWeek} />
+
       <section aria-labelledby="week-heading" className="space-y-3">
         <h2 id="week-heading" className="text-xl font-semibold">
           Your week
@@ -365,6 +372,47 @@ function ReviewBody({ data, today }: { data: WeeklyReviewResponse; today: string
         <WeekDayList days={data.days} today={today} />
       </section>
     </>
+  )
+}
+
+/**
+ * Daily scores (needs 2+ logged days this week) and this week vs last week (needs a logged day in
+ * each week, 2+ in total). Otherwise a hint — never a chart of made-up or empty data.
+ */
+function ScoreCharts({ data, hasLastWeek }: { data: WeeklyReviewResponse; hasLastWeek: boolean }) {
+  const loggedDays = data.days.filter((d) => d.overall !== null).length
+  const showDaily = loggedDays >= 2
+  const showCompare = hasLastWeek && data.thisWeek.daysLogged > 0 && data.thisWeek.daysLogged + data.lastWeek.daysLogged >= 2
+  if (!showDaily && !showCompare) {
+    return (
+      <p className="flex items-start gap-2 rounded-2xl bg-muted/60 px-4 py-3 text-sm text-muted-foreground">
+        <LineChartIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
+        Score charts appear once you've logged at least two days. Each check-in on Today adds a day.
+      </p>
+    )
+  }
+  const placeholder = <Skeleton className="h-80 w-full rounded-2xl" aria-label="Loading chart" />
+  return (
+    <div className="grid gap-4 md:gap-6 lg:grid-cols-2">
+      {showDaily ? (
+        <Suspense fallback={placeholder}>
+          <DailyScoresChart days={data.days} />
+        </Suspense>
+      ) : (
+        <p className="rounded-2xl bg-muted/60 px-4 py-3 text-sm text-muted-foreground">
+          The day-by-day chart appears once you've logged two days this week.
+        </p>
+      )}
+      {showCompare ? (
+        <Suspense fallback={placeholder}>
+          <WeekCompareChart data={data} />
+        </Suspense>
+      ) : (
+        <p className="rounded-2xl bg-muted/60 px-4 py-3 text-sm text-muted-foreground">
+          No data from last week yet, so there's nothing to compare. Next week you'll see this week side by side.
+        </p>
+      )}
+    </div>
   )
 }
 
