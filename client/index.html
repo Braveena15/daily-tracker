@@ -16,6 +16,10 @@
     <meta name="apple-mobile-web-app-title" content="Tracker" />
     <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png" sizes="180x180" />
 
+    <!-- The Latin font files every page uses, fetched straight away rather than after the CSS -->
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/node_modules/@fontsource-variable/plus-jakarta-sans/files/plus-jakarta-sans-latin-wght-normal.woff2" />
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/node_modules/@fontsource-variable/fraunces/files/fraunces-latin-wght-normal.woff2" />
+
     <title>Daily Tracker</title>
     <!-- Applies the saved theme before the page paints. A file, not inline, so the CSP can block inline scripts. -->
     <script src="/theme-init.js"></script>

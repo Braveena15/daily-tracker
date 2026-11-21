@@ -8,8 +8,10 @@ import {
   UserRound,
   UtensilsCrossed,
 } from 'lucide-react'
+import { Suspense } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
+import { PageSkeleton } from '@/components/StatusViews'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { useAuth } from '@/context/useAuth'
 import { useLogout } from '@/hooks/useLogout'
@@ -61,7 +63,10 @@ export function Layout() {
       <Sidebar />
       {/* pb: room for the bottom tab bar, plus the iPhone home bar below it */}
       <main className="mx-auto w-full max-w-5xl px-4 pt-6 pb-[calc(7rem+env(safe-area-inset-bottom))] sm:px-6 md:px-10 md:pt-10 md:pb-12">
-        <Outlet />
+        {/* While a page's code loads the first time; the navigation stays in place */}
+        <Suspense fallback={<PageSkeleton />}>
+          <Outlet />
+        </Suspense>
       </main>
       <BottomTabs />
     </div>

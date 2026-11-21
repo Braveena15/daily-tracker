@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { CircleAlert, type LucideIcon } from 'lucide-react'
 import { IconBubble } from '@/components/IconBubble'
+import { Skeleton } from '@/components/ui/skeleton'
 import type { Tone } from '@/lib/tones'
 import { cn } from '@/lib/utils'
 
@@ -32,6 +33,20 @@ export function FullPageLoader() {
         ) : (
           <span className="text-sm">Loading…</span>
         )}
+      </div>
+    </div>
+  )
+}
+
+/** A page-shaped placeholder: a header and two cards. Shown while a page's code loads. */
+export function PageSkeleton() {
+  return (
+    <div aria-busy="true" aria-label="Loading the page" role="status">
+      <Skeleton className="h-4 w-40" />
+      <Skeleton className="mt-3 h-9 w-56 md:h-10" />
+      <div className="mt-8 space-y-6">
+        <Skeleton className="h-40 w-full rounded-2xl" />
+        <Skeleton className="h-56 w-full rounded-2xl" />
       </div>
     </div>
   )

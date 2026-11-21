@@ -1,28 +1,34 @@
+import { Suspense } from 'react'
 import { Navigate, RouterProvider, createBrowserRouter } from 'react-router-dom'
+import { FullPageLoader } from './components/StatusViews'
+import { lazyPage } from './lib/lazyPage'
 import { Toaster } from './components/ui/sonner'
 import { PwaUpdater } from './components/PwaUpdater'
 import { AuthProvider } from './context/AuthProvider'
 import { ThemeProvider } from './context/ThemeProvider'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { Layout } from './components/Layout'
-import { Login } from './pages/Login'
-import { Register } from './pages/Register'
-import { Dashboard } from './pages/Dashboard'
-import { Today } from './pages/Today'
-import { History } from './pages/History'
-import { DayDetail } from './pages/DayDetail'
-import { Meals } from './pages/Meals'
-import { Foods } from './pages/Foods'
-import { Review } from './pages/Review'
-import { Mind } from './pages/Mind'
-import { Diary } from './pages/Diary'
-import { DiaryEditor } from './pages/DiaryEditor'
-import { Thoughts } from './pages/Thoughts'
-import { ThoughtFlow } from './pages/ThoughtFlow'
-import { Lift } from './pages/Lift'
-import { Purpose } from './pages/Purpose'
-import { Motivation } from './pages/Motivation'
-import { Profile } from './pages/Profile'
+
+// Each page is its own file that loads when you first open it, so the app starts faster
+// (the chart library, for example, only loads on pages with charts).
+const Login = lazyPage(() => import('./pages/Login').then((m) => m.Login))
+const Register = lazyPage(() => import('./pages/Register').then((m) => m.Register))
+const Dashboard = lazyPage(() => import('./pages/Dashboard').then((m) => m.Dashboard))
+const Today = lazyPage(() => import('./pages/Today').then((m) => m.Today))
+const History = lazyPage(() => import('./pages/History').then((m) => m.History))
+const DayDetail = lazyPage(() => import('./pages/DayDetail').then((m) => m.DayDetail))
+const Meals = lazyPage(() => import('./pages/Meals').then((m) => m.Meals))
+const Foods = lazyPage(() => import('./pages/Foods').then((m) => m.Foods))
+const Review = lazyPage(() => import('./pages/Review').then((m) => m.Review))
+const Mind = lazyPage(() => import('./pages/Mind').then((m) => m.Mind))
+const Diary = lazyPage(() => import('./pages/Diary').then((m) => m.Diary))
+const DiaryEditor = lazyPage(() => import('./pages/DiaryEditor').then((m) => m.DiaryEditor))
+const Thoughts = lazyPage(() => import('./pages/Thoughts').then((m) => m.Thoughts))
+const ThoughtFlow = lazyPage(() => import('./pages/ThoughtFlow').then((m) => m.ThoughtFlow))
+const Lift = lazyPage(() => import('./pages/Lift').then((m) => m.Lift))
+const Purpose = lazyPage(() => import('./pages/Purpose').then((m) => m.Purpose))
+const Motivation = lazyPage(() => import('./pages/Motivation').then((m) => m.Motivation))
+const Profile = lazyPage(() => import('./pages/Profile').then((m) => m.Profile))
 
 // A "data router" (createBrowserRouter), so pages can use the data APIs such as useBlocker.
 const router = createBrowserRouter([
@@ -63,7 +69,10 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <RouterProvider router={router} />
+        {/* Login and Register (the logged-in pages have their own loading view inside the layout) */}
+        <Suspense fallback={<FullPageLoader />}>
+          <RouterProvider router={router} />
+        </Suspense>
       </AuthProvider>
       <Toaster position="top-center" />
       <PwaUpdater />
