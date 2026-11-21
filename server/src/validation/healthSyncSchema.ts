@@ -75,10 +75,21 @@ const workoutSchema = z.object({
   ),
 });
 
+/**
+ * The calendar day of a Shortcut's date. A date-time with a UTC offset or "Z" is converted to the
+ * Asia/Colombo day ("2026-11-20T19:00:00Z" is 00:30 on the 21st there); anything else uses its
+ * first 10 characters, which are already a local "YYYY-MM-DD".
+ */
+export function syncDay(value: string): string {
+  const withOffset = /T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})$/i.test(value);
+  if (withOffset && !Number.isNaN(Date.parse(value))) return todayInTimezone(undefined, new Date(value));
+  return value.slice(0, 10);
+}
+
 export const healthSyncSchema = z.object({
   // "YYYY-MM-DD". An ISO date-time ("2026-11-20T21:00:00+05:30") is accepted too; only the date part is used.
   date: z.preprocess(
-    (v) => (typeof v === "string" ? (v.trim() === "" ? undefined : v.trim().slice(0, 10)) : v),
+    (v) => (typeof v === "string" ? (v.trim() === "" ? undefined : syncDay(v.trim())) : v),
     z.string({ error: 'date must be text in "YYYY-MM-DD" format' }).optional(),
   ),
   activeCalories: optNum("activeCalories", L.activeCalories.min, L.activeCalories.max, 0, " kcal"),

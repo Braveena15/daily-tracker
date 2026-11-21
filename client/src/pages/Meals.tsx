@@ -373,7 +373,32 @@ function SummaryCard({
             <SaveIndicator status={status} onRetry={onRetry} />
           </div>
 
-          {burn && (
+          {burn && burn.soFar && (
+            <div className="space-y-1 rounded-xl bg-muted/60 px-3 py-2.5 text-sm">
+              <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+                <Flame className="size-4 text-physical" aria-hidden />
+                Burned so far: <span className="font-semibold tabular-nums">{kcal(burn.burn)}</span> kcal
+                <span className="text-muted-foreground tabular-nums">
+                  {burn.active !== null ? (
+                    <>
+                      (resting {kcal(burn.resting)} + active {kcal(burn.active)}{' '}
+                      <Watch className="inline size-3.5 align-[-2px]" aria-label="from Apple Watch" />)
+                    </>
+                  ) : (
+                    '(estimated · no watch sync yet today)'
+                  )}
+                </span>
+              </p>
+              <p className="text-xs text-muted-foreground tabular-nums">Expected by end of day: ~{kcal(burn.projected)} kcal</p>
+              {day.kcal > 0 && (
+                <p className="text-xs text-muted-foreground tabular-nums">
+                  So far you’ve eaten {kcal(day.kcal)} kcal and burned {kcal(burn.burn)} kcal.
+                </p>
+              )}
+            </div>
+          )}
+
+          {burn && !burn.soFar && (
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl bg-muted/60 px-3 py-2.5 text-sm">
               <span className="flex items-center gap-1.5">
                 <Flame className="size-4 text-physical" aria-hidden />
@@ -391,8 +416,8 @@ function SummaryCard({
               {net !== null && day.kcal > 0 && (
                 <span className="w-full text-xs text-muted-foreground">
                   {net === 0
-                    ? 'You’ve eaten about what you’ve burned.'
-                    : `You’ve eaten ${kcal(Math.abs(net))} kcal ${net < 0 ? 'less' : 'more'} than you’ve burned.`}
+                    ? 'You ate about what you burned.'
+                    : `You ate ${kcal(Math.abs(net))} kcal ${net < 0 ? 'less' : 'more'} than you burned.`}
                 </span>
               )}
             </div>

@@ -35,9 +35,21 @@ export type DaySummary = {
   /** Daily fibre goal from the profile (default 30 g) */
   fiberGoalG: number | null
   activeCalories: number | null
-  estimatedBurn: { burn: number; source: 'watch' | 'estimate' } | null
+  /**
+   * burn is "so far" for today (soFar: true): resting = BMR × the share of the day gone by, plus the
+   * watch's active calories; projected is the expected full-day burn. For past days both are the full day.
+   */
+  estimatedBurn: {
+    burn: number
+    source: 'watch' | 'estimate'
+    resting: number
+    active: number | null
+    projected: number
+    soFar: boolean
+  } | null
   remaining: number | null
   netVsBurn: number | null
+  netVsProjected: number | null
 }
 
 export type MealDayResponse = { date: string; items: MealItem[]; summary: DaySummary }

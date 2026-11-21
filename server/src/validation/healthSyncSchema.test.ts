@@ -113,6 +113,10 @@ describe("healthSyncSchema", () => {
 
   it("keeps only the date part of an ISO date-time", () => {
     expect(parse({ date: "2026-11-20T21:00:00+05:30" }).date).toBe("2026-11-20");
+    // A UTC time is turned into the Colombo day: 19:00Z is 00:30 the next day there
+    expect(parse({ date: "2026-11-20T19:00:00Z" }).date).toBe("2026-11-21");
+    expect(parse({ date: "2026-11-20T18:00:00.000Z" }).date).toBe("2026-11-20");
+    expect(parse({ date: "2026-11-20T23:30:00" }).date).toBe("2026-11-20");
     expect(parse({ date: "" }).date).toBeUndefined();
   });
 });

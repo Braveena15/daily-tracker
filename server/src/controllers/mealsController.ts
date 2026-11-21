@@ -59,9 +59,12 @@ async function buildDaySummary(userId: string | undefined, date: string, items: 
   const activeCalories = entry?.activeCalories ?? null;
 
   const restingCalories = entry?.restingCalories ?? null;
-  const burn = profile ? estimatedBurn({ bmr: profile.bmr, tdee: profile.tdee, activeCalories, restingCalories }) : null;
+  // Only this date's own watch data is used; a day without a sync has none (never another day's)
+  const burn = profile ? estimatedBurn({ bmr: profile.bmr, tdee: profile.tdee, activeCalories, restingCalories, date }) : null;
   const balance =
-    profile && burn ? calorieBalance({ eaten: totals.kcal, target: profile.calorieTarget, burn: burn.burn }) : null;
+    profile && burn
+      ? calorieBalance({ eaten: totals.kcal, target: profile.calorieTarget, burn: burn.burn, projectedBurn: burn.projected })
+      : null;
 
   return {
     totalsByMeal: totalsByMeal(items),
@@ -73,6 +76,7 @@ async function buildDaySummary(userId: string | undefined, date: string, items: 
     estimatedBurn: burn,
     remaining: balance?.remaining ?? null,
     netVsBurn: balance?.netVsBurn ?? null,
+    netVsProjected: balance?.netVsProjected ?? null,
   };
 }
 

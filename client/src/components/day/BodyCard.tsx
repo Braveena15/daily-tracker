@@ -42,6 +42,8 @@ export function BodyCard({
   const fromWatch = (f: Field) => synced.has(f) && values[f] === stored[f]
   const sync = entry?.healthSync
   const syncLabel = sync ? (dayOf(sync.syncedAt) === date ? timeOf(sync.syncedAt) : formatSyncTime(sync.syncedAt, today)) : null
+  // Watch totals belong to this date only: a day without a sync shows 0, never yesterday's numbers
+  const noSyncToday = date === today && !sync
   const extras = [
     entry?.restingCalories != null && `Resting ${entry.restingCalories.toLocaleString()} kcal`,
     entry?.exerciseMinutes != null && `Exercise ${entry.exerciseMinutes} min`,
@@ -91,18 +93,34 @@ export function BodyCard({
       <form className="space-y-4" onSubmit={submit} noValidate>
         <div className="grid gap-4 sm:grid-cols-3">
           <NumberField label="Weight" unit="kg" step="0.1" min={30} max={300} value={values.weightKg} onChange={set('weightKg')} fromWatch={fromWatch('weightKg')} />
-          <NumberField label="Steps" unit="steps" step="1" min={0} max={200000} value={values.steps} onChange={set('steps')} fromWatch={fromWatch('steps')} />
+          <NumberField
+            label="Steps"
+            unit="steps"
+            step="1"
+            min={0}
+            max={200000}
+            placeholder="0"
+            value={values.steps}
+            onChange={set('steps')}
+            fromWatch={fromWatch('steps')}
+          />
           <NumberField
             label="Active calories"
             unit="kcal"
             step="1"
             min={0}
             max={10000}
+            placeholder="0"
             value={values.activeCalories}
             onChange={set('activeCalories')}
             fromWatch={fromWatch('activeCalories')}
           />
         </div>
+        {noSyncToday && (
+          <p className="flex items-center gap-1.5 text-sm text-muted-foreground" role="status">
+            <WatchMark /> No sync yet today: steps and active calories start at 0 each midnight.
+          </p>
+        )}
         {extras.length > 0 && (
           <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <WatchMark /> {extras.join(' · ')}

@@ -1,5 +1,6 @@
 // Pure functions for meal and calorie-balance maths. No database or request code here,
 // so every function is easy to test on its own.
+import { DEFAULT_TIMEZONE, todayInTimezone } from "./dates";
 
 export const MEAL_TYPES = ["breakfast", "lunch", "snack", "dinner"] as const;
 export type MealType = (typeof MEAL_TYPES)[number];
@@ -75,39 +76,95 @@ export function totalsByMeal(items: MealItemLike[]): Record<MealType, Totals> {
 
 export type BurnSource = "watch" | "estimate";
 
+const MINUTES_PER_DAY = 24 * 60;
+
+/** Minutes since local midnight in `tz` (with seconds as a fraction). */
+export function minutesSinceMidnight(now: Date, tz: string = DEFAULT_TIMEZONE): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(now);
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0) % (type === "hour" ? 24 : 60);
+  return get("hour") * 60 + get("minute") + get("second") / 60;
+}
+
 /**
- * Calories burned in the day.
- * - With the watch's active calories: BMR (burned at rest) + active calories (burned moving).
- *   When Apple Health also sent resting calories, those replace the BMR estimate: they're the
- *   watch's own measurement of what you burned at rest (so far today, like the active calories).
- * - Without: TDEE, which is BMR × an activity multiplier — a guess at the same thing.
+ * How much of `date` has gone by at `now` (Asia/Colombo): 1 for a past day, 0 for a future
+ * day, and the share of the day since midnight for today (06:00 → 0.25).
+ */
+export function dayFraction(date: string, now: Date = new Date(), tz: string = DEFAULT_TIMEZONE): number {
+  const today = todayInTimezone(tz, now);
+  if (date < today) return 1;
+  if (date > today) return 0;
+  return Math.min(1, minutesSinceMidnight(now, tz) / MINUTES_PER_DAY);
+}
+
+export type Burn = {
+  /** Burned so far (the whole day for a past day) */
+  burn: number;
+  source: BurnSource;
+  /** The resting part of `burn` (with the watch); the TDEE share without it */
+  resting: number;
+  /** Active calories from the watch (null without watch data) */
+  active: number | null;
+  /** The expected burn for the whole day */
+  projected: number;
+  /** True while the day is still going (today), so `burn` is only "so far" */
+  soFar: boolean;
+};
+
+/**
+ * Calories burned in a day, using only that day's own data.
+ * - With the watch's active calories: resting + active. For a past day, resting is the watch's
+ *   resting calories (or BMR when it didn't send them). For today it's BMR × the share of the
+ *   day gone by (06:00 → 25% of BMR), because the body has only been "at rest" since midnight;
+ *   the expected full-day burn is BMR + the active calories so far.
+ * - Without watch data: TDEE (BMR × an activity multiplier), or for today the same share of it.
  * Never both: TDEE already includes an estimate of activity, so adding active calories
  * to it would count your movement twice.
+ * Leave out `date` for a whole day.
  */
 export function estimatedBurn(input: {
   bmr: number;
   tdee: number;
   activeCalories?: number | null;
   restingCalories?: number | null;
-}): { burn: number; source: BurnSource } {
+  /** The day the burn is for ("YYYY-MM-DD", Asia/Colombo) */
+  date?: string;
+  now?: Date;
+}): Burn {
   const { bmr, tdee, activeCalories, restingCalories } = input;
+  const fraction = input.date === undefined ? 1 : dayFraction(input.date, input.now ?? new Date());
+  const soFar = fraction < 1;
+
   if (activeCalories !== undefined && activeCalories !== null) {
-    const atRest = restingCalories ?? bmr;
-    return { burn: Math.round(atRest + activeCalories), source: "watch" };
+    const resting = Math.round(soFar ? bmr * fraction : (restingCalories ?? bmr));
+    const projected = Math.round(soFar ? bmr + activeCalories : resting + activeCalories);
+    return { burn: resting + Math.round(activeCalories), source: "watch", resting, active: Math.round(activeCalories), projected, soFar };
   }
-  return { burn: Math.round(tdee), source: "estimate" };
+  const resting = Math.round(tdee * fraction);
+  return { burn: resting, source: "estimate", resting, active: null, projected: Math.round(tdee), soFar };
 }
 
 /**
- * remaining: how much of today's target is left (negative = over the target).
- * netVsBurn: eaten minus burned (negative = you burned more than you ate).
+ * remaining: how much of the day's target is left (negative = over the target).
+ * netVsBurn: eaten minus burned so far (negative = you burned more than you ate).
+ * netVsProjected: eaten minus the expected burn for the whole day (when given).
  */
-export function calorieBalance(input: { eaten: number; target: number; burn: number }): {
+export function calorieBalance(input: { eaten: number; target: number; burn: number; projectedBurn?: number }): {
   remaining: number;
   netVsBurn: number;
+  netVsProjected: number | null;
 } {
-  const { eaten, target, burn } = input;
-  return { remaining: target - eaten, netVsBurn: eaten - burn };
+  const { eaten, target, burn, projectedBurn } = input;
+  return {
+    remaining: target - eaten,
+    netVsBurn: eaten - burn,
+    netVsProjected: projectedBurn === undefined ? null : eaten - projectedBurn,
+  };
 }
 
 /** "On target" means within ±10% of the target. */

@@ -1,6 +1,7 @@
 /// <reference types="vitest/globals" />
 import {
   averageFiber,
+  dayFraction,
   calorieBalance,
   dayTotals,
   estimatedBurn,
@@ -96,32 +97,105 @@ describe("fibre", () => {
   });
 });
 
+// Times below are Asia/Colombo (UTC+05:30)
+const at = (date: string, time: string) => new Date(`${date}T${time}:00+05:30`);
+
+describe("dayFraction", () => {
+  it("is the share of today gone by since local midnight", () => {
+    expect(dayFraction("2026-11-21", at("2026-11-21", "06:00"))).toBe(0.25);
+    expect(dayFraction("2026-11-21", at("2026-11-21", "18:00"))).toBe(0.75);
+    expect(dayFraction("2026-11-21", at("2026-11-21", "00:00"))).toBe(0);
+  });
+
+  it("uses the Colombo date, not UTC: 00:30 local is already the new day", () => {
+    // 2026-11-20T19:00Z is 00:30 on the 21st in Colombo
+    const now = new Date("2026-11-20T19:00:00Z");
+    expect(dayFraction("2026-11-21", now)).toBeCloseTo(30 / 1440);
+    expect(dayFraction("2026-11-20", now)).toBe(1);
+  });
+
+  it("is 1 for a past day and 0 for a future day", () => {
+    expect(dayFraction("2026-11-20", at("2026-11-21", "06:00"))).toBe(1);
+    expect(dayFraction("2026-11-22", at("2026-11-21", "06:00"))).toBe(0);
+  });
+});
+
+describe("estimatedBurn so far", () => {
+  const base = { bmr: 1290, tdee: 2000 };
+
+  it("counts 25% of BMR at 06:00, plus today's active calories", () => {
+    expect(estimatedBurn({ ...base, activeCalories: 28, date: "2026-11-21", now: at("2026-11-21", "06:00") })).toEqual({
+      burn: 323 + 28, // 1290 × 0.25 = 322.5 → 323
+      source: "watch",
+      resting: 323,
+      active: 28,
+      projected: 1290 + 28,
+      soFar: true,
+    });
+  });
+
+  it("no longer adds a whole day's BMR in the morning (the 1,318 kcal at 11:11 bug)", () => {
+    const burn = estimatedBurn({ ...base, activeCalories: 28, date: "2026-11-21", now: at("2026-11-21", "11:11") });
+    expect(burn.burn).toBe(Math.round(1290 * (671 / 1440)) + 28); // 601 + 28
+    expect(burn.projected).toBe(1318);
+  });
+
+  it("uses the same share of TDEE without watch data", () => {
+    expect(estimatedBurn({ ...base, date: "2026-11-21", now: at("2026-11-21", "12:00") })).toEqual({
+      burn: 1000,
+      source: "estimate",
+      resting: 1000,
+      active: null,
+      projected: 2000,
+      soFar: true,
+    });
+  });
+
+  it("uses full-day values for a past day, with the watch's resting calories", () => {
+    const now = at("2026-11-21", "06:00");
+    expect(estimatedBurn({ ...base, activeCalories: 160, date: "2026-11-20", now })).toMatchObject({ burn: 1450, resting: 1290, soFar: false });
+    expect(estimatedBurn({ ...base, activeCalories: 160, restingCalories: 1650, date: "2026-11-20", now })).toMatchObject({
+      burn: 1810,
+      projected: 1810,
+    });
+    expect(estimatedBurn({ ...base, date: "2026-11-20", now })).toMatchObject({ burn: 2000, source: "estimate", soFar: false });
+  });
+
+  it("compares eaten with the burn so far and the expected full-day burn", () => {
+    expect(calorieBalance({ eaten: 280, target: 1800, burn: 590, projectedBurn: 1400 })).toEqual({
+      remaining: 1520,
+      netVsBurn: -310,
+      netVsProjected: -1120,
+    });
+  });
+});
+
 describe("estimatedBurn", () => {
   it("uses BMR + the watch's active calories when given", () => {
-    expect(estimatedBurn({ bmr: 1700, tdee: 2635, activeCalories: 450 })).toEqual({
+    expect(estimatedBurn({ bmr: 1700, tdee: 2635, activeCalories: 450 })).toMatchObject({
       burn: 2150,
       source: "watch",
     });
   });
 
   it("uses the watch's resting calories instead of BMR when both are synced", () => {
-    expect(estimatedBurn({ bmr: 1700, tdee: 2635, activeCalories: 450, restingCalories: 1550 })).toEqual({
+    expect(estimatedBurn({ bmr: 1700, tdee: 2635, activeCalories: 450, restingCalories: 1550 })).toMatchObject({
       burn: 2000,
       source: "watch",
     });
   });
 
   it("ignores resting calories without active calories (TDEE already covers the day)", () => {
-    expect(estimatedBurn({ bmr: 1700, tdee: 2635, restingCalories: 1550 })).toEqual({ burn: 2635, source: "estimate" });
+    expect(estimatedBurn({ bmr: 1700, tdee: 2635, restingCalories: 1550 })).toMatchObject({ burn: 2635, source: "estimate" });
   });
 
   it("treats 0 active calories as a real watch reading", () => {
-    expect(estimatedBurn({ bmr: 1700, tdee: 2635, activeCalories: 0 })).toEqual({ burn: 1700, source: "watch" });
+    expect(estimatedBurn({ bmr: 1700, tdee: 2635, activeCalories: 0 })).toMatchObject({ burn: 1700, source: "watch" });
   });
 
   it("falls back to TDEE without a watch reading", () => {
-    expect(estimatedBurn({ bmr: 1700, tdee: 2635 })).toEqual({ burn: 2635, source: "estimate" });
-    expect(estimatedBurn({ bmr: 1700, tdee: 2635, activeCalories: null })).toEqual({
+    expect(estimatedBurn({ bmr: 1700, tdee: 2635 })).toMatchObject({ burn: 2635, source: "estimate" });
+    expect(estimatedBurn({ bmr: 1700, tdee: 2635, activeCalories: null })).toMatchObject({
       burn: 2635,
       source: "estimate",
     });
@@ -130,11 +204,11 @@ describe("estimatedBurn", () => {
 
 describe("calorieBalance", () => {
   it("gives remaining = target − eaten and net = eaten − burn", () => {
-    expect(calorieBalance({ eaten: 1500, target: 2000, burn: 2400 })).toEqual({ remaining: 500, netVsBurn: -900 });
+    expect(calorieBalance({ eaten: 1500, target: 2000, burn: 2400 })).toEqual({ remaining: 500, netVsBurn: -900, netVsProjected: null });
   });
 
   it("goes negative when over the target, positive when eating more than burned", () => {
-    expect(calorieBalance({ eaten: 2600, target: 2000, burn: 2400 })).toEqual({ remaining: -600, netVsBurn: 200 });
+    expect(calorieBalance({ eaten: 2600, target: 2000, burn: 2400 })).toEqual({ remaining: -600, netVsBurn: 200, netVsProjected: null });
   });
 });
 
