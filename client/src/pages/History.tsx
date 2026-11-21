@@ -164,7 +164,7 @@ function DayCard({ date, today, entry, isStart }: { date: string; today: string;
   return (
     <Link
       to={`/history/${date}`}
-      className={cn(cardBase, 'bg-card shadow-soft ring-1 ring-foreground/[0.06] hover:ring-primary/30')}
+      className={cn(cardBase, 'surface hover:ring-primary/30')}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">

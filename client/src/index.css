@@ -197,8 +197,41 @@
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
 
-  /* A soft, low shadow for cards: `shadow-soft` */
+  --radius-xs: calc(var(--radius) * 0.3);
+
+  /*
+   * Shadows: only two levels.
+   *   shadow-soft    cards and tiles that sit on the page
+   *   shadow-raised  things that float above it: menus, popovers, tooltips, sheets, dialogs
+   */
   --shadow-soft: 0 1px 2px oklch(0.3 0.02 150 / 0.04), 0 6px 20px -8px oklch(0.3 0.02 150 / 0.1);
+  --shadow-raised: 0 2px 6px oklch(0.25 0.02 150 / 0.06), 0 16px 40px -12px oklch(0.25 0.02 150 / 0.22);
+}
+
+/*
+ * 3. THE SCALES (use these, not one-off values like text-[11px] or rounded-[6px])
+ *
+ * Text   text-xs (labels, captions) · text-sm (UI and body) · text-base (reading text)
+ *        text-lg / text-xl (card and section titles) · text-2xl–4xl (page titles, big numbers).
+ *        On phones each body size is 1px larger (below), and form fields are always at least
+ *        16px so iOS Safari doesn't zoom in when one is focused.
+ * Weight font-medium for UI, font-semibold for headings and numbers.
+ * Radius rounded-xs (tiny swatches) · rounded-md (chips, checkboxes) · rounded-lg (small
+ *        controls under 40px) · rounded-xl (buttons, inputs, tiles) · rounded-2xl (cards,
+ *        dialogs, sheets) · rounded-full (pills, avatars).
+ * Space  gap-2/3 inside a row, space-y-4 inside a card, space-y-6 between cards and sections.
+ */
+@media (max-width: 47.99rem) {
+  :root {
+    --text-xs: 0.8125rem; /* 13px */
+    --text-sm: 0.9375rem; /* 15px */
+    --text-base: 1.0625rem; /* 17px */
+  }
+}
+
+/* A card-like tile that is also a link or button (Mind hub, Diary list, Review days…) */
+@utility surface {
+  @apply rounded-2xl bg-card shadow-soft ring-1 ring-foreground/[0.06];
 }
 
 @layer base {

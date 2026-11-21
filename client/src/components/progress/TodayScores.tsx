@@ -68,7 +68,7 @@ export function TodayScores() {
               <ProgressRing value={data.overall} max={100} size={124} stroke={12} label={`Overall score ${data.overall} out of 100`}>
                 <div>
                   <p className="font-heading text-3xl font-semibold tabular-nums">{data.overall}</p>
-                  <p className="text-[11px] text-muted-foreground">overall</p>
+                  <p className="text-xs text-muted-foreground">overall</p>
                 </div>
               </ProgressRing>
               <p className="text-xs text-muted-foreground">Average of the three</p>

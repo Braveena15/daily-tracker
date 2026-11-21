@@ -16,7 +16,7 @@ export function Mind() {
             <li key={page.to}>
               <Link
                 to={page.to}
-                className="flex h-full items-center gap-4 rounded-2xl bg-card p-4 shadow-soft ring-1 ring-foreground/[0.06] transition-all outline-none hover:-translate-y-0.5 hover:ring-mental/40 focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.99]"
+                className="flex h-full items-center gap-4 surface p-4 transition-all outline-none hover:-translate-y-0.5 hover:ring-mental/40 focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.99]"
               >
                 <IconBubble icon={page.icon} tone="mental" className="size-12 rounded-2xl [&_svg]:size-6" />
                 <div className="min-w-0 flex-1">

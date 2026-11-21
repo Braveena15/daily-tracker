@@ -213,7 +213,7 @@ function Editor({ id }: { id: string | undefined }) {
               value={draft.date}
               max={todayInTimezone()}
               onChange={(e) => e.target.value && update({ date: e.target.value })}
-              className="rounded-lg bg-transparent outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="rounded-lg bg-transparent text-base outline-none focus-visible:ring-3 md:text-sm focus-visible:ring-ring/50"
               aria-label={`Date: ${formatLongDate(draft.date)}`}
             />
           </label>

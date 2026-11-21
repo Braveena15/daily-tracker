@@ -153,7 +153,7 @@ function BottomTabs() {
               end={end}
               className={({ isActive }) =>
                 cn(
-                  'group flex flex-col items-center gap-1 pt-2 pb-2.5 text-[11px] font-medium transition-colors outline-none focus-visible:bg-muted',
+                  'group flex flex-col items-center gap-1 pt-2 pb-2.5 text-xs font-medium transition-colors outline-none focus-visible:bg-muted',
                   isOn(item, isActive) ? 'text-foreground' : 'text-muted-foreground',
                 )
               }

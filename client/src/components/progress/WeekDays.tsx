@@ -53,7 +53,7 @@ export function WeekMoodChart({ days }: { days: ReviewDay[] }) {
                   const d = active ? (payload?.[0]?.payload as ReviewDay | undefined) : undefined
                   if (!d) return null
                   return (
-                    <div className="rounded-lg border bg-background px-2.5 py-1.5 text-xs shadow-xl">
+                    <div className="rounded-lg border bg-background px-2.5 py-1.5 text-xs shadow-raised">
                       <p className="font-medium">{tooltipDate(d.date)}</p>
                       <p className="text-muted-foreground tabular-nums">
                         {d.mood === null
@@ -111,7 +111,7 @@ function DayRow({ day, today }: { day: ReviewDay; today: string }) {
   const empty = day.mood === null && counts.length === 0 && health.length === 0
 
   return (
-    <li className="rounded-2xl bg-card shadow-soft ring-1 ring-foreground/[0.06]">
+    <li className="surface">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}

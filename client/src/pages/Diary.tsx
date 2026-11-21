@@ -101,7 +101,7 @@ export function Diary() {
               <li key={entry.id}>
                 <Link
                   to={`/diary/${entry.id}`}
-                  className="block space-y-2 rounded-2xl bg-card p-4 shadow-soft ring-1 ring-foreground/[0.06] transition-all outline-none hover:-translate-y-0.5 hover:ring-mental/40 focus-visible:ring-3 focus-visible:ring-ring/50"
+                  className="block space-y-2 surface p-4 transition-all outline-none hover:-translate-y-0.5 hover:ring-mental/40 focus-visible:ring-3 focus-visible:ring-ring/50"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
