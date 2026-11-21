@@ -1,13 +1,14 @@
 // Small forms for adding (or editing) one timestamped entry. After a successful add the form clears,
 // ready for the next one. Each form builds the request body for POST/PATCH /api/entries/:date/:kind.
-import { useId, useState, type FormEvent, type ReactNode } from 'react'
+import { useState, type FormEvent, type ReactNode } from 'react'
 import { Check, Loader2, Plus } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { InputWithUnit } from '@/components/InputWithUnit'
+import { TimeField } from '@/components/day/TimeField'
+import { useTimeInput } from '@/hooks/useTimeInput'
 import { RatingPicker } from '@/components/CheckinFields'
 import { timeOf } from '@/lib/healthSync'
 import { energyEmoji, moodEmoji, type Activity, type Learning, type MoodLog } from '@/lib/entries'
@@ -48,29 +49,6 @@ function useSubmit(onSubmit: (body: Body) => Promise<unknown>) {
     }
   }
   return { busy, error, run, clearError: () => setError(null) }
-}
-
-/** "HH:mm", empty for "now" (today) or midday (a past day). */
-export function TimeField({ value, onChange, isToday }: { value: string; onChange: (v: string) => void; isToday: boolean }) {
-  const id = useId()
-  return (
-    <div className="space-y-1.5">
-      <Label htmlFor={id} className="text-xs text-muted-foreground">
-        Time
-      </Label>
-      <Input
-        id={id}
-        type="time"
-        className="w-32"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        aria-describedby={`${id}-hint`}
-      />
-      <p id={`${id}-hint`} className="sr-only">
-        {isToday ? 'Leave empty to use the current time' : 'Leave empty to use midday'}
-      </p>
-    </div>
-  )
 }
 
 function FormFooter({
@@ -125,19 +103,21 @@ export function MoodForm({ initial, isToday, onSubmit, onCancel }: FormProps<Moo
   const [mood, setMood] = useState<number | null>(initial?.mood ?? null)
   const [energy, setEnergy] = useState<number | null>(initial?.energy ?? null)
   const [note, setNote] = useState(initial?.note ?? '')
-  const [time, setTime] = useState(initial ? timeOf(initial.loggedAt) : '')
+  const time = useTimeInput({ isToday, initial: initial ? timeOf(initial.loggedAt) : undefined })
   const { busy, error, run, clearError } = useSubmit(onSubmit)
 
   function submit(e: FormEvent) {
     e.preventDefault()
+    const timeError = time.error()
+    if (timeError) return run(timeError, () => {})
     if (mood === null) return run('Tap your mood (1–10)', () => {})
     if (energy === null) return run('Tap your energy (1–10)', () => {})
-    void run({ mood, energy, note: optionalText(note, editing), ...(time && { time }) }, () => {
+    void run({ mood, energy, note: optionalText(note, editing), ...time.body(editing) }, () => {
       if (editing) return
       setMood(null)
       setEnergy(null)
       setNote('')
-      setTime('')
+      time.reset()
     })
   }
 
@@ -147,7 +127,7 @@ export function MoodForm({ initial, isToday, onSubmit, onCancel }: FormProps<Moo
       <RatingPicker label="Energy" value={energy} onChange={(v) => (setEnergy(v), clearError())} emoji={energyEmoji} />
       <Input aria-label="Note (optional)" placeholder="A note (optional)" maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} />
       <FormFooter busy={busy} error={error} editing={editing} label="Save check-in" onCancel={onCancel}>
-        <TimeField value={time} onChange={setTime} isToday={isToday} />
+        <TimeField input={time} />
       </FormFooter>
     </form>
   )
@@ -169,11 +149,13 @@ export function ActivityForm({
   const [type, setType] = useState(initial?.type ?? '')
   const [minutes, setMinutes] = useState(initial?.durationMin != null ? String(initial.durationMin) : '')
   const [notes, setNotes] = useState(initial?.notes ?? '')
-  const [time, setTime] = useState(initial ? timeOf(initial.loggedAt) : '')
+  const time = useTimeInput({ isToday, initial: initial ? timeOf(initial.loggedAt) : undefined })
   const { busy, error, run } = useSubmit(onSubmit)
 
   function submit(e: FormEvent) {
     e.preventDefault()
+    const timeError = time.error()
+    if (timeError) return run(timeError, () => {})
     const name = type.trim()
     if (!name) return run(`Give the ${itemLabel.toLowerCase()} a name`, () => {})
     if (minutesRequired && !(Number(minutes) >= 1)) return run(`Enter how many minutes "${name}" took`, () => {})
@@ -182,14 +164,14 @@ export function ActivityForm({
         type: name,
         durationMin: minutesRequired ? Number(minutes) : optionalNumber(minutes, editing),
         notes: optionalText(notes, editing),
-        ...(time && { time }),
+        ...time.body(editing),
       },
       () => {
         if (editing) return
         setType('')
         setMinutes('')
         setNotes('')
-        setTime('')
+        time.reset()
       },
     )
   }
@@ -236,7 +218,7 @@ export function ActivityForm({
       </div>
       <Input aria-label="Notes (optional)" placeholder="Notes (optional)" maxLength={500} value={notes} onChange={(e) => setNotes(e.target.value)} />
       <FormFooter busy={busy} error={error} editing={editing} label="Add" onCancel={onCancel}>
-        <TimeField value={time} onChange={setTime} isToday={isToday} />
+        <TimeField input={time} />
       </FormFooter>
     </form>
   )
@@ -256,16 +238,18 @@ export function TextForm({
 }: FormProps<{ text: string; loggedAt: string }> & { placeholder: string; label: string; maxLength: number; multiline?: boolean }) {
   const editing = initial !== undefined
   const [text, setText] = useState(initial?.text ?? '')
-  const [time, setTime] = useState(initial ? timeOf(initial.loggedAt) : '')
+  const time = useTimeInput({ isToday, initial: initial ? timeOf(initial.loggedAt) : undefined })
   const { busy, error, run } = useSubmit(onSubmit)
 
   function submit(e: FormEvent) {
     e.preventDefault()
+    const timeError = time.error()
+    if (timeError) return run(timeError, () => {})
     if (!text.trim()) return run('Write a few words first', () => {})
-    void run({ text: text.trim(), ...(time && { time }) }, () => {
+    void run({ text: text.trim(), ...time.body(editing) }, () => {
       if (editing) return
       setText('')
-      setTime('')
+      time.reset()
     })
   }
 
@@ -290,7 +274,7 @@ export function TextForm({
         <Input aria-label={label} placeholder={placeholder} maxLength={maxLength} value={text} onChange={(e) => setText(e.target.value)} />
       )}
       <FormFooter busy={busy} error={error} editing={editing} label="Add" onCancel={onCancel} disabled={!text.trim()}>
-        <TimeField value={time} onChange={setTime} isToday={isToday} />
+        <TimeField input={time} />
       </FormFooter>
     </form>
   )
@@ -303,20 +287,22 @@ export function LearningForm({ initial, isToday, onSubmit, onCancel }: FormProps
   const [topic, setTopic] = useState(initial?.topic ?? '')
   const [minutes, setMinutes] = useState(initial?.minutes != null ? String(initial.minutes) : '')
   const [details, setDetails] = useState(initial?.details ?? '')
-  const [time, setTime] = useState(initial ? timeOf(initial.loggedAt) : '')
+  const time = useTimeInput({ isToday, initial: initial ? timeOf(initial.loggedAt) : undefined })
   const { busy, error, run } = useSubmit(onSubmit)
 
   function submit(e: FormEvent) {
     e.preventDefault()
+    const timeError = time.error()
+    if (timeError) return run(timeError, () => {})
     if (!topic.trim()) return run('Give the learning a topic', () => {})
     void run(
-      { topic: topic.trim(), minutes: optionalNumber(minutes, editing), details: optionalText(details, editing), ...(time && { time }) },
+      { topic: topic.trim(), minutes: optionalNumber(minutes, editing), details: optionalText(details, editing), ...time.body(editing) },
       () => {
         if (editing) return
         setTopic('')
         setMinutes('')
         setDetails('')
-        setTime('')
+        time.reset()
       },
     )
   }
@@ -348,7 +334,7 @@ export function LearningForm({ initial, isToday, onSubmit, onCancel }: FormProps
         onChange={(e) => setDetails(e.target.value)}
       />
       <FormFooter busy={busy} error={error} editing={editing} label="Add learning" onCancel={onCancel}>
-        <TimeField value={time} onChange={setTime} isToday={isToday} />
+        <TimeField input={time} />
       </FormFooter>
     </form>
   )
