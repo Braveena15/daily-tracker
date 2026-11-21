@@ -1,5 +1,5 @@
 // Support contacts. This content is fixed and written by people — never AI-generated.
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { Heart, HeartHandshake, Phone } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -82,9 +82,23 @@ export function SupportDialog({
   onOpenChange: (open: boolean) => void
   description?: string
 }) {
+  // These dialogs are opened by plain buttons (not a DialogTrigger), so Radix wouldn't know where
+  // to put focus back on close. Remember what had focus as it opens (a layout effect runs before
+  // the dialog moves focus inside) and return there, so keyboard users keep their place.
+  const returnTo = useRef<HTMLElement | null>(null)
+  useLayoutEffect(() => {
+    if (open) returnTo.current = document.activeElement as HTMLElement | null
+  }, [open])
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md">
+      <DialogContent
+        className="max-h-[90dvh] overflow-y-auto sm:max-w-md"
+        onCloseAutoFocus={(e) => {
+          e.preventDefault()
+          if (returnTo.current?.isConnected) returnTo.current.focus()
+        }}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <HeartHandshake className="size-5 text-mental" aria-hidden /> Support is here
@@ -145,17 +159,7 @@ export function LowMoodCard() {
           See who you can talk to
         </Button>
       </CardContent>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <HeartHandshake className="size-5 text-mental" aria-hidden /> Support is here
-            </DialogTitle>
-            <DialogDescription>Reaching out is a strong thing to do.</DialogDescription>
-          </DialogHeader>
-          <SupportCard />
-        </DialogContent>
-      </Dialog>
+      <SupportDialog open={open} onOpenChange={setOpen} description={SUPPORT_NOW} />
     </Card>
   )
 }
