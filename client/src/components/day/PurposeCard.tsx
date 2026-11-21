@@ -1,7 +1,12 @@
 // "🎯 Today's purpose" at the top of the Today page: what the day is about, up to 3 focus values from
 // your core values, up to 5 small intentions to tick off, and an evening reflection.
+//
+// One purpose per day, editable only during that day (Asia/Colombo; the server enforces it too):
+// - a past day shows its purpose read-only, locked;
+// - today shows the saved purpose with an Edit button, intentions you can tick and the reflection.
+// The card is given `isToday` from a clock, so it locks by itself at midnight.
 import { useState, type FormEvent } from 'react'
-import { Loader2, Plus, Target, X } from 'lucide-react'
+import { Check, Copy, Loader2, Pencil, Plus, Target, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -12,6 +17,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Section } from '@/components/CheckinFields'
 import { useFetch } from '@/hooks/useFetch'
 import type { DayActions } from '@/hooks/useDay'
+import { EditableUntilLabel, LockedLabel, PurposeDayView } from '@/components/purpose/PurposeDayView'
+import { useNow } from '@/hooks/useClock'
 import { hourInTimezone } from '@/lib/dates'
 import { timeOf } from '@/lib/healthSync'
 import type { Purpose } from '@/lib/mind'
@@ -20,6 +27,8 @@ import { toneChipOn } from '@/lib/tones'
 import { cn } from '@/lib/utils'
 
 const EVENING_HOUR = 18
+// From 23:00 there's one hour left before the day locks
+const LAST_HOUR = 23
 
 type Actions = Pick<DayActions, 'savePurpose' | 'addIntention' | 'updateIntention' | 'removeIntention' | 'saveReflection'>
 
@@ -35,30 +44,87 @@ async function attempt(run: () => Promise<unknown>): Promise<boolean> {
 }
 
 export function PurposeCard({ purpose, isToday, actions }: { purpose: DailyPurpose | null; isToday: boolean; actions: Actions }) {
-  const [started, setStarted] = useState(false)
+  // Locked: a past day (also right after midnight, when the page moves on by itself)
+  if (!isToday) {
+    return (
+      <Section title="🎯 Purpose" hint={purpose ? undefined : 'No purpose was set for this day.'} icon={Target} tone="mental" aside={<LockedLabel />}>
+        {purpose && <PurposeDayView purpose={purpose} />}
+      </Section>
+    )
+  }
+  return <TodayPurpose purpose={purpose} actions={actions} />
+}
+
+function TodayPurpose({ purpose, actions }: { purpose: DailyPurpose | null; actions: Actions }) {
+  const [editing, setEditing] = useState(false)
   const { data } = useFetch<{ purpose: Purpose }>('/purpose')
   const main = data?.purpose
+  const hour = hourInTimezone(undefined, useNow())
 
-  if (!purpose && !started) {
+  if (!purpose && !editing) {
     return (
       <Section title="🎯 Today's purpose" hint="Optional: one line on what today is about." icon={Target} tone="mental">
-        <Button type="button" variant="outline" className="w-full border-dashed sm:w-auto" onClick={() => setStarted(true)}>
-          <Target aria-hidden /> Set {isToday ? "today's" : "this day's"} purpose
+        <Button type="button" variant="outline" className="w-full border-dashed sm:w-auto" onClick={() => setEditing(true)}>
+          <Target aria-hidden /> Set today's purpose
         </Button>
       </Section>
     )
   }
 
+  const reminders = [
+    hour >= LAST_HOUR && '1 hour left to edit today\'s purpose',
+    hour >= EVENING_HOUR && !purpose?.reflection && 'Reflect on today before midnight 🌙',
+  ].filter((r): r is string => Boolean(r))
+
   return (
-    <Section title="🎯 Today's purpose" hint="What do I want today to be about?" icon={Target} tone="mental">
-      <PurposeText purpose={purpose} statement={main?.purposeStatement ?? ''} onSave={(text) => actions.savePurpose({ text })} />
-      <FocusValues
-        chosen={purpose?.focusValues ?? []}
-        coreValues={main?.coreValues ?? []}
-        onChange={(focusValues) => attempt(() => actions.savePurpose({ focusValues }))}
-      />
-      <Intentions purpose={purpose} actions={actions} />
-      <EveningReflection purpose={purpose} isToday={isToday} onSave={actions.saveReflection} />
+    <Section
+      title="🎯 Today's purpose"
+      hint="What do I want today to be about?"
+      icon={Target}
+      tone="mental"
+      aside={
+        !editing && purpose ? (
+          <Button type="button" variant="outline" size="sm" onClick={() => setEditing(true)}>
+            <Pencil aria-hidden /> Edit
+          </Button>
+        ) : undefined
+      }
+    >
+      <EditableUntilLabel />
+      {reminders.length > 0 && (
+        <ul className="space-y-1 rounded-xl bg-mental-soft/50 px-3 py-2 text-sm text-mental-foreground" role="status">
+          {reminders.map((r) => (
+            <li key={r}>{r}</li>
+          ))}
+        </ul>
+      )}
+
+      {editing || !purpose ? (
+        <>
+          <PurposeText purpose={purpose} statement={main?.purposeStatement ?? ''} onSave={(text) => actions.savePurpose({ text })} />
+          <FocusValues
+            chosen={purpose?.focusValues ?? []}
+            coreValues={main?.coreValues ?? []}
+            onChange={(focusValues) => attempt(() => actions.savePurpose({ focusValues }))}
+          />
+          <Intentions purpose={purpose} actions={actions} editable />
+          {purpose && (
+            <div className="flex justify-end">
+              <Button type="button" onClick={() => setEditing(false)}>
+                <Check aria-hidden /> Done
+              </Button>
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          {(purpose.text || purpose.focusValues.length > 0) && (
+            <PurposeDayView purpose={{ ...purpose, intentions: [], reflection: null }} />
+          )}
+          <Intentions purpose={purpose} actions={actions} editable={false} />
+          <EveningReflection purpose={purpose} hour={hour} onSave={actions.saveReflection} />
+        </>
+      )}
     </Section>
   )
 }
@@ -90,11 +156,19 @@ function PurposeText({ purpose, statement, onSave }: { purpose: DailyPurpose | n
         value={text}
         onChange={(e) => setText(e.target.value)}
       />
-      {dirty && (
-        <div className="flex justify-end">
-          <Button type="submit" size="sm" disabled={busy}>
-            {busy && <Loader2 className="animate-spin" aria-hidden />} Save purpose
-          </Button>
+      {(dirty || (statement && !text.trim())) && (
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {statement && !text.trim() && (
+            // Your main purpose statement as today's purpose, ready to save or adjust
+            <Button type="button" variant="ghost" size="sm" onClick={() => setText(statement)}>
+              <Copy aria-hidden /> Use my purpose statement
+            </Button>
+          )}
+          {dirty && (
+            <Button type="submit" size="sm" disabled={busy}>
+              {busy && <Loader2 className="animate-spin" aria-hidden />} Save purpose
+            </Button>
+          )}
         </div>
       )}
     </form>
@@ -139,11 +213,13 @@ function FocusValues({ chosen, coreValues, onChange }: { chosen: string[]; coreV
   )
 }
 
-function Intentions({ purpose, actions }: { purpose: DailyPurpose | null; actions: Actions }) {
+/** `editable`: add and remove intentions (edit mode); ticking works in both modes. */
+function Intentions({ purpose, actions, editable }: { purpose: DailyPurpose | null; actions: Actions; editable: boolean }) {
   const [draft, setDraft] = useState('')
   const [busy, setBusy] = useState(false)
   const intentions = purpose?.intentions ?? []
   const full = intentions.length >= MAX_INTENTIONS
+  if (!editable && intentions.length === 0) return null
 
   async function add(e: FormEvent) {
     e.preventDefault()
@@ -172,21 +248,23 @@ function Intentions({ purpose, actions }: { purpose: DailyPurpose | null; action
                 {i.text}
               </Label>
               {i.done && i.doneAt && <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{timeOf(i.doneAt)}</span>}
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="-my-1 shrink-0 text-muted-foreground hover:text-destructive"
-                aria-label={`Remove "${i.text}"`}
-                onClick={() => attempt(() => actions.removeIntention(i.id))}
-              >
-                <X />
-              </Button>
+              {editable && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="-my-1 shrink-0 text-muted-foreground hover:text-destructive"
+                  aria-label={`Remove "${i.text}"`}
+                  onClick={() => attempt(() => actions.removeIntention(i.id))}
+                >
+                  <X />
+                </Button>
+              )}
             </li>
           ))}
         </ul>
       )}
-      {!full && (
+      {editable && !full && (
         <form className="flex gap-2" onSubmit={add} noValidate>
           <Input aria-label="Add an intention" placeholder="e.g. Go cycling, Call Amma, Study 1 hour" maxLength={200} value={draft} onChange={(e) => setDraft(e.target.value)} />
           <Button type="submit" variant="secondary" disabled={busy || !draft.trim()}>
@@ -198,22 +276,14 @@ function Intentions({ purpose, actions }: { purpose: DailyPurpose | null; action
   )
 }
 
-function EveningReflection({
-  purpose,
-  isToday,
-  onSave,
-}: {
-  purpose: DailyPurpose | null
-  isToday: boolean
-  onSave: Actions['saveReflection']
-}) {
+function EveningReflection({ purpose, hour, onSave }: { purpose: DailyPurpose | null; hour: number; onSave: Actions['saveReflection'] }) {
   const saved = purpose?.reflection ?? null
-  // Shown from 18:00, on past days, once reflected, or any time with a tap
+  // Shown from 18:00, once reflected, or any time with a tap
   const [opened, setOpened] = useState(false)
   const [rating, setRating] = useState<number | null>(saved?.rating ?? null)
   const [note, setNote] = useState(saved?.note ?? '')
   const [busy, setBusy] = useState(false)
-  const show = opened || saved !== null || !isToday || hourInTimezone() >= EVENING_HOUR
+  const show = opened || saved !== null || hour >= EVENING_HOUR
 
   if (!show) {
     return (

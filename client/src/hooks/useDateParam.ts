@@ -1,5 +1,6 @@
 import { useSearchParams } from 'react-router-dom'
-import { isValidDateString, todayInTimezone } from '@/lib/dates'
+import { useToday } from '@/hooks/useClock'
+import { isValidDateString } from '@/lib/dates'
 
 /**
  * The day a page shows, from ?date=YYYY-MM-DD. Anything missing, invalid or in the
@@ -7,7 +8,8 @@ import { isValidDateString, todayInTimezone } from '@/lib/dates'
  */
 export function useDateParam() {
   const [params, setParams] = useSearchParams()
-  const today = todayInTimezone()
+  // Follows the clock: a page left open over midnight moves on to the new day by itself
+  const today = useToday()
 
   const requested = params.get('date')
   const date = isValidDateString(requested) && requested <= today ? requested : today

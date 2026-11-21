@@ -10,10 +10,24 @@ import { AppError } from "../utils/AppError";
 import { addDays, daysBetween, isValidDateString, todayInTimezone } from "../utils/dates";
 import { canAddIntention, hasDailyPurpose, isEmptyPurpose, openDailyPurpose, toPurposeContent, openHistory, pickFocusValues, purposeStats, sealText, type StoredDailyPurpose } from "../utils/dailyPurpose";
 import { clampFrom } from "../utils/journey";
-import { dayResponse, writableDate, type LeanDay } from "./entriesController";
+import { dateParam, dayResponse, type LeanDay } from "./entriesController";
+import { dayStatus } from "../utils/dates";
 import { dailyPurposeSchema, intentionPatchSchema, intentionSchema, reflectionSchema } from "../validation/purposeSchema";
 
 const MAX_RANGE_DAYS = 366;
+
+/**
+ * The day's purpose can only be created or changed on that day itself (Asia/Colombo): a past day's
+ * purpose is locked, and a future day can't have one yet. There is one dailyPurpose per DailyEntry,
+ * and one DailyEntry per user per date, so a day never has two.
+ */
+function purposeDate(req: Request): string {
+  const date = dateParam(req);
+  const status = dayStatus(date);
+  if (status === "past") throw new AppError(403, "This day has ended — its purpose is locked.");
+  if (status === "future") throw new AppError(400, "You can only set a purpose for today.");
+  return date;
+}
 
 async function update(req: Request, date: string, change: Record<string, unknown>, filter: Record<string, unknown> = {}, upsert = true) {
   const doc = (await DailyEntryModel.findOneAndUpdate(
@@ -33,7 +47,7 @@ function intentionId(req: Request): Types.ObjectId {
 
 /** PUT /api/entries/:date/purpose — the day's purpose text and focus values (from the core values). */
 export async function savePurposeOfDay(req: Request, res: Response): Promise<void> {
-  const date = writableDate(req);
+  const date = purposeDate(req);
   const body = dailyPurposeSchema.parse(req.body ?? {});
   const now = new Date();
 
@@ -60,7 +74,7 @@ export async function savePurposeOfDay(req: Request, res: Response): Promise<voi
 
 /** POST /api/entries/:date/purpose/intentions — up to 5 a day. */
 export async function addIntention(req: Request, res: Response): Promise<void> {
-  const date = writableDate(req);
+  const date = purposeDate(req);
   const { text } = intentionSchema.parse(req.body ?? {});
 
   const existing = await DailyEntryModel.findOne({ userId: req.userId, date }).select("dailyPurpose").lean();
@@ -77,7 +91,7 @@ export async function addIntention(req: Request, res: Response): Promise<void> {
 
 /** PATCH /api/entries/:date/purpose/intentions/:id — change the text, or tick it (saved with the time). */
 export async function updateIntention(req: Request, res: Response): Promise<void> {
-  const date = writableDate(req);
+  const date = purposeDate(req);
   const id = intentionId(req);
   const body = intentionPatchSchema.parse(req.body ?? {});
   const now = new Date();
@@ -97,7 +111,7 @@ export async function updateIntention(req: Request, res: Response): Promise<void
 
 /** DELETE /api/entries/:date/purpose/intentions/:id */
 export async function deleteIntention(req: Request, res: Response): Promise<void> {
-  const date = writableDate(req);
+  const date = purposeDate(req);
   const id = intentionId(req);
   const doc = await update(
     req,
@@ -111,7 +125,7 @@ export async function deleteIntention(req: Request, res: Response): Promise<void
 
 /** PUT /api/entries/:date/purpose/reflection — "How well did I live my purpose today?" 1–5 + a note. */
 export async function saveReflection(req: Request, res: Response): Promise<void> {
-  const date = writableDate(req);
+  const date = purposeDate(req);
   const { rating, note } = reflectionSchema.parse(req.body ?? {});
   const now = new Date();
   const sealed = sealText(fieldCrypto, note);

@@ -52,3 +52,14 @@ export function listDates(from: string, to: string): string[] {
   const count = daysBetween(from, to) + 1;
   return Array.from({ length: Math.max(0, count) }, (_, i) => addDays(from, i));
 }
+
+export type DayStatus = "past" | "today" | "future";
+
+/** Whether a calendar date is before, on or after today in Asia/Colombo at `now`. */
+export function dayStatus(date: string, now: Date = new Date(), tz: string = DEFAULT_TIMEZONE): DayStatus {
+  const today = todayInTimezone(tz, now);
+  return date < today ? "past" : date > today ? "future" : "today";
+}
+
+/** True only for today's date in Asia/Colombo (from 00:00 to 23:59:59 local time). */
+export const isTodayInColombo = (date: string, now: Date = new Date()): boolean => dayStatus(date, now) === "today";

@@ -15,7 +15,7 @@ import { useDay } from '@/hooks/useDay'
 import { formatLongDate, isValidDateString, relativeDay, todayInTimezone } from '@/lib/dates'
 import { dayMood, moodEmoji, type DayResponse } from '@/lib/entries'
 import { intentionsDone } from '@/lib/purpose'
-import { PurposeDayView } from '@/components/purpose/PurposeDayView'
+import { EditableUntilLabel, LockedLabel, PurposeDayView } from '@/components/purpose/PurposeDayView'
 import type { Tone } from '@/lib/tones'
 
 export function DayDetail() {
@@ -91,6 +91,7 @@ function DayBody({ day }: { day: DayResponse }) {
           tone="mental"
         >
           <PurposeDayView purpose={entry.dailyPurpose} />
+          {day.date === todayInTimezone() ? <EditableUntilLabel /> : <LockedLabel />}
         </Section>
       )}
 

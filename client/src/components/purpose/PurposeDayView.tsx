@@ -1,4 +1,5 @@
 // A day's purpose, read-only: the text, focus value chips, intentions with ✓/✗ and the evening rating.
+import { Clock, Lock } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { stars, type DailyPurpose } from '@/lib/purpose'
 import { cn } from '@/lib/utils'
@@ -43,5 +44,23 @@ export function PurposeDayView({ purpose, className }: { purpose: DailyPurpose; 
         </div>
       )}
     </div>
+  )
+}
+
+/** A past day's purpose can't be changed any more. */
+export function LockedLabel({ className }: { className?: string }) {
+  return (
+    <p className={cn('inline-flex items-center gap-1.5 text-xs text-muted-foreground', className)}>
+      <Lock className="size-3.5" aria-hidden /> Locked · this day has ended
+    </p>
+  )
+}
+
+/** Today's purpose can be changed until midnight (Asia/Colombo). */
+export function EditableUntilLabel({ className }: { className?: string }) {
+  return (
+    <p className={cn('inline-flex items-center gap-1.5 text-xs text-muted-foreground', className)}>
+      <Clock className="size-3.5" aria-hidden /> Editable until 11:59 PM
+    </p>
   )
 }

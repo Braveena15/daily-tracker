@@ -1,5 +1,5 @@
 /// <reference types="vitest/globals" />
-import { addDays, daysBetween, isValidDateString, listDates, todayInTimezone } from "./dates";
+import { addDays, dayStatus, daysBetween, isTodayInColombo, isValidDateString, listDates, todayInTimezone } from "./dates";
 import { calculateStreaks } from "./streaks";
 
 describe("todayInTimezone", () => {
@@ -102,5 +102,34 @@ describe("calculateStreaks", () => {
 
   it("ignores dates after today", () => {
     expect(calculateStreaks(["2026-11-18", "2026-11-19", "2026-11-20"], today)).toEqual({ current: 1, longest: 1 });
+  });
+});
+
+describe("isTodayInColombo (daily purpose lock)", () => {
+  // Asia/Colombo is UTC+05:30
+  const at = (local: string) => new Date(`${local}+05:30`);
+
+  it("allows today from 00:00 to 23:59", () => {
+    expect(isTodayInColombo("2026-11-21", at("2026-11-21T00:00:00"))).toBe(true);
+    expect(isTodayInColombo("2026-11-21", at("2026-11-21T12:00:00"))).toBe(true);
+    expect(isTodayInColombo("2026-11-21", at("2026-11-21T23:59:59"))).toBe(true);
+  });
+
+  it("locks the day at midnight: yesterday's purpose is rejected", () => {
+    const midnight = at("2026-11-22T00:00:00");
+    expect(isTodayInColombo("2026-11-21", midnight)).toBe(false);
+    expect(dayStatus("2026-11-21", midnight)).toBe("past");
+    expect(dayStatus("2026-11-22", midnight)).toBe("today");
+  });
+
+  it("uses the Colombo date, not UTC", () => {
+    // 19:00 UTC on the 21st is already 00:30 on the 22nd in Colombo
+    expect(dayStatus("2026-11-21", new Date("2026-11-21T19:00:00Z"))).toBe("past");
+    expect(isTodayInColombo("2026-11-22", new Date("2026-11-21T19:00:00Z"))).toBe(true);
+  });
+
+  it("rejects future dates", () => {
+    expect(isTodayInColombo("2026-11-22", at("2026-11-21T23:59:59"))).toBe(false);
+    expect(dayStatus("2026-11-22", at("2026-11-21T23:59:59"))).toBe("future");
   });
 });

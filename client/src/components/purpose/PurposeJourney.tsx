@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState, ErrorNotice } from '@/components/StatusViews'
-import { PurposeDayView } from '@/components/purpose/PurposeDayView'
+import { EditableUntilLabel, LockedLabel, PurposeDayView } from '@/components/purpose/PurposeDayView'
 import { useFetch } from '@/hooks/useFetch'
 import { addDays, formatDate, relativeDay, todayInTimezone } from '@/lib/dates'
 import {
@@ -53,7 +53,8 @@ export function PurposeStatsRow({ stats }: { stats: PurposeStats }) {
   )
 }
 
-export function DailyPurposes() {
+/** `onSetToday`: what "Set today's purpose" does (default: go to the Today page's purpose card). */
+export function DailyPurposes({ onSetToday }: { onSetToday?: () => void } = {}) {
   const navigate = useNavigate()
   const today = todayInTimezone()
   const { data, error } = useFetch<PurposeDaysResponse>(`/purpose/days?from=${addDays(today, -(DAYS - 1))}&to=${today}`)
@@ -77,12 +78,12 @@ export function DailyPurposes() {
             className="py-6"
             action={
               // #purpose: the Today page scrolls to its purpose card
-              <Button onClick={() => navigate('/today#purpose')}>
+              <Button onClick={() => (onSetToday ? onSetToday() : navigate('/today#purpose'))}>
                 <Target aria-hidden /> Set today's purpose
               </Button>
             }
           >
-            Set a purpose for today at the top of the Today page
+            {onSetToday ? 'Set a purpose for today above, or at the top of the Today page' : 'Set a purpose for today at the top of the Today page'}
           </EmptyState>
         ) : (
           <>
@@ -105,6 +106,7 @@ export function DailyPurposes() {
                       </span>
                     </div>
                     <PurposeDayView purpose={day} />
+                    {day.date === today ? <EditableUntilLabel /> : <LockedLabel />}
                   </Link>
                 </li>
               ))}

@@ -16,6 +16,9 @@ import { IconBubble } from '@/components/IconBubble'
 import { PageHeader } from '@/components/PageHeader'
 import { ErrorNotice } from '@/components/StatusViews'
 import { DailyPurposes, PurposeEvolution } from '@/components/purpose/PurposeJourney'
+import { PurposeCard } from '@/components/day/PurposeCard'
+import { useDay } from '@/hooks/useDay'
+import { useToday } from '@/hooks/useClock'
 import { savedAtLabel } from '@/lib/purpose'
 import { api } from '@/lib/api'
 import { VALUE_SUGGESTIONS, type Purpose as PurposeData } from '@/lib/mind'
@@ -48,6 +51,10 @@ export function Purpose() {
   const [saving, setSaving] = useState(false)
   // Bumped after each save, so "How my purpose evolved" reloads with the new current version
   const [saves, setSaves] = useState(0)
+  // Bumped when today's purpose is saved here, so "Daily purposes" reloads
+  const [daySaves, setDaySaves] = useState(0)
+  // At midnight today's card and the list move on to the new day
+  const today = useToday()
 
   useEffect(() => {
     api
@@ -146,7 +153,10 @@ export function Purpose() {
             <PurposeView purpose={saved} onEdit={() => setEditing(true)} />
           )}
 
-          <DailyPurposes />
+          {/* Today's purpose can be set right here too (it's the same as the card on the Today page).
+              key: picks up new core values and statement after the purpose above is saved */}
+          <TodayPurposeEditor key={`${saves}-${today}`} today={today} onSaved={() => setDaySaves((n) => n + 1)} />
+          <DailyPurposes key={`${daySaves}-${today}`} onSetToday={scrollToToday} />
           <PurposeEvolution key={saves} />
         </div>
       )}
@@ -168,6 +178,42 @@ export function Purpose() {
         </DialogContent>
       </Dialog>
     </>
+  )
+}
+
+function scrollToToday() {
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  document.getElementById('today-purpose')?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' })
+}
+
+/** Today's purpose, editable on this page. Every save also refreshes the Daily purposes list. */
+function TodayPurposeEditor({ today, onSaved }: { today: string; onSaved: () => void }) {
+  const { day, error, savePurpose, addIntention, updateIntention, removeIntention, saveReflection } = useDay(today)
+  const after =
+    <A extends unknown[], R>(action: (...args: A) => Promise<R>) =>
+    async (...args: A) => {
+      const result = await action(...args)
+      onSaved()
+      return result
+    }
+  const actions = {
+    savePurpose: after(savePurpose),
+    addIntention: after(addIntention),
+    updateIntention: after(updateIntention),
+    removeIntention: after(removeIntention),
+    saveReflection: after(saveReflection),
+  }
+
+  return (
+    <div id="today-purpose" className="scroll-mt-4">
+      {error ? (
+        <ErrorNotice>{error}</ErrorNotice>
+      ) : !day ? (
+        <Skeleton className="h-32 w-full rounded-2xl" />
+      ) : (
+        <PurposeCard key={day.entry?.dailyPurpose?.setAt ?? 'none'} purpose={day.entry?.dailyPurpose ?? null} isToday actions={actions} />
+      )}
+    </div>
   )
 }
 
