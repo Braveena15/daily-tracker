@@ -87,7 +87,7 @@ function SleepBreakdownSheet({ sleep, open, onClose }: { sleep: SleepSummary; op
     <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
       <SheetContent
         side={desktop ? 'right' : 'bottom'}
-        className={cn('gap-0 p-0', desktop ? 'w-full sm:max-w-md' : 'max-h-[85dvh] rounded-t-3xl pb-[env(safe-area-inset-bottom)]')}
+        className={cn('gap-0 p-0', desktop ? 'w-full sm:max-w-md' : 'max-h-[85dvh] rounded-t-2xl pb-[env(safe-area-inset-bottom)]')}
       >
         <SheetHeader className="border-b px-5 pt-5 pb-4">
           <div className="flex items-center gap-3">

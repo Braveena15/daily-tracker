@@ -33,6 +33,7 @@ import {
 } from '@/lib/entries'
 import type { Tone } from '@/lib/tones'
 import { EnergyLabel, MoodBadge } from '@/components/MoodFace'
+import { SupportButton } from '@/components/mind/Support'
 
 export function Today() {
   // ?date=YYYY-MM-DD picks a past day; anything missing, invalid or in the future means today
@@ -40,7 +41,7 @@ export function Today() {
 
   return (
     <>
-      <PageHeader title="Today" description="Log as you go: each entry gets its own time." />
+      <PageHeader title="Today" description="Log as you go: each entry gets its own time." action={<SupportButton compact />} />
       <div className="space-y-4 md:space-y-6">
         <DateBar date={date} today={today} onChange={goTo} />
         {/* key: a fresh load for each date */}

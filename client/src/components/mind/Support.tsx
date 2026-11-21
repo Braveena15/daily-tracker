@@ -73,7 +73,15 @@ export function SupportCard({ className }: { className?: string }) {
 }
 
 /** The support card in a dialog. */
-export function SupportDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+export function SupportDialog({
+  open,
+  onOpenChange,
+  description = 'Your entry is saved. These people are ready to listen, any time.',
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  description?: string
+}) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md">
@@ -81,7 +89,7 @@ export function SupportDialog({ open, onOpenChange }: { open: boolean; onOpenCha
           <DialogTitle className="flex items-center gap-2">
             <HeartHandshake className="size-5 text-mental" aria-hidden /> Support is here
           </DialogTitle>
-          <DialogDescription>Your entry is saved. These people are ready to listen, any time.</DialogDescription>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <SupportCard />
       </DialogContent>
@@ -89,30 +97,33 @@ export function SupportDialog({ open, onOpenChange }: { open: boolean; onOpenCha
   )
 }
 
-/** "Need support now" — opens the support card. */
-export function SupportButton({ className }: { className?: string }) {
+export const SUPPORT_NOW = 'Reaching out is a strong thing to do.'
+
+/**
+ * "Need support now" — opens the support card. `compact` is a round heart button for page
+ * headers (labelled for screen readers), in the same lavender as the full button.
+ */
+export function SupportButton({ className, compact = false }: { className?: string; compact?: boolean }) {
   const [open, setOpen] = useState(false)
   return (
     <>
       <Button
         type="button"
         variant="outline"
-        className={cn('border-mental/40 bg-mental-soft text-mental-foreground hover:bg-mental-soft/80', className)}
+        size={compact ? 'icon-lg' : 'default'}
+        className={cn(
+          'border-mental/40 bg-mental-soft text-mental-foreground hover:bg-mental-soft/80 hover:text-mental-foreground',
+          compact && 'rounded-full',
+          className,
+        )}
         onClick={() => setOpen(true)}
+        aria-label={compact ? 'Need support now' : undefined}
+        title={compact ? 'Need support now' : undefined}
       >
-        <Heart className="fill-current" aria-hidden /> Need support now
+        <Heart className="fill-current" aria-hidden />
+        {!compact && 'Need support now'}
       </Button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <HeartHandshake className="size-5 text-mental" aria-hidden /> Support is here
-            </DialogTitle>
-            <DialogDescription>Reaching out is a strong thing to do.</DialogDescription>
-          </DialogHeader>
-          <SupportCard />
-        </DialogContent>
-      </Dialog>
+      <SupportDialog open={open} onOpenChange={setOpen} description={SUPPORT_NOW} />
     </>
   )
 }

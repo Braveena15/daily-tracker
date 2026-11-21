@@ -38,7 +38,7 @@ export function AddFoodSheet({
         side={desktop ? 'right' : 'bottom'}
         className={cn(
           'gap-0 p-0',
-          desktop ? 'w-full sm:max-w-md' : 'max-h-[88dvh] rounded-t-3xl pb-[env(safe-area-inset-bottom)]',
+          desktop ? 'w-full sm:max-w-md' : 'max-h-[88dvh] rounded-t-2xl pb-[env(safe-area-inset-bottom)]',
         )}
       >
         <SheetHeader className="border-b px-5 pt-5 pb-4">

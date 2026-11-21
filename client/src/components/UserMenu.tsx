@@ -1,4 +1,5 @@
-import { LogOut, UserRound } from 'lucide-react'
+import { useState } from 'react'
+import { Heart, LogOut, UserRound } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import {
@@ -11,6 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { SUPPORT_NOW, SupportDialog } from '@/components/mind/Support'
 import { useAuth } from '@/context/useAuth'
 import { useTheme } from '@/context/useTheme'
 import type { Theme } from '@/context/theme-context'
@@ -18,15 +20,17 @@ import { useLogout } from '@/hooks/useLogout'
 import { THEME_OPTIONS } from '@/lib/themeOptions'
 import { cn } from '@/lib/utils'
 
-/** Phone-sized account menu: theme choice and logout (the sidebar has these on desktop). */
+/** Phone-sized account menu: support, profile, theme and logout (the sidebar has these on desktop). */
 export function UserMenu({ className }: { className?: string }) {
   const { user } = useAuth()
   const { theme, setTheme } = useTheme()
   const { loggingOut, logout } = useLogout()
   const initial = user?.name.trim().charAt(0).toUpperCase() || '?'
+  const [support, setSupport] = useState(false)
 
   return (
-    <DropdownMenu>
+    <>
+      <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
           variant="secondary"
@@ -43,6 +47,9 @@ export function UserMenu({ className }: { className?: string }) {
           <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={() => setSupport(true)} className="text-mental-foreground focus:text-mental-foreground">
+          <Heart className="fill-current text-mental" /> Need support now
+        </DropdownMenuItem>
         <DropdownMenuItem asChild>
           <Link to="/profile">
             <UserRound /> Profile & goals
@@ -62,6 +69,8 @@ export function UserMenu({ className }: { className?: string }) {
           <LogOut /> {loggingOut ? 'Logging out…' : 'Log out'}
         </DropdownMenuItem>
       </DropdownMenuContent>
-    </DropdownMenu>
+      </DropdownMenu>
+      <SupportDialog open={support} onOpenChange={setSupport} description={SUPPORT_NOW} />
+    </>
   )
 }

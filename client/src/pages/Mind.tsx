@@ -11,6 +11,8 @@ export function Mind() {
     <>
       <PageHeader title="Mind" description="Space to write, reflect and look after yourself." />
       <div className="space-y-4 md:space-y-6">
+        {/* First, so it's always in reach without scrolling */}
+        <SupportButton className="h-11 w-full sm:w-auto" />
         <ul className="grid gap-3 sm:grid-cols-2">
           {MIND_PAGES.map((page) => (
             <li key={page.to}>
@@ -28,12 +30,9 @@ export function Mind() {
             </li>
           ))}
         </ul>
-        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Lock className="size-4" aria-hidden /> Your diary and thought logs are encrypted before they're stored.
-          </p>
-          <SupportButton />
-        </div>
+        <p className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Lock className="size-4 shrink-0" aria-hidden /> Your diary and thought logs are encrypted before they're stored.
+        </p>
       </div>
     </>
   )

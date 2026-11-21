@@ -9,10 +9,11 @@ import {
   UtensilsCrossed,
 } from 'lucide-react'
 import { Suspense } from 'react'
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { Link, Outlet, useLocation } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { PageSkeleton } from '@/components/StatusViews'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import { SupportButton } from '@/components/mind/Support'
 import { useAuth } from '@/context/useAuth'
 import { useLogout } from '@/hooks/useLogout'
 import { MIND_PAGES } from '@/lib/mind'
@@ -48,12 +49,17 @@ const NAV: NavItem[] = [
   { to: '/profile', label: 'Profile', icon: UserRound, sidebarOnly: true },
 ]
 
-/** NavLink's own match, plus any extra paths that belong to the same tab. */
+/**
+ * Whether a nav item is the current page: its own path (exactly, for `end`), or one of the extra
+ * paths that belong to the same tab. Plain Links + this, rather than NavLink, so screen readers
+ * also hear "current page" for those extra paths (NavLink only marks its own path).
+ */
 function useIsActive(mobile: boolean) {
   const { pathname } = useLocation()
-  return (item: NavItem, isActive: boolean) =>
-    isActive ||
-    [...(item.alsoActiveOn ?? []), ...(mobile ? (item.alsoActiveOnMobile ?? []) : [])].some((p) => pathname.startsWith(p))
+  const under = (path: string) => pathname === path || pathname.startsWith(path.endsWith('/') ? path : `${path}/`)
+  return (item: NavItem) =>
+    (item.end ? pathname === item.to : under(item.to)) ||
+    [...(item.alsoActiveOn ?? []), ...(mobile ? (item.alsoActiveOnMobile ?? []) : [])].some(under)
 }
 
 // Page frame for logged-in pages: a sidebar on desktop, a bottom tab bar on phones.
@@ -73,28 +79,21 @@ export function Layout() {
   )
 }
 
-function SidebarLink({ item, isOn }: { item: NavItem; isOn: (item: NavItem, matched: boolean) => boolean }) {
-  const { to, label, icon: Icon, end } = item
+function SidebarLink({ item, isOn }: { item: NavItem; isOn: (item: NavItem) => boolean }) {
+  const { to, label, icon: Icon } = item
+  const on = isOn(item)
   return (
-    <NavLink
+    <Link
       to={to}
-      end={end}
-      className={({ isActive }) =>
-        cn(
-          'flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all outline-none focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.98]',
-          isOn(item, isActive)
-            ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-            : 'text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground',
-        )
-      }
-    >
-      {({ isActive }) => (
-        <>
-          <Icon className={cn('size-5 transition-colors', isOn(item, isActive) && 'text-primary')} aria-hidden />
-          {label}
-        </>
+      aria-current={on ? 'page' : undefined}
+      className={cn(
+        'flex min-h-10 items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all outline-none focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.98]',
+        on ? 'bg-sidebar-accent text-sidebar-accent-foreground' : 'text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground',
       )}
-    </NavLink>
+    >
+      <Icon className={cn('size-5 transition-colors', on && 'text-primary')} aria-hidden />
+      {label}
+    </Link>
   )
 }
 
@@ -119,6 +118,7 @@ function Sidebar() {
       </nav>
 
       <div className="mt-auto space-y-4 pt-6">
+        <SupportButton className="w-full justify-start" />
         <div className="px-3">
           <p className="truncate text-sm font-medium">{user?.name}</p>
           <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
@@ -150,34 +150,26 @@ function BottomTabs() {
     >
       <div className="mx-auto grid max-w-lg grid-cols-5">
         {NAV.filter((item) => !item.sidebarOnly).map((item) => {
-          const { to, label, icon: Icon, end } = item
+          const { to, label, icon: Icon } = item
+          const on = isOn(item)
           return (
-            <NavLink
+            <Link
               key={to}
               to={to}
-              end={end}
-              className={({ isActive }) =>
-                cn(
-                  'group flex flex-col items-center gap-1 pt-2 pb-2.5 text-xs font-medium transition-colors outline-none focus-visible:bg-muted',
-                  isOn(item, isActive) ? 'text-foreground' : 'text-muted-foreground',
-                )
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <span
-                    className={cn(
-                      'grid h-8 w-12 place-items-center rounded-full transition-all group-active:scale-90',
-                      isOn(item, isActive) && 'bg-secondary text-primary',
-                    )}
-                    aria-hidden
-                  >
-                    <Icon className="size-5" />
-                  </span>
-                  {label}
-                </>
+              aria-current={on ? 'page' : undefined}
+              className={cn(
+                'group flex min-h-14 flex-col items-center justify-center gap-1 pt-2 pb-2 text-xs transition-colors outline-none focus-visible:bg-muted',
+                on ? 'font-semibold text-primary' : 'font-medium text-muted-foreground',
               )}
-            </NavLink>
+            >
+              <span
+                className={cn('grid h-8 w-14 place-items-center rounded-full transition-all group-active:scale-90', on && 'bg-secondary')}
+                aria-hidden
+              >
+                <Icon className="size-5" />
+              </span>
+              {label}
+            </Link>
           )
         })}
       </div>
