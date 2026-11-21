@@ -104,7 +104,8 @@ function Delta({ diff, unit = '', direction = 'higher-is-good', digits = 0 }: { 
       <Icon className="size-4" aria-hidden />
       <span className="sr-only">{up ? 'up' : 'down'}</span>
       {Math.abs(rounded).toFixed(digits)}
-      {unit} vs last week
+      {unit}
+      <span className="max-sm:sr-only">&nbsp;vs last week</span>
     </span>
   )
 }
@@ -128,10 +129,10 @@ function StatCard({
     <Card size="sm">
       <CardContent className="space-y-2">
         <div className="flex items-center gap-2">
-          <IconBubble icon={icon} tone={tone} className="size-8 rounded-lg [&_svg]:size-4" />
-          <p className="text-sm text-muted-foreground">{label}</p>
+          <IconBubble icon={icon} tone={tone} className="size-8 shrink-0 rounded-lg [&_svg]:size-4" />
+          <p className="min-w-0 text-sm leading-tight text-muted-foreground">{label}</p>
         </div>
-        <p className="font-heading text-2xl font-semibold tabular-nums">{value}</p>
+        <p className="font-heading text-xl font-semibold text-balance tabular-nums sm:text-2xl">{value}</p>
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           {delta}
           <span className="text-xs text-muted-foreground">Last week: {previous}</span>
@@ -204,7 +205,8 @@ function ReviewBody({ data, today }: { data: WeeklyReviewResponse; today: string
         <h2 id="week-heading" className="text-xl font-semibold">
           Your week
         </h2>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {/* Two columns even on phones (one below 360px), so the page stays short */}
+        <div className="grid grid-cols-2 gap-3 max-[360px]:grid-cols-1 lg:grid-cols-3">
           <StatCard
             icon={Dumbbell}
             tone="physical"

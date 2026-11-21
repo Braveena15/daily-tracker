@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Calendar } from '@/components/ui/calendar'
+import { Calendar } from '@/components/LazyCalendar'
 import { Card } from '@/components/ui/card'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { addDays, formatDate, fromLocalDate, relativeDay, toLocalDate } from '@/lib/dates'
