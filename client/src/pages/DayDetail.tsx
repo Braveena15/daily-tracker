@@ -1,6 +1,6 @@
 // A read-only view of one day (opened from History): the summary, timeline and graphs.
 import { Link, Navigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Footprints, Flame, ListOrdered, Moon, Scale, SquarePen, Smile, Target, type LucideIcon } from 'lucide-react'
+import { Footprints, Flame, ListOrdered, Moon, Scale, SquarePen, Smile, Target, type LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -35,6 +35,7 @@ function DayView({ date, today }: { date: string; today: string }) {
     <>
       <PageHeader
         title={relativeDay(date, today)}
+        back={{ to: '/history', label: 'History' }}
         description={formatLongDate(date)}
         action={
           <Button asChild variant="outline">
@@ -45,9 +46,6 @@ function DayView({ date, today }: { date: string; today: string }) {
         }
       />
       <div className="space-y-4 md:space-y-6">
-        <Link to="/history" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="size-4" aria-hidden /> Back to history
-        </Link>
         {error ? <ErrorNotice>{error}</ErrorNotice> : !day ? <Skeleton className="h-64 w-full rounded-2xl" /> : <DayBody day={day} />}
       </div>
     </>

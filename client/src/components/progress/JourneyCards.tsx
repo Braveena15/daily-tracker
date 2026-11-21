@@ -2,7 +2,7 @@ import { Flame, Sprout } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
-import { ErrorNotice } from '@/components/StatusViews'
+import { ErrorNotice, FormError } from '@/components/StatusViews'
 import { useFetch } from '@/hooks/useFetch'
 import { formatDate } from '@/lib/dates'
 import type { StreakResponse } from '@/lib/entries'
@@ -64,7 +64,7 @@ function StreakCard() {
           <Flame className="size-6" />
         </span>
         {error ? (
-          <p className="text-sm text-destructive">{error}</p>
+          <FormError>{error}</FormError>
         ) : !data ? (
           <div className="flex-1 space-y-2">
             <Skeleton className="h-6 w-16" />

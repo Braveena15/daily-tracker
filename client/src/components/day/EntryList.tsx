@@ -1,6 +1,6 @@
 // A day's entries of one kind, newest first: "08:15 · Cycling · 30 min", each with edit and delete.
 import { useEffect, useState, type ReactNode } from 'react'
-import { Loader2, Pencil, Trash2 } from 'lucide-react'
+import { Pencil, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { WatchMark } from '@/components/CheckinFields'
@@ -109,7 +109,7 @@ function Row({
           <Button type="button" variant="ghost" size="icon" aria-label={`Edit ${label} at ${time}`} onClick={onEdit}>
             <Pencil />
           </Button>
-          <Button
+          <Button loading={deleting}
             type="button"
             variant="ghost"
             size={confirming ? 'sm' : 'icon'}
@@ -121,7 +121,7 @@ function Row({
               confirming && 'bg-destructive/10 text-destructive',
             )}
           >
-            {deleting ? <Loader2 className="animate-spin" /> : <Trash2 />}
+            <Trash2 />
             {confirming && !deleting && 'Delete?'}
           </Button>
         </div>

@@ -10,6 +10,7 @@ import { InputWithUnit } from '@/components/InputWithUnit'
 import { TimeField } from '@/components/day/TimeField'
 import { useTimeInput } from '@/hooks/useTimeInput'
 import { RatingPicker } from '@/components/CheckinFields'
+import { FormError } from '@/components/StatusViews'
 import { timeOf } from '@/lib/healthSync'
 import { type Activity, type Learning, type MoodLog } from '@/lib/entries'
 import { energyBand, moodBand } from '@/lib/mood'
@@ -86,9 +87,7 @@ function FormFooter({
         </div>
       </div>
       {error && (
-        <p className="text-sm text-destructive" role="alert">
-          {error}
-        </p>
+        <FormError>{error}</FormError>
       )}
     </div>
   )

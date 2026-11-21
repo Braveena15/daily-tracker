@@ -6,7 +6,7 @@
 // - today shows the saved purpose with an Edit button, intentions you can tick and the reflection.
 // The card is given `isToday` from a clock, so it locks by itself at midnight.
 import { useState, type FormEvent } from 'react'
-import { Check, Copy, Loader2, Moon, Pencil, Plus, Star, Target, X } from 'lucide-react'
+import { Check, Copy, Moon, Pencil, Plus, Star, Target, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -185,8 +185,8 @@ function PurposeText({ purpose, statement, onSave }: { purpose: DailyPurpose | n
             </Button>
           )}
           {dirty && (
-            <Button type="submit" size="sm" disabled={busy}>
-              {busy && <Loader2 className="animate-spin" aria-hidden />} Save purpose
+            <Button loading={busy} type="submit" size="sm" disabled={busy}>
+              Save purpose
             </Button>
           )}
         </div>
@@ -287,8 +287,8 @@ function Intentions({ purpose, actions, editable }: { purpose: DailyPurpose | nu
       {editable && !full && (
         <form className="flex gap-2" onSubmit={add} noValidate>
           <Input aria-label="Add an intention" placeholder="e.g. Go cycling, Call Amma, Study 1 hour" maxLength={200} value={draft} onChange={(e) => setDraft(e.target.value)} />
-          <Button type="submit" variant="secondary" disabled={busy || !draft.trim()}>
-            {busy ? <Loader2 className="animate-spin" aria-hidden /> : <Plus aria-hidden />} Add
+          <Button loading={busy} type="submit" variant="secondary" disabled={busy || !draft.trim()}>
+            <Plus aria-hidden /> Add
           </Button>
         </form>
       )}
@@ -348,8 +348,8 @@ function EveningReflection({ purpose, hour, onSave }: { purpose: DailyPurpose | 
       </div>
       <Textarea aria-label="Reflection note (optional)" placeholder="A note (optional)" rows={2} maxLength={1000} value={note} onChange={(e) => setNote(e.target.value)} />
       <div className="flex justify-end">
-        <Button type="submit" size="sm" disabled={busy || rating === null || !dirty}>
-          {busy && <Loader2 className="animate-spin" aria-hidden />} Save reflection
+        <Button loading={busy} type="submit" size="sm" disabled={busy || rating === null || !dirty}>
+          Save reflection
         </Button>
       </div>
     </form>

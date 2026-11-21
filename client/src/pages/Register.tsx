@@ -1,6 +1,5 @@
 import { useState, type FormEvent } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
-import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -86,8 +85,7 @@ export function Register() {
           </p>
         </div>
 
-        <Button type="submit" size="lg" className="w-full" disabled={submitting}>
-          {submitting && <Loader2 className="animate-spin" aria-hidden />}
+        <Button loading={submitting} type="submit" size="lg" className="w-full" disabled={submitting}>
           {submitting ? 'Creating account…' : 'Create account'}
         </Button>
 

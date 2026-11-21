@@ -1,6 +1,6 @@
 // Profile → "Apple Watch sync": create or revoke the token an iOS Shortcut uses, plus a setup guide.
 import { useEffect, useRef, useState } from 'react'
-import { AlertTriangle, Check, Copy, KeyRound, Loader2, RefreshCw, Trash2, Watch } from 'lucide-react'
+import { AlertTriangle, Check, Copy, KeyRound, RefreshCw, Trash2, Watch } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -16,6 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { IconBubble } from '@/components/IconBubble'
 import { api } from '@/lib/api'
 import { EXAMPLE_BODY, formatSyncTime, syncEndpoint, type NewTokenResponse, type SyncStatus } from '@/lib/healthSync'
+import { FormError } from '@/components/StatusViews'
 
 /** Copies text, falling back to selecting it (the clipboard API needs https or localhost). */
 async function copyText(text: string, fallbackTarget: HTMLElement | null): Promise<boolean> {
@@ -136,7 +137,7 @@ export function AppleWatchSync() {
 
       <CardContent className="space-y-5">
         {loadError ? (
-          <p className="text-sm text-destructive">{loadError}</p>
+          <FormError>{loadError}</FormError>
         ) : !status ? (
           <Skeleton className="h-16 w-full rounded-xl" />
         ) : (
@@ -175,8 +176,8 @@ export function AppleWatchSync() {
                     </Button>
                   </>
                 ) : (
-                  <Button type="button" disabled={busy} onClick={() => void generate()}>
-                    {busy ? <Loader2 className="animate-spin" aria-hidden /> : <KeyRound aria-hidden />}
+                  <Button loading={busy} type="button" disabled={busy} onClick={() => void generate()}>
+                    <KeyRound aria-hidden />
                     Generate sync token
                   </Button>
                 )}
@@ -250,13 +251,12 @@ export function AppleWatchSync() {
             <Button type="button" variant="outline" onClick={() => setConfirm(null)}>
               Cancel
             </Button>
-            <Button
+            <Button loading={busy}
               type="button"
               variant={confirm === 'revoke' ? 'destructive' : 'default'}
               disabled={busy}
               onClick={() => void (confirm === 'revoke' ? revoke() : generate())}
             >
-              {busy && <Loader2 className="animate-spin" aria-hidden />}
               {confirm === 'revoke' ? 'Revoke' : 'Regenerate'}
             </Button>
           </DialogFooter>

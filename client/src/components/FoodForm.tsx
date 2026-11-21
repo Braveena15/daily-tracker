@@ -1,5 +1,5 @@
 import { useId, useState, type FormEvent } from 'react'
-import { Loader2, Star } from 'lucide-react'
+import { Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -175,8 +175,7 @@ export function FoodForm({
             Cancel
           </Button>
         )}
-        <Button type="submit" disabled={saving}>
-          {saving && <Loader2 className="animate-spin" aria-hidden />}
+        <Button loading={saving} type="submit" disabled={saving}>
           {submitLabel}
         </Button>
       </div>

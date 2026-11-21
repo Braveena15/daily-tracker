@@ -2,7 +2,7 @@
 // With nothing saved yet it opens straight in EDIT mode. Leaving with unsaved edits asks first.
 import { useEffect, useState, type FormEvent } from 'react'
 import { useBlocker } from 'react-router-dom'
-import { Check, Compass, Loader2, Pencil, Plus, Save, X } from 'lucide-react'
+import { Check, Compass, Pencil, Plus, Save, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -143,8 +143,8 @@ export function Purpose() {
                     Cancel
                   </Button>
                 )}
-                <Button size="lg" onClick={() => void save()} disabled={saving || (hasSaved && !dirty)}>
-                  {saving ? <Loader2 className="animate-spin" aria-hidden /> : <Save aria-hidden />}
+                <Button loading={saving} size="lg" onClick={() => void save()} disabled={saving || (hasSaved && !dirty)}>
+                  <Save aria-hidden />
                   {saving ? 'Saving…' : 'Save'}
                 </Button>
               </div>
@@ -333,7 +333,7 @@ function PurposeForm({ draft, onChange }: { draft: Draft; onChange: (draft: Draf
                     on && 'border-mental/50 bg-mental-soft text-mental-foreground hover:bg-mental-soft',
                   )}
                 >
-                  {on ? <Check className="size-4" aria-hidden /> : <Plus className="size-3.5" aria-hidden />}
+                  {on ? <Check className="size-4" aria-hidden /> : <Plus className="size-4" aria-hidden />}
                   {value}
                 </button>
               )

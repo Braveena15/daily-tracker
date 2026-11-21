@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
-import { CalendarDays, Loader2, Save } from 'lucide-react'
+import { CalendarDays, Save } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
@@ -408,8 +408,8 @@ export function Profile() {
             </CardContent>
 
             <CardFooter className="justify-end">
-              <Button type="submit" size="lg" disabled={saving} className="w-full sm:w-auto">
-                {saving ? <Loader2 className="animate-spin" aria-hidden /> : <Save aria-hidden />}
+              <Button loading={saving} type="submit" size="lg" disabled={saving} className="w-full sm:w-auto">
+                <Save aria-hidden />
                 {saving ? 'Saving…' : 'Save profile'}
               </Button>
             </CardFooter>

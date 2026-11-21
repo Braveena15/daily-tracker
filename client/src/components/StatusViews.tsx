@@ -95,3 +95,13 @@ export function ErrorNotice({ children, className }: { children: ReactNode; clas
     </div>
   )
 }
+
+/** A form or action error: an icon and red text (never colour alone), announced to screen readers. */
+export function FormError({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <p className={cn('flex items-start gap-1.5 text-sm text-destructive', className)} role="alert">
+      <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+      <span>{children}</span>
+    </p>
+  )
+}

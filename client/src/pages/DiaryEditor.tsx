@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Loader2, Lock, Save, Star, Trash2, X } from 'lucide-react'
+import { Lock, Save, Star, Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
@@ -21,6 +21,7 @@ import { formatLongDate, todayInTimezone } from '@/lib/dates'
 import type { DiaryEntry, DiaryResponse } from '@/lib/mind'
 import { readJSON, removeItem, writeJSON } from '@/lib/storage'
 import { cn } from '@/lib/utils'
+import { BackLink } from '@/components/PageHeader'
 
 type Draft = { date: string; title: string; body: string; tags: string[]; isFavourite: boolean }
 
@@ -164,9 +165,7 @@ function Editor({ id }: { id: string | undefined }) {
   return (
     <div className="mx-auto max-w-2xl">
       <div className="mb-6 flex items-center justify-between gap-2">
-        <Button variant="ghost" className="-ml-2 text-muted-foreground" onClick={() => navigate('/diary')}>
-          <ArrowLeft aria-hidden /> Diary
-        </Button>
+        <BackLink onClick={() => navigate('/diary')} label="Diary" />
         <div className="flex items-center gap-1">
           <Button
             variant="ghost"
@@ -284,8 +283,8 @@ function Editor({ id }: { id: string | undefined }) {
               </span>
             )}
           </p>
-          <Button size="lg" onClick={() => void save()} disabled={saving || !dirty || !!entry?.unreadable}>
-            {saving ? <Loader2 className="animate-spin" aria-hidden /> : <Save aria-hidden />}
+          <Button loading={saving} size="lg" onClick={() => void save()} disabled={saving || !dirty || !!entry?.unreadable}>
+            <Save aria-hidden />
             {saving ? 'Saving…' : 'Save'}
           </Button>
         </div>

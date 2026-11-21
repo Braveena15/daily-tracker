@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { ArrowLeft, Loader2, Pencil, Plus, Search, Star, Trash2, UtensilsCrossed } from 'lucide-react'
+import { Pencil, Plus, Search, Star, Trash2, UtensilsCrossed } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -79,16 +78,12 @@ export function Foods() {
     <>
       <PageHeader
         title="My Foods"
+        back={{ to: '/meals', label: 'Meals' }}
         description="Foods you eat often. Editing one doesn't change meals you've already logged."
       />
 
       <div className="space-y-4 md:space-y-6">
         <div className="flex flex-wrap items-center gap-2">
-          <Button asChild variant="ghost" className="-ml-2 text-muted-foreground">
-            <Link to="/meals">
-              <ArrowLeft aria-hidden /> Meals
-            </Link>
-          </Button>
           <div className="relative min-w-0 flex-1 basis-48">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
             <Input
@@ -246,8 +241,7 @@ function DeleteDialog({
           <Button variant="outline" onClick={onClose}>
             Keep it
           </Button>
-          <Button variant="destructive" onClick={() => void confirm()} disabled={busy}>
-            {busy && <Loader2 className="animate-spin" aria-hidden />}
+          <Button loading={busy} variant="destructive" onClick={() => void confirm()} disabled={busy}>
             Delete
           </Button>
         </DialogFooter>

@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Clapperboard, Loader2, Pencil, Plus, Quote as QuoteIcon, Trash2 } from 'lucide-react'
+import { Clapperboard, Pencil, Plus, Quote as QuoteIcon, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -245,8 +245,8 @@ function QuoteForm({ initial, onSaved }: { initial?: Quote; onSaved: (q: Quote) 
           <CategorySelect value={category} onChange={setCategory} />
         </div>
       </div>
-      <Button type="submit" className="w-full" disabled={saving}>
-        {saving && <Loader2 className="animate-spin" aria-hidden />} Save
+      <Button loading={saving} type="submit" className="w-full" disabled={saving}>
+        Save
       </Button>
     </form>
   )
@@ -403,8 +403,8 @@ function VideoForm({ initial, onSaved }: { initial?: Video; onSaved: (v: Video) 
         <Label htmlFor="video-note">Note (optional)</Label>
         <Textarea id="video-note" maxLength={500} className="min-h-16" placeholder="Why it helps you" value={note} onChange={(e) => setNote(e.target.value)} />
       </div>
-      <Button type="submit" className="w-full" disabled={saving}>
-        {saving && <Loader2 className="animate-spin" aria-hidden />} Save
+      <Button loading={saving} type="submit" className="w-full" disabled={saving}>
+        Save
       </Button>
     </form>
   )

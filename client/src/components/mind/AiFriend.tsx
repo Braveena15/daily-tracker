@@ -2,7 +2,7 @@
 // time, after the explanation dialog). Private logs are never shared. Crisis words show support
 // contacts instead of AI text (the server never sends them to the AI).
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { HeartHandshake, Loader2, Lock, Plus, Send, ThumbsDown, ThumbsUp } from 'lucide-react'
+import { HeartHandshake, Lock, Plus, Send, ThumbsDown, ThumbsUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -22,6 +22,7 @@ import {
 } from '@/lib/aiFriend'
 import { todayInTimezone } from '@/lib/dates'
 import { cn } from '@/lib/utils'
+import { FormError } from '@/components/StatusViews'
 
 export function AiFriend({ thoughtId, thoughtDate, isPrivate }: { thoughtId: string; thoughtDate: string; isPrivate: boolean }) {
   const [conversation, setConversation] = useState<FriendConversation | null>(null)
@@ -89,8 +90,8 @@ export function AiFriend({ thoughtId, thoughtDate, isPrivate }: { thoughtId: str
     <section aria-label="AI friend" className="space-y-4 text-left">
       {!conversation && !support && (
         <div className="flex flex-col items-center gap-3 text-center">
-          <Button size="lg" onClick={talk} disabled={asking || !loaded}>
-            {asking ? <Loader2 className="animate-spin" aria-hidden /> : <HeartHandshake aria-hidden />}
+          <Button loading={asking} size="lg" onClick={talk} disabled={asking || !loaded}>
+            <HeartHandshake aria-hidden />
             {asking ? 'Your friend is reading…' : 'Talk to my AI friend'}
           </Button>
           <p className="text-xs text-muted-foreground">Shares this thought with Gemini</p>
@@ -104,9 +105,7 @@ export function AiFriend({ thoughtId, thoughtDate, isPrivate }: { thoughtId: str
       )}
 
       {error && (
-        <p className="text-center text-sm text-destructive" role="alert">
-          {error}
-        </p>
+        <FormError className="justify-center">{error}</FormError>
       )}
 
       {support && (
@@ -257,8 +256,8 @@ function FriendReplyCard({
           <h3 className="text-sm font-semibold text-mental-foreground">One small step</h3>
           <p className="text-sm leading-relaxed">{reply.smallStep}</p>
           {canAddIntention && (
-            <Button type="button" variant="outline" size="sm" className="bg-card" onClick={addIntention} disabled={adding}>
-              {adding ? <Loader2 className="animate-spin" aria-hidden /> : <Plus aria-hidden />} Add as an intention for today
+            <Button loading={adding} type="button" variant="outline" size="sm" className="bg-card" onClick={addIntention} disabled={adding}>
+              <Plus aria-hidden /> Add as an intention for today
             </Button>
           )}
         </section>
@@ -368,8 +367,8 @@ function FriendChat({
               onChange={(e) => setDraft(e.target.value)}
               className="min-h-12"
             />
-            <Button type="submit" size="icon" aria-label="Send" disabled={!draft.trim() || pending !== null}>
-              {pending ? <Loader2 className="animate-spin" /> : <Send />}
+            <Button loading={pending !== null} type="submit" size="icon" aria-label="Send" disabled={!draft.trim() || pending !== null}>
+              <Send />
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">
@@ -380,9 +379,7 @@ function FriendChat({
         <p className="text-sm text-muted-foreground">That's the end of this conversation. Be gentle with yourself.</p>
       )}
       {error && (
-        <p className="text-sm text-destructive" role="alert">
-          {error}
-        </p>
+        <FormError>{error}</FormError>
       )}
     </section>
   )

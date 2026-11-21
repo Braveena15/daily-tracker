@@ -112,8 +112,8 @@ export function DataCleanup() {
               Cancel
             </Button>
             {data && data.total > 0 && (
-              <Button type="button" variant="destructive" disabled={typed !== 'DELETE' || deleting} onClick={confirmDelete}>
-                {deleting ? <Loader2 className="animate-spin" aria-hidden /> : <Trash2 aria-hidden />}
+              <Button loading={deleting} type="button" variant="destructive" disabled={typed !== 'DELETE' || deleting} onClick={confirmDelete}>
+                <Trash2 aria-hidden />
                 Delete {data.total} {data.total === 1 ? 'item' : 'items'}
               </Button>
             )}

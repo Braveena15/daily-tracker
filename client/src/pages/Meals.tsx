@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { BookMarked, Check, Copy, Flame, Heart, Loader2, Plus, RotateCw, Watch, X } from 'lucide-react'
+import { BookMarked, Check, Copy, Flame, Heart, Plus, RotateCw, Watch, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -262,8 +262,8 @@ function MealEditor({ date, today }: { date: string; today: string }) {
 
       {rows.length === 0 && (
         <div className="flex justify-center">
-          <Button variant="ghost" disabled={copying !== null} onClick={() => void copyFromYesterday()}>
-            {copying === 'day' ? <Loader2 className="animate-spin" aria-hidden /> : <Copy aria-hidden />}
+          <Button loading={copying === 'day'} variant="ghost" disabled={copying !== null} onClick={() => void copyFromYesterday()}>
+            <Copy aria-hidden />
             Copy all of yesterday's meals
           </Button>
         </div>
@@ -543,8 +543,8 @@ function MealSection({
           <Button type="button" variant="secondary" onClick={onAdd}>
             <Plus aria-hidden /> Add food
           </Button>
-          <Button type="button" variant="ghost" className="text-muted-foreground" disabled={copying} onClick={onCopy}>
-            {copying ? <Loader2 className="animate-spin" aria-hidden /> : <Copy aria-hidden />}
+          <Button loading={copying} type="button" variant="ghost" className="text-muted-foreground" disabled={copying} onClick={onCopy}>
+            <Copy aria-hidden />
             Copy from yesterday
           </Button>
         </div>

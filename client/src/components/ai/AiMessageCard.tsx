@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { HeartHandshake, Loader2, RefreshCw, Sparkles } from 'lucide-react'
+import { HeartHandshake, RefreshCw, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -67,7 +67,7 @@ export function AiMessageCard({
             {title}
           </h2>
           {message && !data.showSupport && (
-            <Button
+            <Button loading={loading}
               variant="ghost"
               size="sm"
               className="text-muted-foreground"
@@ -76,7 +76,7 @@ export function AiMessageCard({
               title={data.limitReached ? "You've reached today's limit" : 'Get a different message'}
               aria-label="Try another message"
             >
-              {loading ? <Loader2 className="animate-spin" aria-hidden /> : <RefreshCw aria-hidden />}
+              <RefreshCw aria-hidden />
               <span className="hidden sm:inline">Try another</span>
             </Button>
           )}
@@ -120,8 +120,8 @@ export function AiMessageCard({
             </button>
           </p>
         ) : (
-          <Button variant="outline" className="bg-card" onClick={() => void load(false)} disabled={loading}>
-            {loading ? <Loader2 className="animate-spin" aria-hidden /> : <Sparkles className="text-mental" aria-hidden />}
+          <Button loading={loading} variant="outline" className="bg-card" onClick={() => void load(false)} disabled={loading}>
+            <Sparkles className="text-mental" aria-hidden />
             {startLabel}
           </Button>
         )}

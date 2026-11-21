@@ -1,13 +1,14 @@
 // The day's single values: weight, steps and active calories (one value each).
 // Steps and calories usually come from the watch (⌚); typing a value always replaces it.
 import { useState, type FormEvent } from 'react'
-import { Check, Loader2, Ruler } from 'lucide-react'
+import { Check, Ruler } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { NumberField, Section, WatchMark } from '@/components/CheckinFields'
 import { dayOf, formatSyncTime, timeOf } from '@/lib/healthSync'
 import type { DailyEntry, DailyInput, DayResponse, HealthSyncField } from '@/lib/entries'
+import { FormError } from '@/components/StatusViews'
 
 type Field = 'weightKg' | 'steps' | 'activeCalories'
 const FIELDS: Field[] = ['weightKg', 'steps', 'activeCalories']
@@ -128,15 +129,13 @@ export function BodyCard({
         )}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs text-muted-foreground">Watch syncs only ever raise steps and calories. A value you type replaces them.</p>
-          <Button type="submit" variant="secondary" disabled={busy || changed.length === 0} className="ml-auto">
-            {busy ? <Loader2 className="animate-spin" aria-hidden /> : <Check aria-hidden />}
+          <Button loading={busy} type="submit" variant="secondary" disabled={busy || changed.length === 0} className="ml-auto">
+            <Check aria-hidden />
             Save
           </Button>
         </div>
         {error && (
-          <p className="text-sm text-destructive" role="alert">
-            {error}
-          </p>
+          <FormError>{error}</FormError>
         )}
       </form>
     </Section>

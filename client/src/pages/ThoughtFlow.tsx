@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, Check, Leaf, Loader2, Lock, Plus, Save, Sun, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, Leaf, Lock, Plus, Save, Sun, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
-import { ErrorNotice } from '@/components/StatusViews'
+import { ErrorNotice, FormError } from '@/components/StatusViews'
 import { AiMessageCard } from '@/components/ai/AiMessageCard'
 import { SupportButton, SupportDialog } from '@/components/mind/Support'
 import { AiFriend } from '@/components/mind/AiFriend'
@@ -26,6 +26,7 @@ import {
   type ThoughtResponse,
 } from '@/lib/mind'
 import { cn } from '@/lib/utils'
+import { BackLink } from '@/components/PageHeader'
 
 type Form = {
   situation: string
@@ -174,11 +175,7 @@ export function ThoughtFlow() {
   return (
     <div className="mx-auto max-w-xl">
       <div className="mb-6 flex items-center justify-between gap-2">
-        <Button asChild variant="ghost" className="-ml-2 text-muted-foreground">
-          <Link to="/thoughts">
-            <ArrowLeft aria-hidden /> Thought log
-          </Link>
-        </Button>
+        <BackLink to="/thoughts" label="Thought log" />
         <span className="text-sm text-muted-foreground tabular-nums">
           Step {step + 1} of {STEP_COUNT}
         </span>
@@ -203,7 +200,7 @@ export function ThoughtFlow() {
       <Card>
         <CardContent key={step} className="animate-in space-y-5 duration-300 fade-in-0 slide-in-from-right-2">
           <StepContent step={step} form={form} set={set} />
-          {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
+          {error && <FormError>{error}</FormError>}
         </CardContent>
       </Card>
 
@@ -213,16 +210,16 @@ export function ThoughtFlow() {
         </Button>
         <div className="flex items-center gap-2">
           {form.thought.trim() && step < STEP_COUNT - 1 && (
-            <Button variant="outline" onClick={() => void save(false)} disabled={saving}>
-              {saving ? <Loader2 className="animate-spin" aria-hidden /> : <Save aria-hidden />}
+            <Button loading={saving} variant="outline" onClick={() => void save(false)} disabled={saving}>
+              <Save aria-hidden />
               <span className="hidden sm:inline">Save for later</span>
               <span className="sm:hidden">Save</span>
             </Button>
           )}
-          <Button onClick={() => void next()} disabled={saving}>
+          <Button loading={saving} onClick={() => void next()} disabled={saving}>
             {step === STEP_COUNT - 1 ? (
               <>
-                {saving ? <Loader2 className="animate-spin" aria-hidden /> : <Check aria-hidden />} Finish
+                <Check aria-hidden /> Finish
               </>
             ) : (
               <>
