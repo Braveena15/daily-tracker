@@ -9,7 +9,7 @@ import { todayInTimezone } from "../utils/dates";
 import { dayTotals, type MealItemLike } from "../utils/meals";
 import { dayScores, type DayScores, type ScoreEntry, type ScoreGoals } from "../utils/scores";
 
-export type Goals = ScoreGoals & { journeyLengthDays: number };
+export type Goals = ScoreGoals & { journeyLengthDays: number; fiberGoalG: number };
 
 /** The user's goals, with defaults filled in for accounts created before goals existed. */
 export function goalNumbers(user: Partial<Pick<User, keyof typeof GOAL_LIMITS>>): Goals {
@@ -20,6 +20,7 @@ export function goalNumbers(user: Partial<Pick<User, keyof typeof GOAL_LIMITS>>)
     workoutMinutesGoal: pick("workoutMinutesGoal"),
     learningMinutesGoal: pick("learningMinutesGoal"),
     journeyLengthDays: pick("journeyLengthDays"),
+    fiberGoalG: pick("fiberGoalG"),
   };
 }
 
@@ -56,14 +57,17 @@ async function loadEntries(userId: string | undefined, from: string, to: string)
   return new Map(rows.filter(isCheckedIn).map((r) => [r.date, r]));
 }
 
-/** Check-ins and eaten kcal (only for days with meals logged) for a date range. */
+/** Logged days, plus eaten kcal and fibre (only for days with meals logged) for a date range. */
 export async function loadDays(userId: string | undefined, from: string, to: string) {
   const [entries, mealDays] = await Promise.all([
     loadEntries(userId, from, to),
     MealDayModel.find({ userId, date: { $gte: from, $lte: to }, "items.0": { $exists: true } }).lean(),
   ]);
-  const mealKcal = new Map(mealDays.map((m) => [m.date, dayTotals(m.items as MealItemLike[]).kcal]));
-  return { entries, mealKcal };
+  const totals = mealDays.map((m) => [m.date, dayTotals(m.items as MealItemLike[])] as const);
+  const mealKcal = new Map(totals.map(([date, t]) => [date, t.kcal]));
+  // Only days where at least one food had fibre
+  const mealFiber = new Map(totals.flatMap(([date, t]) => (t.fiberG === null ? [] : [[date, t.fiberG] as const])));
+  return { entries, mealKcal, mealFiber };
 }
 
 /** A stored entry in the shape the score functions expect. */

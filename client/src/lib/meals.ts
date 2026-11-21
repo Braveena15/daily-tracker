@@ -21,16 +21,19 @@ export type MealItem = {
   proteinG?: number
   carbsG?: number
   fatG?: number
+  fiberG?: number
   time?: string
 }
 
-export type Totals = { kcal: number; proteinG: number | null; carbsG: number | null; fatG: number | null }
+export type Totals = { kcal: number; proteinG: number | null; carbsG: number | null; fatG: number | null; fiberG: number | null }
 
 export type DaySummary = {
   totalsByMeal: Record<MealType, Totals>
   totals: Totals
   profileComplete: boolean
   calorieTarget: number | null
+  /** Daily fibre goal from the profile (default 30 g) */
+  fiberGoalG: number | null
   activeCalories: number | null
   estimatedBurn: { burn: number; source: 'watch' | 'estimate' } | null
   remaining: number | null
@@ -43,10 +46,13 @@ export type WeeklyStats = {
   from: string
   to: string
   calorieTarget: number | null
-  days: { date: string; kcal: number | null }[]
+  fiberGoalG: number | null
+  days: { date: string; kcal: number | null; fiberG: number | null }[]
   average: number | null
   loggedDays: number
   daysOnTarget: number | null
+  /** Over days with fibre logged */
+  averageFiberG: number | null
 }
 
 export const SERVINGS = { min: 0.25, max: 10, step: 0.25 }
@@ -56,7 +62,7 @@ export function itemKcal(item: Pick<MealItem, 'servings' | 'kcalPerServing'>): n
   return Math.round(item.servings * item.kcalPerServing)
 }
 
-function sumMacro(items: MealItem[], key: 'proteinG' | 'carbsG' | 'fatG'): number | null {
+function sumMacro(items: MealItem[], key: 'proteinG' | 'carbsG' | 'fatG' | 'fiberG'): number | null {
   const withMacro = items.filter((i) => i[key] !== undefined && i[key] !== null)
   if (withMacro.length === 0) return null
   return Math.round(withMacro.reduce((sum, i) => sum + i.servings * (i[key] as number), 0) * 10) / 10
@@ -69,6 +75,7 @@ export function totals(items: MealItem[]): Totals {
     proteinG: sumMacro(items, 'proteinG'),
     carbsG: sumMacro(items, 'carbsG'),
     fatG: sumMacro(items, 'fatG'),
+    fiberG: sumMacro(items, 'fiberG'),
   }
 }
 

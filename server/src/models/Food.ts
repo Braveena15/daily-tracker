@@ -6,9 +6,11 @@ export const FOOD_LIMITS = {
   servingDescription: 50,
   kcal: { min: 0, max: 5000 },
   macroG: { min: 0, max: 500 },
+  fiberG: { min: 0, max: 100 },
 } as const;
 
 const macro = { type: Number, min: FOOD_LIMITS.macroG.min, max: FOOD_LIMITS.macroG.max };
+export const fiber = { type: Number, min: FOOD_LIMITS.fiberG.min, max: FOOD_LIMITS.fiberG.max };
 
 // A food in the user's personal library, e.g. "Rice and curry", 1 plate, 650 kcal.
 const foodSchema = new Schema(
@@ -21,6 +23,7 @@ const foodSchema = new Schema(
     proteinG: macro,
     carbsG: macro,
     fatG: macro,
+    fiberG: fiber,
     isFavourite: { type: Boolean, default: false },
     // Updated when the food is added to a meal; used to sort "recent" and "most used" foods
     timesUsed: { type: Number, default: 0, min: 0 },

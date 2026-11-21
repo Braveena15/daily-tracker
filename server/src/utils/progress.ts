@@ -117,6 +117,8 @@ export type ReviewDay = {
   learningMinutes: number;
   /** Null when no meals were logged that day */
   kcal: number | null;
+  /** Null when no food that day had fibre */
+  fiberG: number | null;
 };
 
 export type WeekSummary = {
@@ -134,6 +136,8 @@ export type WeekSummary = {
   workoutMinutes: number;
   learningMinutes: number;
   avgKcal: number | null;
+  /** Average daily fibre (g) over days with fibre logged */
+  avgFiberG: number | null;
   mealDays: number;
   bestDay: { date: string; overall: number } | null;
 };
@@ -164,6 +168,7 @@ export function summariseWeek(days: ReviewDay[], from: string, to: string): Week
     workoutMinutes: days.reduce((s, d) => s + d.workoutMinutes, 0),
     learningMinutes: days.reduce((s, d) => s + d.learningMinutes, 0),
     avgKcal: avg(days.map((d) => d.kcal)),
+    avgFiberG: avg(days.map((d) => d.fiberG), round1),
     mealDays: days.filter((d) => d.kcal !== null).length,
     bestDay: best ? { date: best.date, overall: best.overall } : null,
   };
@@ -182,6 +187,7 @@ const COMPARED = [
   "workoutMinutes",
   "learningMinutes",
   "avgKcal",
+  "avgFiberG",
 ] as const;
 export type Compared = (typeof COMPARED)[number];
 
@@ -191,7 +197,7 @@ export function weekDifferences(current: WeekSummary, previous: WeekSummary): Re
     COMPARED.map((key) => {
       const a = current[key];
       const b = previous[key];
-      return [key, a === null || b === null ? null : key === "avgMood" || key === "avgSleepHours" ? round1(a - b) : a - b];
+      return [key, a === null || b === null ? null : key === "avgMood" || key === "avgSleepHours" || key === "avgFiberG" ? round1(a - b) : a - b];
     }),
   ) as Record<Compared, number | null>;
 }

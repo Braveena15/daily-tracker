@@ -4,11 +4,13 @@ import { DailyEntryModel } from "../models/DailyEntry";
 import { FoodModel } from "../models/Food";
 import { MEAL_LIMITS, MealDayModel } from "../models/MealDay";
 import { UserModel } from "../models/User";
+import { goalNumbers } from "../services/dayData";
 import { buildSummary } from "../services/profileSummary";
 import { AppError } from "../utils/AppError";
 import { MIN_CALORIES } from "../utils/calories";
 import { addDays, isValidDateString, listDates, todayInTimezone } from "../utils/dates";
 import {
+  averageFiber,
   calorieBalance,
   dayTotals,
   estimatedBurn,
@@ -66,6 +68,7 @@ async function buildDaySummary(userId: string | undefined, date: string, items: 
     totals,
     profileComplete: profile !== null,
     calorieTarget: profile?.calorieTarget ?? null,
+    fiberGoalG: user ? goalNumbers(user).fiberGoalG : null,
     activeCalories,
     estimatedBurn: burn,
     remaining: balance?.remaining ?? null,
@@ -181,14 +184,26 @@ export async function getWeeklyStats(req: Request, res: Response): Promise<void>
     MealDayModel.find({ userId: req.userId, date: { $gte: from, $lte: to } }).lean(),
     UserModel.findById(req.userId).lean(),
   ]);
-  const kcalByDate = new Map(rows.map((r) => [r.date, dayTotals(r.items as StoredItem[]).kcal]));
-  const days = listDates(from, to).map((date) => ({ date, kcal: kcalByDate.get(date) ?? null }));
+  const totalsByDate = new Map(rows.map((r) => [r.date, dayTotals(r.items as StoredItem[])]));
+  const days = listDates(from, to).map((date) => ({
+    date,
+    kcal: totalsByDate.get(date)?.kcal ?? null,
+    fiberG: totalsByDate.get(date)?.fiberG ?? null,
+  }));
   const calorieTarget = (user && buildSummary(user)?.calorieTarget) ?? null;
 
-  res.json({ from, to, calorieTarget, days, ...weeklySummary(days, calorieTarget) });
+  res.json({
+    from,
+    to,
+    calorieTarget,
+    fiberGoalG: user ? goalNumbers(user).fiberGoalG : null,
+    days,
+    ...weeklySummary(days, calorieTarget),
+    averageFiberG: averageFiber(days),
+  });
 }
 
-/** GET /api/meals/stats/daily?days=14 — kcal per day for the last N days (null = nothing logged). */
+/** GET /api/meals/stats/daily?days=14 — kcal and fibre per day for the last N days (null = nothing logged), and average fibre. */
 export async function getDailyStats(req: Request, res: Response): Promise<void> {
   const days = req.query.days === undefined ? 14 : Number(req.query.days);
   if (!Number.isInteger(days) || days < 1 || days > 90) {
@@ -201,13 +216,20 @@ export async function getDailyStats(req: Request, res: Response): Promise<void> 
     MealDayModel.find({ userId: req.userId, date: { $gte: from, $lte: to }, "items.0": { $exists: true } }).lean(),
     UserModel.findById(req.userId).lean(),
   ]);
-  const kcalByDate = new Map(rows.map((r) => [r.date, dayTotals(r.items as StoredItem[]).kcal]));
+  const totalsByDate = new Map(rows.map((r) => [r.date, dayTotals(r.items as StoredItem[])]));
+  const list = listDates(from, to).map((date) => ({
+    date,
+    kcal: totalsByDate.get(date)?.kcal ?? null,
+    fiberG: totalsByDate.get(date)?.fiberG ?? null,
+  }));
 
   res.json({
     from,
     to,
     calorieTarget: (user && buildSummary(user)?.calorieTarget) ?? null,
-    days: listDates(from, to).map((date) => ({ date, kcal: kcalByDate.get(date) ?? null })),
+    fiberGoalG: user ? goalNumbers(user).fiberGoalG : null,
+    days: list,
+    averageFiberG: averageFiber(list),
   });
 }
 

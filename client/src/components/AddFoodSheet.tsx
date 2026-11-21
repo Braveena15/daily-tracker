@@ -111,6 +111,7 @@ function AddFoodBody({
             ...(food.proteinG != null && { proteinG: food.proteinG }),
             ...(food.carbsG != null && { carbsG: food.carbsG }),
             ...(food.fatG != null && { fatG: food.fatG }),
+            ...(food.fiberG != null && { fiberG: food.fiberG }),
           })
         }}
       />

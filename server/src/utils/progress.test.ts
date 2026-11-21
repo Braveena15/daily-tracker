@@ -110,10 +110,11 @@ const reviewDay = (date: string, overrides: Partial<ReviewDay> = {}): ReviewDay 
   workoutMinutes: 30,
   learningMinutes: 20,
   kcal: 2000,
+  fiberG: 24,
   ...overrides,
 });
 const unlogged = (date: string): ReviewDay =>
-  reviewDay(date, { physical: null, mental: null, learning: null, overall: null, mood: null, moodMin: null, moodMax: null, moodCount: 0, goodThings: 0, learnings: 0, presentMoments: 0, steps: null, activeCalories: null, sleepHours: null, sleepScore: null, workouts: 0, workoutMinutes: 0, learningMinutes: 0, kcal: null });
+  reviewDay(date, { physical: null, mental: null, learning: null, overall: null, mood: null, moodMin: null, moodMax: null, moodCount: 0, goodThings: 0, learnings: 0, presentMoments: 0, steps: null, activeCalories: null, sleepHours: null, sleepScore: null, workouts: 0, workoutMinutes: 0, learningMinutes: 0, kcal: null, fiberG: null });
 
 describe("summariseWeek", () => {
   it("averages only logged days and finds the best day", () => {
@@ -147,9 +148,20 @@ describe("summariseWeek", () => {
     expect(week).toMatchObject({ avgSleepHours: 6.6, avgSleepScore: 90 });
   });
 
+  it("averages daily fibre over the days that have it", () => {
+    const week = summariseWeek(
+      [reviewDay("2026-11-13", { fiberG: 20 }), reviewDay("2026-11-14", { fiberG: 25.5 }), reviewDay("2026-11-15", { fiberG: null })],
+      "2026-11-13",
+      "2026-11-19",
+    );
+    expect(week.avgFiberG).toBe(22.8);
+    const diff = weekDifferences(week, summariseWeek([reviewDay("2026-11-06", { fiberG: 20 })], "2026-11-06", "2026-11-12"));
+    expect(diff.avgFiberG).toBe(2.8);
+  });
+
   it("has nulls for an empty week", () => {
     const week = summariseWeek([unlogged("2026-11-13")], "2026-11-13", "2026-11-19");
-    expect(week).toMatchObject({ daysLogged: 0, avgOverall: null, avgMood: null, avgSleepHours: null, avgSleepScore: null, bestDay: null });
+    expect(week).toMatchObject({ daysLogged: 0, avgOverall: null, avgMood: null, avgSleepHours: null, avgSleepScore: null, avgFiberG: null, bestDay: null });
   });
 });
 

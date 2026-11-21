@@ -8,6 +8,7 @@ export type Food = {
   proteinG?: number
   carbsG?: number
   fatG?: number
+  fiberG?: number
   isFavourite: boolean
   timesUsed: number
   lastUsedAt?: string
@@ -26,26 +27,29 @@ export type FoodValues = {
   proteinG: number | null
   carbsG: number | null
   fatG: number | null
+  fiberG: number | null
   isFavourite: boolean
 }
 
 /** Body for POST /api/foods: empty macros are simply left out. */
 export function createBody(values: FoodValues) {
-  const { proteinG, carbsG, fatG, ...rest } = values
+  const { proteinG, carbsG, fatG, fiberG, ...rest } = values
   return {
     ...rest,
     ...(proteinG !== null && { proteinG }),
     ...(carbsG !== null && { carbsG }),
     ...(fatG !== null && { fatG }),
+    ...(fiberG !== null && { fiberG }),
   }
 }
 
-/** "P 12 g · C 40 g · F 8 g", or "" when there are no macros. */
-export function macroText(food: Pick<Food, 'proteinG' | 'carbsG' | 'fatG'>): string {
+/** "P 12 g · C 40 g · F 8 g · Fibre 4 g", or "" when there are no macros. */
+export function macroText(food: Pick<Food, 'proteinG' | 'carbsG' | 'fatG' | 'fiberG'>): string {
   const parts = [
     food.proteinG != null && `P ${food.proteinG} g`,
     food.carbsG != null && `C ${food.carbsG} g`,
     food.fatG != null && `F ${food.fatG} g`,
+    food.fiberG != null && `Fibre ${food.fiberG} g`,
   ].filter(Boolean)
   return parts.join(' · ')
 }

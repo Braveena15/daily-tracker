@@ -73,6 +73,7 @@ async function seedDemo(): Promise<void> {
           proteinG: food.proteinG ?? undefined,
           carbsG: food.carbsG ?? undefined,
           fatG: food.fatG ?? undefined,
+          fiberG: food.fiberG ?? undefined,
         };
       }),
     })),

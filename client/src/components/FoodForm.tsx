@@ -33,14 +33,16 @@ export function FoodForm({
   const [protein, setProtein] = useState(str(initial?.proteinG))
   const [carbs, setCarbs] = useState(str(initial?.carbsG))
   const [fat, setFat] = useState(str(initial?.fatG))
+  const [fiber, setFiber] = useState(str(initial?.fiberG))
   const [favourite, setFavourite] = useState(initial?.isFavourite ?? false)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
-  function optional(value: string, label: string): number | null {
+  function optional(value: string, label: string, max = 500): number | null {
     if (value.trim() === '') return null
     const n = Number(value)
     if (!Number.isFinite(n) || n < 0) throw new Error(`${label} must be a number of grams`)
+    if (n > max) throw new Error(`${label} must be ${max} g or less per serving`)
     return n
   }
 
@@ -64,6 +66,7 @@ export function FoodForm({
         proteinG: optional(protein, 'Protein'),
         carbsG: optional(carbs, 'Carbs'),
         fatG: optional(fat, 'Fat'),
+        fiberG: optional(fiber, 'Fibre', 100),
         isFavourite: favourite,
       }
     } catch (err) {
@@ -126,14 +129,16 @@ export function FoodForm({
         <legend className="text-sm font-medium">
           Per serving <span className="font-normal text-muted-foreground">(optional)</span>
         </legend>
-        <div className="grid grid-cols-3 gap-2">
+        {/* Two per row on phones (Protein, Carbs / Fat, Fibre), all four in a row from sm up */}
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {(
             [
-              ['Protein', protein, setProtein],
-              ['Carbs', carbs, setCarbs],
-              ['Fat', fat, setFat],
+              ['Protein', protein, setProtein, 500],
+              ['Carbs', carbs, setCarbs, 500],
+              ['Fat', fat, setFat, 500],
+              ['Fibre', fiber, setFiber, 100],
             ] as const
-          ).map(([label, value, set]) => (
+          ).map(([label, value, set, max]) => (
             <div key={label} className="space-y-1">
               <Label htmlFor={`${id}-${label}`} className="text-xs text-muted-foreground">
                 {label}
@@ -144,7 +149,7 @@ export function FoodForm({
                 type="number"
                 inputMode="decimal"
                 min={0}
-                max={500}
+                max={max}
                 step="any"
                 value={value}
                 onChange={(e) => set(e.target.value)}

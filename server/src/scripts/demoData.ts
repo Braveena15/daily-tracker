@@ -35,15 +35,15 @@ export const DEMO_PROFILE = {
 };
 
 export const DEMO_FOODS = [
-  { name: "String hoppers with curry", servingDescription: "10 pieces", kcalPerServing: 420, proteinG: 9, carbsG: 80, fatG: 7, isFavourite: true },
-  { name: "Milk tea", servingDescription: "1 cup", kcalPerServing: 110, carbsG: 16, fatG: 3, isFavourite: true },
-  { name: "Rice and curry", servingDescription: "1 plate", kcalPerServing: 650, proteinG: 22, carbsG: 95, fatG: 18, isFavourite: true },
-  { name: "Oats with banana", servingDescription: "1 bowl", kcalPerServing: 330, proteinG: 10, carbsG: 58, fatG: 6 },
-  { name: "Chicken kottu", servingDescription: "1 plate", kcalPerServing: 780, proteinG: 35, carbsG: 85, fatG: 30 },
-  { name: "Banana", servingDescription: "1 medium", kcalPerServing: 105, proteinG: 1, carbsG: 27, fatG: 0 },
-  { name: "Roasted chickpeas", servingDescription: "1 cup", kcalPerServing: 270, proteinG: 14, carbsG: 40, fatG: 6 },
-  { name: "Fish curry with red rice", servingDescription: "1 plate", kcalPerServing: 560, proteinG: 32, carbsG: 70, fatG: 14 },
-  { name: "Egg hoppers", servingDescription: "2 hoppers", kcalPerServing: 300, proteinG: 13, carbsG: 34, fatG: 12 },
+  { name: "String hoppers with curry", servingDescription: "10 pieces", kcalPerServing: 420, proteinG: 9, carbsG: 80, fatG: 7, fiberG: 4, isFavourite: true },
+  { name: "Milk tea", servingDescription: "1 cup", kcalPerServing: 110, carbsG: 16, fatG: 3, fiberG: 0, isFavourite: true },
+  { name: "Rice and curry", servingDescription: "1 plate", kcalPerServing: 650, proteinG: 22, carbsG: 95, fatG: 18, fiberG: 7, isFavourite: true },
+  { name: "Oats with banana", servingDescription: "1 bowl", kcalPerServing: 330, proteinG: 10, carbsG: 58, fatG: 6, fiberG: 6 },
+  { name: "Chicken kottu", servingDescription: "1 plate", kcalPerServing: 780, proteinG: 35, carbsG: 85, fatG: 30, fiberG: 4 },
+  { name: "Banana", servingDescription: "1 medium", kcalPerServing: 105, proteinG: 1, carbsG: 27, fatG: 0, fiberG: 3.1 },
+  { name: "Roasted chickpeas", servingDescription: "1 cup", kcalPerServing: 270, proteinG: 14, carbsG: 40, fatG: 6, fiberG: 11 },
+  { name: "Fish curry with red rice", servingDescription: "1 plate", kcalPerServing: 560, proteinG: 32, carbsG: 70, fatG: 14, fiberG: 6 },
+  { name: "Egg hoppers", servingDescription: "2 hoppers", kcalPerServing: 300, proteinG: 13, carbsG: 34, fatG: 12, fiberG: 1.5 },
 ] as const;
 
 type FoodName = (typeof DEMO_FOODS)[number]["name"];

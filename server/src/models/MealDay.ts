@@ -1,5 +1,5 @@
 import { Schema, model, type InferSchemaType } from "mongoose";
-import { FOOD_LIMITS } from "./Food";
+import { FOOD_LIMITS, fiber } from "./Food";
 import { MEAL_TYPES } from "../utils/meals";
 
 export const MEAL_LIMITS = {
@@ -23,6 +23,7 @@ const mealItemSchema = new Schema(
     proteinG: macro,
     carbsG: macro,
     fatG: macro,
+    fiberG: fiber,
     // Local time eaten, "HH:MM"
     time: { type: String, match: /^([01]\d|2[0-3]):[0-5]\d$/ },
   },

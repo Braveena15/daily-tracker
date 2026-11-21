@@ -38,7 +38,15 @@ export type WeightResponse = {
   expectedWeeklyChangeKg: number | null
 }
 
-export type DailyKcalResponse = { from: string; to: string; calorieTarget: number | null; days: { date: string; kcal: number | null }[] }
+export type DailyKcalResponse = {
+  from: string
+  to: string
+  calorieTarget: number | null
+  fiberGoalG: number | null
+  days: { date: string; kcal: number | null; fiberG: number | null }[]
+  /** Average daily fibre over the days with fibre logged */
+  averageFiberG: number | null
+}
 
 export type JourneyResponse = {
   startDate: string
@@ -68,6 +76,7 @@ export type WeekSummary = {
   workoutMinutes: number
   learningMinutes: number
   avgKcal: number | null
+  avgFiberG: number | null
   mealDays: number
   bestDay: { date: string; overall: number } | null
 }
@@ -94,6 +103,7 @@ export type ReviewDay = {
   workoutMinutes: number
   learningMinutes: number
   kcal: number | null
+  fiberG: number | null
 }
 
 export type WeeklyReviewResponse = {
@@ -113,7 +123,8 @@ export type WeeklyReviewResponse = {
     | 'workouts'
     | 'workoutMinutes'
     | 'learningMinutes'
-    | 'avgKcal',
+    | 'avgKcal'
+    | 'avgFiberG',
     number | null
   >
   message: string

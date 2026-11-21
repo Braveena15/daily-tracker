@@ -336,6 +336,17 @@ export function CaloriesChartCard() {
             )}
             {logged.length} of 14 days logged · days without meals are left blank
           </p>
+          <p className="text-sm">
+            <span className="text-muted-foreground">Average fibre </span>
+            {data.averageFiberG === null ? (
+              <span className="text-muted-foreground">— add fibre to your foods to track it</span>
+            ) : (
+              <span className="font-medium tabular-nums">
+                {data.averageFiberG} g / day
+                {data.fiberGoalG !== null && <span className="font-normal text-muted-foreground"> · goal {data.fiberGoalG} g</span>}
+              </span>
+            )}
+          </p>
         </>
       )}
     </ChartCard>

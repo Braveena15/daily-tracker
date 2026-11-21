@@ -91,7 +91,7 @@ function Field({
 
 // ---------- Goals ----------
 
-type NumberGoal = 'stepGoal' | 'activeCalorieGoal' | 'workoutMinutesGoal' | 'learningMinutesGoal' | 'journeyLengthDays'
+type NumberGoal = 'stepGoal' | 'activeCalorieGoal' | 'workoutMinutesGoal' | 'learningMinutesGoal' | 'fiberGoalG' | 'journeyLengthDays'
 type Goals = Record<NumberGoal, number> & { journeyStartDate: string | null; journeyStartResolved: string }
 type GoalsForm = Record<NumberGoal, string> & { journeyStartDate: string } // '' = automatic
 type ProfileResponse = { profile: ProfileData; goals: Goals }
@@ -101,6 +101,7 @@ const GOAL_INPUTS: { key: NumberGoal; label: string; unit: string; min: number; 
   { key: 'activeCalorieGoal', label: 'Active calories', unit: 'kcal', min: 50, max: 3000, hint: 'Used when no steps are logged · default 400' },
   { key: 'workoutMinutesGoal', label: 'Workout time', unit: 'min', min: 5, max: 300, hint: 'Per day · default 30' },
   { key: 'learningMinutesGoal', label: 'Learning time', unit: 'min', min: 5, max: 600, hint: 'Per day · default 30' },
+  { key: 'fiberGoalG', label: 'Fibre', unit: 'g', min: 5, max: 100, hint: 'Per day · default 30' },
   { key: 'journeyLengthDays', label: 'Journey length', unit: 'days', min: 7, max: 1000, hint: 'Default 100' },
 ]
 
@@ -110,6 +111,7 @@ function toGoalsForm(goals: Goals): GoalsForm {
     activeCalorieGoal: String(goals.activeCalorieGoal),
     workoutMinutesGoal: String(goals.workoutMinutesGoal),
     learningMinutesGoal: String(goals.learningMinutesGoal),
+    fiberGoalG: String(goals.fiberGoalG),
     journeyLengthDays: String(goals.journeyLengthDays),
     journeyStartDate: goals.journeyStartDate ?? '',
   }
@@ -185,6 +187,7 @@ export function Profile() {
     activeCalorieGoal: '',
     workoutMinutesGoal: '',
     learningMinutesGoal: '',
+    fiberGoalG: '',
     journeyLengthDays: '',
     journeyStartDate: '',
   })

@@ -23,6 +23,7 @@ const name = text("Name", F.name);
 const servingDescription = text("Serving", F.servingDescription);
 const kcalPerServing = numberIn("Calories", F.kcal.min, F.kcal.max, " kcal");
 const macro = (label: string) => numberIn(label, F.macroG.min, F.macroG.max, " g");
+const fiber = () => numberIn("Fibre", F.fiberG.min, F.fiberG.max, " g");
 const mealType = z.enum(MEAL_TYPES, { error: "Meal must be breakfast, lunch, snack or dinner" });
 
 // ---------- Foods ----------
@@ -35,6 +36,7 @@ export const createFoodSchema = z.strictObject({
   proteinG: macro("Protein").optional(),
   carbsG: macro("Carbs").optional(),
   fatG: macro("Fat").optional(),
+  fiberG: fiber().optional(),
   isFavourite: z.boolean({ error: "Favourite must be true or false" }).default(false),
 });
 
@@ -46,10 +48,11 @@ export const updateFoodSchema = z.strictObject({
   proteinG: macro("Protein").nullable().optional(),
   carbsG: macro("Carbs").nullable().optional(),
   fatG: macro("Fat").nullable().optional(),
+  fiberG: fiber().nullable().optional(),
   isFavourite: z.boolean({ error: "Favourite must be true or false" }).optional(),
 });
 
-export const FOOD_MACROS = ["proteinG", "carbsG", "fatG"] as const;
+export const FOOD_MACROS = ["proteinG", "carbsG", "fatG", "fiberG"] as const;
 
 // ---------- Meals ----------
 
@@ -66,6 +69,7 @@ const mealItemSchema = z.strictObject({
   proteinG: macro("Protein").optional(),
   carbsG: macro("Carbs").optional(),
   fatG: macro("Fat").optional(),
+  fiberG: fiber().optional(),
   time: z
     .string()
     .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Time must look like 08:30")

@@ -13,7 +13,7 @@ const minutes = (items: { durationMin?: number | null; minutes?: number | null }
 /** This week (the 7 days ending on `weekEnding`) compared with the week before. */
 export async function computeWeeklyReview(userId: string | undefined, weekEnding: string) {
   const { current, previous } = weekRanges(weekEnding);
-  const [ctx, { entries, mealKcal }] = await Promise.all([
+  const [ctx, { entries, mealKcal, mealFiber }] = await Promise.all([
     loadUserContext(userId),
     loadDays(userId, previous.from, current.to),
   ]);
@@ -40,6 +40,7 @@ export async function computeWeeklyReview(userId: string | undefined, weekEnding
         workoutMinutes: entry ? minutes(entry.workouts) : 0,
         learningMinutes: entry ? minutes(entry.learnings) : 0,
         kcal: mealKcal.get(date) ?? null,
+        fiberG: mealFiber.get(date) ?? null,
       };
     });
 

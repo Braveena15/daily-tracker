@@ -19,7 +19,29 @@ describe("createFoodSchema", () => {
     const base = { name: "Toast", servingDescription: "1 slice", kcalPerServing: 80 };
     expect(createFoodSchema.safeParse({ ...base, kcalPerServing: -1 }).success).toBe(false);
     expect(createFoodSchema.safeParse({ ...base, proteinG: 501 }).success).toBe(false);
+    expect(createFoodSchema.safeParse({ ...base, fiberG: 101 }).success).toBe(false);
+    expect(createFoodSchema.safeParse({ ...base, fiberG: -1 }).success).toBe(false);
     expect(createFoodSchema.safeParse({ ...base, userId: "x" }).success).toBe(false);
+  });
+});
+
+describe("fibre", () => {
+  const base = { name: "Oats", servingDescription: "1 bowl", kcalPerServing: 330 };
+
+  it("accepts fibre from 0 to 100 g per serving", () => {
+    expect(createFoodSchema.parse({ ...base, fiberG: 6 }).fiberG).toBe(6);
+    expect(createFoodSchema.parse({ ...base, fiberG: 0 }).fiberG).toBe(0);
+    expect(createFoodSchema.parse({ ...base, fiberG: 100 }).fiberG).toBe(100);
+  });
+
+  it("explains the range", () => {
+    const result = createFoodSchema.safeParse({ ...base, fiberG: 150 });
+    expect(result.success ? null : result.error.issues[0]?.message).toBe("Fibre must be between 0 and 100 g");
+  });
+
+  it("can be cleared on update and is kept in a meal item's snapshot", () => {
+    expect(updateFoodSchema.parse({ fiberG: null })).toEqual({ fiberG: null });
+    expect(saveMealDaySchema.parse({ items: [{ ...item, fiberG: 7 }] }).items[0]?.fiberG).toBe(7);
   });
 });
 

@@ -12,15 +12,20 @@ export type MealItemLike = {
   proteinG?: number | null;
   carbsG?: number | null;
   fatG?: number | null;
+  fiberG?: number | null;
 };
 
-/** Macros are null when none of the items included that macro. */
+/** Macros (and fibre) are null when none of the items included them. */
 export type Totals = {
   kcal: number;
   proteinG: number | null;
   carbsG: number | null;
   fatG: number | null;
+  fiberG: number | null;
 };
+
+const MACROS = ["proteinG", "carbsG", "fatG", "fiberG"] as const;
+type Macro = (typeof MACROS)[number];
 
 const roundTo1 = (n: number) => Math.round(n * 10) / 10;
 
@@ -29,7 +34,13 @@ export function itemKcal(item: Pick<MealItemLike, "servings" | "kcalPerServing">
   return Math.round(item.servings * item.kcalPerServing);
 }
 
-function sumMacro(items: MealItemLike[], key: "proteinG" | "carbsG" | "fatG"): number | null {
+/** Grams of one macro for one item: servings × grams per serving, 1 decimal (null when the food has none). */
+export function itemMacro(item: Pick<MealItemLike, "servings" | Macro>, key: Macro): number | null {
+  const perServing = item[key];
+  return perServing === undefined || perServing === null ? null : roundTo1(item.servings * perServing);
+}
+
+function sumMacro(items: MealItemLike[], key: Macro): number | null {
   const withMacro = items.filter((i) => i[key] !== undefined && i[key] !== null);
   if (withMacro.length === 0) return null;
   return roundTo1(withMacro.reduce((sum, i) => sum + i.servings * (i[key] as number), 0));
@@ -45,7 +56,14 @@ export function dayTotals(items: MealItemLike[]): Totals {
     proteinG: sumMacro(items, "proteinG"),
     carbsG: sumMacro(items, "carbsG"),
     fatG: sumMacro(items, "fatG"),
+    fiberG: sumMacro(items, "fiberG"),
   };
+}
+
+/** Average daily fibre over the days that have any (null when none do), 1 decimal. */
+export function averageFiber(days: { fiberG: number | null }[]): number | null {
+  const logged = days.map((d) => d.fiberG).filter((g): g is number => g !== null);
+  return logged.length === 0 ? null : roundTo1(logged.reduce((s, g) => s + g, 0) / logged.length);
 }
 
 /** Totals for each of the four meals (a meal with no items has kcal 0). */

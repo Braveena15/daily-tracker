@@ -16,6 +16,7 @@ import {
   Sparkles,
   Trophy,
   UtensilsCrossed,
+  Wheat,
   type LucideIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -246,6 +247,14 @@ function ReviewBody({ data, today }: { data: WeeklyReviewResponse; today: string
                     : `${kcal(Math.abs(w.avgKcal - data.calorieTarget))} ${w.avgKcal >= data.calorieTarget ? 'over' : 'under'} target`}
               </span>
             }
+          />
+          <StatCard
+            icon={Wheat}
+            tone="outdoor"
+            label="Average fibre"
+            value={show(w.avgFiberG, ' g / day')}
+            previous={show(p.avgFiberG, ' g')}
+            delta={<Delta diff={d.avgFiberG} unit=" g" digits={1} />}
           />
           <StatCard
             icon={CalendarCheck}

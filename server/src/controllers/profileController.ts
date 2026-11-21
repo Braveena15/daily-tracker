@@ -58,6 +58,7 @@ function updateSchema() {
     workoutMinutesGoal: goalField("Workout minutes goal", "workoutMinutesGoal"),
     learningMinutesGoal: goalField("Learning minutes goal", "learningMinutesGoal"),
     journeyLengthDays: goalField("Journey length", "journeyLengthDays"),
+    fiberGoalG: goalField("Fibre goal", "fiberGoalG"),
     // null = automatic (the first check-in)
     journeyStartDate: z
       .string({ error: "Journey start must be a date" })

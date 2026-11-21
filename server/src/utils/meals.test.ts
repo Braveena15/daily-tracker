@@ -1,17 +1,19 @@
 /// <reference types="vitest/globals" />
 import {
+  averageFiber,
   calorieBalance,
   dayTotals,
   estimatedBurn,
   isLowIntake,
   isOnTarget,
   itemKcal,
+  itemMacro,
   totalsByMeal,
   weeklySummary,
   type MealItemLike,
 } from "./meals";
 
-const rice: MealItemLike = { mealType: "lunch", servings: 1.5, kcalPerServing: 333, proteinG: 6, carbsG: 70 };
+const rice: MealItemLike = { mealType: "lunch", servings: 1.5, kcalPerServing: 333, proteinG: 6, carbsG: 70, fiberG: 4.5 };
 const egg: MealItemLike = { mealType: "breakfast", servings: 2, kcalPerServing: 78, proteinG: 6.3, fatG: 5.3 };
 const tea: MealItemLike = { mealType: "snack", servings: 1, kcalPerServing: 40 };
 
@@ -37,15 +39,16 @@ describe("dayTotals", () => {
       proteinG: 9 + 12.6,
       carbsG: 105,
       fatG: 10.6,
+      fiberG: 6.8, // 1.5 × 4.5 = 6.75 → 1 decimal
     });
   });
 
   it("returns null macros when no item has them", () => {
-    expect(dayTotals([tea])).toEqual({ kcal: 40, proteinG: null, carbsG: null, fatG: null });
+    expect(dayTotals([tea])).toEqual({ kcal: 40, proteinG: null, carbsG: null, fatG: null, fiberG: null });
   });
 
   it("is all zero/null for an empty day", () => {
-    expect(dayTotals([])).toEqual({ kcal: 0, proteinG: null, carbsG: null, fatG: null });
+    expect(dayTotals([])).toEqual({ kcal: 0, proteinG: null, carbsG: null, fatG: null, fiberG: null });
   });
 
   it("sums the rounded item kcal so items add up to the total", () => {
@@ -63,7 +66,33 @@ describe("totalsByMeal", () => {
     expect(byMeal.breakfast.kcal).toBe(156);
     expect(byMeal.lunch.kcal).toBe(500);
     expect(byMeal.snack.kcal).toBe(40);
-    expect(byMeal.dinner).toEqual({ kcal: 0, proteinG: null, carbsG: null, fatG: null });
+    expect(byMeal.dinner).toEqual({ kcal: 0, proteinG: null, carbsG: null, fatG: null, fiberG: null });
+    expect(byMeal.lunch.fiberG).toBe(6.8);
+    expect(byMeal.breakfast.fiberG).toBeNull();
+  });
+});
+
+describe("fibre", () => {
+  it("is servings × fibre per serving for one item, 1 decimal", () => {
+    expect(itemMacro({ servings: 2, fiberG: 3.1 }, "fiberG")).toBe(6.2);
+    expect(itemMacro({ servings: 0.25, fiberG: 3 }, "fiberG")).toBe(0.8); // 0.75
+    expect(itemMacro({ servings: 2 }, "fiberG")).toBeNull();
+  });
+
+  it("counts 0 g as real fibre data", () => {
+    const water: MealItemLike = { mealType: "snack", servings: 1, kcalPerServing: 0, fiberG: 0 };
+    expect(dayTotals([water]).fiberG).toBe(0);
+  });
+
+  it("only adds the items that have fibre", () => {
+    expect(dayTotals([rice, tea]).fiberG).toBe(6.8);
+  });
+
+  it("averages daily fibre over days that have any", () => {
+    expect(averageFiber([{ fiberG: 20 }, { fiberG: null }, { fiberG: 25 }, { fiberG: 18 }])).toBe(21);
+    expect(averageFiber([{ fiberG: 10 }, { fiberG: 15 }])).toBe(12.5);
+    expect(averageFiber([{ fiberG: null }])).toBeNull();
+    expect(averageFiber([])).toBeNull();
   });
 });
 

@@ -11,6 +11,7 @@ import { DateBar } from '@/components/DateBar'
 import { IconBubble } from '@/components/IconBubble'
 import { PageHeader } from '@/components/PageHeader'
 import { ProgressRing } from '@/components/ProgressRing'
+import { Progress } from '@/components/ui/progress'
 import { ServingsStepper } from '@/components/ServingsStepper'
 import { ErrorNotice } from '@/components/StatusViews'
 import { useDateParam } from '@/hooks/useDateParam'
@@ -318,7 +319,9 @@ function SummaryCard({
   const remaining = target !== null ? target - day.kcal : null
   const over = remaining !== null && remaining < 0
   const net = burn ? day.kcal - burn.burn : null
-  const hasMacros = day.proteinG !== null || day.carbsG !== null || day.fatG !== null
+  const hasMacros = day.proteinG !== null || day.carbsG !== null || day.fatG !== null || day.fiberG !== null
+  const fiberGoal = summary.fiberGoalG ?? 30
+  const fiber = day.fiberG ?? 0
 
   return (
     <Card>
@@ -396,12 +399,13 @@ function SummaryCard({
           )}
 
           {hasMacros && (
-            <dl className="grid grid-cols-3 gap-2 text-center">
+            <dl className="grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
               {(
                 [
                   ['Protein', day.proteinG],
                   ['Carbs', day.carbsG],
                   ['Fat', day.fatG],
+                  ['Fibre', day.fiberG],
                 ] as const
               ).map(([label, grams]) => (
                 <div key={label} className="rounded-xl border px-2 py-2">
@@ -410,6 +414,19 @@ function SummaryCard({
                 </div>
               ))}
             </dl>
+          )}
+
+          {day.kcal > 0 && (
+            <div className="space-y-1.5">
+              <div className="flex items-baseline justify-between gap-2 text-sm">
+                <span className="font-medium">Fibre</span>
+                <span className="text-muted-foreground tabular-nums">
+                  {day.fiberG === null ? `No fibre info yet · goal ${fiberGoal} g` : `${Math.round(fiber)} / ${fiberGoal} g`}
+                  {fiber >= fiberGoal && ' ✓'}
+                </span>
+              </div>
+              <Progress value={Math.min(100, (fiber / fiberGoal) * 100)} aria-label={`Fibre ${Math.round(fiber)} of ${fiberGoal} grams`} />
+            </div>
           )}
         </div>
       </CardContent>
