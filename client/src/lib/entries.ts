@@ -5,6 +5,7 @@
 import type { LucideIcon } from 'lucide-react'
 import { BookOpen, Brain, Dumbbell, Feather, Moon, Smile, Sparkles, Sun, Watch } from 'lucide-react'
 import type { Tone } from '@/lib/tones'
+import type { DailyPurpose } from '@/lib/purpose'
 
 export type WorkoutSource = 'manual' | 'watch'
 export type SleepScoreSource = 'auto' | 'manual'
@@ -71,6 +72,8 @@ export type DailyEntry = {
   goodThings: GoodThing[]
   learnings: Learning[]
   presentMoments: PresentMoment[]
+  /** Today's purpose, decrypted (null when none was set) */
+  dailyPurpose?: DailyPurpose | null
   createdAt: string
   updatedAt: string
 }

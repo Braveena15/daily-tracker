@@ -57,28 +57,21 @@ export function Lift() {
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 md:gap-6">
-            <LiftCard icon={Sparkles} title="Moments that made you feel good">
-              {data.goodThings.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  When you note good things in your daily check-in, they'll appear here to remind you.
-                </p>
-              ) : (
-                <ul className="space-y-3">
-                  {data.goodThings.map((g, i) => (
-                    <li key={`${g.date}-${i}`} className="flex gap-3">
-                      <span aria-hidden>✨</span>
-                      <div>
-                        <p className="font-serif text-lg leading-snug">{g.text}</p>
-                        <p className="text-xs text-muted-foreground">{formatDate(g.date)}</p>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </LiftCard>
-
-            <LiftCard icon={Compass} title="What matters to you">
-              {data.purpose ? (
+            <LiftCard icon={Compass} title={data.todayPurpose ? "🎯 Today's purpose" : 'What matters to you'}>
+              {data.todayPurpose ? (
+                <div className="space-y-3">
+                  <p className="font-serif text-lg leading-relaxed whitespace-pre-line">{data.todayPurpose.text}</p>
+                  {data.todayPurpose.focusValues.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {data.todayPurpose.focusValues.map((v) => (
+                        <Badge key={v} variant="secondary" className="bg-mental-soft text-mental-foreground">
+                          {v}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : data.purpose ? (
                 <div className="space-y-3">
                   {data.purpose.purposeStatement && <p className="font-serif text-lg leading-relaxed">{data.purpose.purposeStatement}</p>}
                   {data.purpose.coreValues.length > 0 && (
@@ -98,6 +91,26 @@ export function Lift() {
                   </Link>{' '}
                   and they'll be here when you need them.
                 </p>
+              )}
+            </LiftCard>
+
+            <LiftCard icon={Sparkles} title="Moments that made you feel good">
+              {data.goodThings.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  When you note good things in your daily check-in, they'll appear here to remind you.
+                </p>
+              ) : (
+                <ul className="space-y-3">
+                  {data.goodThings.map((g, i) => (
+                    <li key={`${g.date}-${i}`} className="flex gap-3">
+                      <span aria-hidden>✨</span>
+                      <div>
+                        <p className="font-serif text-lg leading-snug">{g.text}</p>
+                        <p className="text-xs text-muted-foreground">{formatDate(g.date)}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
               )}
             </LiftCard>
 

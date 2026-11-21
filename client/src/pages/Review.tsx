@@ -25,6 +25,9 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { AiMessageCard } from '@/components/ai/AiMessageCard'
 import { IconBubble } from '@/components/IconBubble'
 import { WeekDayList, WeekMoodChart } from '@/components/progress/WeekDays'
+import { PurposeDayView } from '@/components/purpose/PurposeDayView'
+import { PurposeStatsRow } from '@/components/purpose/PurposeJourney'
+import { intentionsDone } from '@/lib/purpose'
 import { aiRequests } from '@/lib/ai'
 import { PageHeader } from '@/components/PageHeader'
 import { EmptyState, ErrorNotice } from '@/components/StatusViews'
@@ -284,6 +287,41 @@ function ReviewBody({ data, today }: { data: WeeklyReviewResponse; today: string
             delta={<Delta diff={d.daysLogged} unit={Math.abs(d.daysLogged ?? 0) === 1 ? ' day' : ' days'} />}
           />
         </div>
+      </section>
+
+      <section aria-labelledby="purpose-heading" className="space-y-3">
+        <h2 id="purpose-heading" className="text-xl font-semibold">
+          Purpose this week
+        </h2>
+        <Card>
+          <CardContent className="space-y-4">
+            {data.purpose.days.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No daily purpose set this week.{' '}
+                <Link to="/today" className="font-medium text-primary underline-offset-4 hover:underline">
+                  Set today's purpose
+                </Link>
+              </p>
+            ) : (
+              <>
+                <PurposeStatsRow stats={data.purpose.stats} />
+                <ol className="space-y-3">
+                  {[...data.purpose.days].reverse().map((day) => (
+                    <li key={day.date} className="space-y-1.5 border-t pt-3 first:border-t-0 first:pt-0">
+                      <p className="flex items-baseline justify-between gap-2 text-sm">
+                        <Link to={`/history/${day.date}`} className="font-heading font-semibold hover:underline">
+                          {relativeDay(day.date, today)}
+                        </Link>
+                        {intentionsDone(day) && <span className="text-xs text-muted-foreground tabular-nums">🎯 {intentionsDone(day)} done</span>}
+                      </p>
+                      <PurposeDayView purpose={day} />
+                    </li>
+                  ))}
+                </ol>
+              </>
+            )}
+          </CardContent>
+        </Card>
       </section>
 
       <WeekMoodChart days={data.days} />

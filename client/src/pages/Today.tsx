@@ -13,6 +13,7 @@ import { PageHeader } from '@/components/PageHeader'
 import { Section } from '@/components/CheckinFields'
 import { ErrorNotice } from '@/components/StatusViews'
 import { BodyCard } from '@/components/day/BodyCard'
+import { PurposeCard } from '@/components/day/PurposeCard'
 import { ActivityDayChart, MoodDayChart } from '@/components/day/DayCharts'
 import { DayTimeline } from '@/components/day/DayTimeline'
 import { ActivityForm, LearningForm, MoodForm, TextForm } from '@/components/day/EntryForms'
@@ -84,6 +85,9 @@ function DayEditor({ date, today }: { date: string; today: string }) {
 
   return (
     <div className="space-y-4 md:space-y-6">
+      {/* key: start fresh when the saved purpose changes from another tab or device */}
+      <PurposeCard key={entry?.dailyPurpose?.setAt ?? 'none'} purpose={entry?.dailyPurpose ?? null} isToday={isToday} actions={actions} />
+
       <Section
         title="Quick mood check-in"
         hint={

@@ -110,6 +110,16 @@ const purposeSchema = new Schema(
       ],
       default: [],
     },
+    // Earlier versions of the purpose statement, oldest first (statement encrypted)
+    purposeHistory: {
+      type: [
+        new Schema(
+          { statement: { type: String, required: true }, coreValues: { type: [String], default: [] }, savedAt: { type: Date, required: true } },
+          { _id: false },
+        ),
+      ],
+      default: [],
+    },
   },
   { timestamps: true },
 );

@@ -1,5 +1,7 @@
 import type { Request, Response } from "express";
 import { isValidObjectId, Types } from "mongoose";
+import { fieldCrypto } from "../config/encryption";
+import { hasDailyPurpose, openDailyPurpose, type StoredDailyPurpose } from "../utils/dailyPurpose";
 import { CHECKED_IN, DailyEntryModel, ENTRY_LIMITS, isCheckedIn } from "../models/DailyEntry";
 import { updateProfileWeightIfLatest } from "../services/profileWeight";
 import { fieldsStillFromWatch } from "../utils/healthSyncMerge";
@@ -27,7 +29,7 @@ const LISTS = Object.values(KIND_FIELDS);
 // The app's "today", in the user's timezone
 const today = () => todayInTimezone();
 
-function dateParam(req: Request): string {
+export function dateParam(req: Request): string {
   const { date } = req.params;
   if (!isValidDateString(date)) {
     throw new AppError(400, "Date must be a real date in YYYY-MM-DD format");
@@ -36,7 +38,7 @@ function dateParam(req: Request): string {
 }
 
 /** A date that can be written to: not in the future. */
-function writableDate(req: Request): string {
+export function writableDate(req: Request): string {
   const date = dateParam(req);
   if (date > today()) throw new AppError(400, "You can't log a day in the future");
   return date;
@@ -73,7 +75,7 @@ function loggedAt(date: string, time: string | undefined): Date {
   }
 }
 
-type LeanDay = Record<string, unknown> & TimelineSource & { _id: unknown };
+export type LeanDay = Record<string, unknown> & TimelineSource & { _id: unknown };
 
 const withId = (item: Record<string, unknown>) => {
   const { _id, ...rest } = item;
@@ -90,11 +92,14 @@ export function serializeEntry(doc: LeanDay) {
       .map(withId)
       .sort((a, b) => new Date(String(b.loggedAt)).getTime() - new Date(String(a.loggedAt)).getTime());
   }
+  // Today's purpose, decrypted (only ever sent to its owner)
+  const purpose = openDailyPurpose(fieldCrypto, doc.dailyPurpose as StoredDailyPurpose | undefined);
+  out.dailyPurpose = hasDailyPurpose(purpose) ? purpose : null;
   return out;
 }
 
 /** Everything the Today page and day views need. */
-function dayResponse(date: string, doc: LeanDay | null) {
+export function dayResponse(date: string, doc: LeanDay | null) {
   return {
     date,
     entry: doc ? serializeEntry(doc) : null,
@@ -104,7 +109,7 @@ function dayResponse(date: string, doc: LeanDay | null) {
   };
 }
 
-const findDay = (userId: string | undefined, date: string) =>
+export const findDay = (userId: string | undefined, date: string) =>
   DailyEntryModel.findOne({ userId, date }).lean() as Promise<LeanDay | null>;
 
 // ---------- Handlers ----------

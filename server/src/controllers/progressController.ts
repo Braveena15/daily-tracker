@@ -91,6 +91,7 @@ export async function getWeeklyReview(req: Request, res: Response): Promise<void
   if (!isValidDateString(weekEnding)) throw new AppError(400, '"weekEnding" must be a real date in YYYY-MM-DD format');
   if (weekEnding > today()) throw new AppError(400, "That week hasn't happened yet");
 
+  // entriesThisWeek is only for the AI's safety check; purpose text is sent only to its owner here
   const { entriesThisWeek: _entries, ...review } = await computeWeeklyReview(req.userId, weekEnding);
   res.json(review);
 }

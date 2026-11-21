@@ -18,6 +18,11 @@ export const ENTRY_LIMITS = {
   learningDetails: 2000,
   presentMoment: 2000,
   moodNote: 500,
+  dailyPurpose: 500,
+  focusValues: 3,
+  intentionText: 200,
+  intentions: 5,
+  reflectionNote: 1000,
   listItems: 50,
 } as const;
 
@@ -125,6 +130,32 @@ const healthSnapshotSchema = new Schema(
   { _id: false },
 );
 
+// Today's purpose. Text fields are encrypted (DIARY_ENCRYPTION_KEY), so their lengths are checked
+// on the plain text in validation/purposeSchema.ts, not here.
+const intentionSchema = new Schema({
+  text: { type: String, required: true },
+  done: { type: Boolean, default: false },
+  doneAt: Date,
+});
+const dailyPurposeSchema = new Schema(
+  {
+    text: String,
+    // Words chosen from the user's core values
+    focusValues: { type: [{ type: String, trim: true, maxlength: 40 }], default: [] },
+    intentions: { type: [intentionSchema], default: [] },
+    reflection: {
+      type: new Schema(
+        { rating: { type: Number, required: true, min: 1, max: 5 }, note: String, at: { type: Date, required: true } },
+        { _id: false },
+      ),
+      default: undefined,
+    },
+    setAt: Date,
+    updatedAt: Date,
+  },
+  { _id: false },
+);
+
 const dailyEntrySchema = new Schema(
   {
     // Covered by the { userId, date } index below, since userId is its first key
@@ -159,6 +190,9 @@ const dailyEntrySchema = new Schema(
     goodThings: { type: [goodThingSchema], default: [] },
     learnings: { type: [learningSchema], default: [] },
     presentMoments: { type: [presentMomentSchema], default: [] },
+
+    // "What do I want today to be about?" (see controllers/dailyPurposeController.ts)
+    dailyPurpose: { type: dailyPurposeSchema, default: undefined },
   },
   {
     timestamps: true,

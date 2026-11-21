@@ -18,6 +18,7 @@ import { usedToday } from "../ai/mongoStore";
 import { getEncouragement, type AiRequest, type AiResult } from "../ai/service";
 import { aiConfigured, aiDeps, aiMode } from "../config/ai";
 import { fieldCrypto } from "../config/encryption";
+import { openDailyPurpose, purposeText, type StoredDailyPurpose } from "../utils/dailyPurpose";
 import { CHECKED_IN, DailyEntryModel } from "../models/DailyEntry";
 import { PurposeModel, ThoughtLogModel } from "../models/Mind";
 import { UserModel } from "../models/User";
@@ -127,6 +128,7 @@ export async function dailyNote(req: Request, res: Response): Promise<void> {
   if (!stored) throw new AppError(400, "Check in for this day first");
 
   const entry = toScoreEntry(stored);
+  const purpose = openDailyPurpose(fieldCrypto, stored.dailyPurpose as StoredDailyPurpose | undefined);
   const s = scoresFor(ctx, stored, mealKcal.get(date));
   const eaten = mealKcal.get(date);
 
@@ -136,9 +138,10 @@ export async function dailyNote(req: Request, res: Response): Promise<void> {
     date,
     userEnabled,
     lowMood,
-    safetyText: entryText(entry),
+    safetyText: [...entryText(entry), ...purposeText(purpose)],
     buildContext: () =>
       buildDailyContext({
+        purpose,
         entry: { ...entry, date },
         scores: { physical: s.physical.score, mental: s.mental.score, learning: s.learning.score, overall: s.overall },
         nutrition: eaten === undefined ? null : { eatenKcal: eaten, targetKcal: ctx.summary?.calorieTarget ?? null },
@@ -163,9 +166,10 @@ export async function weeklyReflection(req: Request, res: Response): Promise<voi
     date: weekEnding,
     userEnabled,
     lowMood,
-    safetyText: [...review.entriesThisWeek.flatMap(entryText), ...thoughtWords],
+    safetyText: [...review.entriesThisWeek.flatMap(entryText), ...review.purpose.days.flatMap(purposeText), ...thoughtWords],
     buildContext: () =>
       buildWeeklyContext({
+        purpose: review.purpose.stats,
         thisWeek: review.thisWeek,
         lastWeek: review.lastWeek,
         calorieTarget: review.calorieTarget,

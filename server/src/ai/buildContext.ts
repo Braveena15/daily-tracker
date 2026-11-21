@@ -7,6 +7,9 @@
 //   scores, mood/energy counts and averages, times of day ("afternoon"), sleep hours and sleep score
 //   (never raw sleep samples), activity types and minutes, feeling names and intensities,
 //   thinking-trap types, and counts. No free text written by the user — not even mood notes.
+//   For today's purpose: only whether one was set, how many intentions and how many done, the
+//   evening rating and the chosen value words (the app's own value words; others become
+//   "other value"). Never the purpose text, intention text or reflection notes.
 //   Even activity and feeling names are free text when the user types their own
 //   ("Walk with Sarah"), so only the app's built-in names are sent; anything else becomes "other".
 // - "full" mode may also send thought-log text — but never from a log marked private.
@@ -14,6 +17,7 @@
 // These are pure functions (no database, no AI calls), so they're easy to test.
 import type { ScoreEntry } from "../utils/scores";
 import { daysBetween } from "../utils/dates";
+import { purposeFacts, type DailyPurpose, type PurposeStats } from "../utils/dailyPurpose";
 import { dayMood, timeOfDay } from "../utils/timeline";
 
 export type AiMode = "minimal" | "full";
@@ -51,6 +55,9 @@ export const KNOWN_VALUES = new Set(
     "discipline", "creativity", "friendship", "faith", "independence", "service", "calm", "learning",
   ].map(lower),
 );
+
+/** A core-value word the AI may see: one of the app's suggested values, else "other value". */
+export const safeValueWord = (value: string) => safeName(value, KNOWN_VALUES, "other value");
 
 /** A built-in name as-is (lower case), anything else as the fallback word. */
 function safeName(name: string, allowed: Set<string>, otherwise: string): string {
@@ -173,6 +180,8 @@ export function buildDailyContext(input: {
   scores: ScoresInput;
   nutrition: { eatenKcal: number; targetKcal: number | null } | null;
   today: string;
+  /** The day's purpose; only purposeFacts() of it is sent (never its text) */
+  purpose?: DailyPurpose | null;
 }): AiContext {
   const { entry, scores, nutrition, today } = input;
   return {
@@ -181,6 +190,7 @@ export function buildDailyContext(input: {
     mode: "minimal",
     data: {
       ...entryFacts(entry, today),
+      purpose: purposeFacts(input.purpose ?? null, safeValueWord),
       scores,
       nutrition: nutrition
         ? {
@@ -230,6 +240,8 @@ export function buildWeeklyContext(input: {
   calorieTarget: number | null;
   insights: InsightInput[];
   today: string;
+  /** Only counts, the average rating and value words are sent */
+  purpose?: PurposeStats | null;
 }): AiContext {
   const week = ({ bestDay, ...rest }: WeekNumbers) => ({
     ...rest,
@@ -242,6 +254,15 @@ export function buildWeeklyContext(input: {
       thisWeek: week(input.thisWeek),
       lastWeek: week(input.lastWeek),
       calorieTarget: input.calorieTarget,
+      purpose: input.purpose
+        ? {
+            daysWithPurpose: input.purpose.daysWithPurpose,
+            intentions: input.purpose.intentionsTotal,
+            intentionsDone: input.purpose.intentionsDone,
+            avgRating: input.purpose.avgRating,
+            focusValues: [...new Set(input.purpose.topValues.map((v) => safeValueWord(v.value)))],
+          }
+        : null,
       patterns: input.insights.map((i) => ({
         observation: insightLabel(i.key),
         moodOnThoseDays: i.moodWith,

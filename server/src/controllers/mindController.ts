@@ -4,6 +4,8 @@ import { isValidObjectId, type Model } from "mongoose";
 import { fieldCrypto } from "../config/encryption";
 import { DailyEntryModel } from "../models/DailyEntry";
 import { dayMood } from "../utils/timeline";
+import { todayInTimezone } from "../utils/dates";
+import { hasDailyPurpose, openDailyPurpose, previousVersion, type StoredDailyPurpose } from "../utils/dailyPurpose";
 import { PurposeModel, QuoteModel, ThoughtLogModel, VideoModel } from "../models/Mind";
 import { AppError } from "../utils/AppError";
 import { BUILT_IN_QUOTES } from "../utils/builtInQuotes";
@@ -30,11 +32,14 @@ export async function getPurpose(req: Request, res: Response): Promise<void> {
   res.json({ purpose: toPurpose(await PurposeModel.findOne({ userId: req.userId }).lean()) });
 }
 
+/** PUT /api/purpose — when the statement changes, the previous one is kept in purposeHistory (encrypted). */
 export async function savePurpose(req: Request, res: Response): Promise<void> {
   const body = purposeSchema.parse(req.body ?? {});
+  const before = await PurposeModel.findOne({ userId: req.userId }).select("purposeStatement coreValues").lean();
+  const version = previousVersion(fieldCrypto, before, body.purposeStatement, new Date());
   const doc = await PurposeModel.findOneAndUpdate(
     { userId: req.userId },
-    { $set: body },
+    version ? { $set: body, $push: { purposeHistory: version } } : { $set: body },
     { upsert: true, returnDocument: "after", runValidators: true, setDefaultsOnInsert: true },
   ).lean();
   res.json({ purpose: toPurpose(doc) });
@@ -114,7 +119,7 @@ export async function wellbeingCheck(req: Request, res: Response): Promise<void>
 /** GET /api/lift-me-up — good moments, purpose, a quote, a video and the last small step done. */
 export async function liftMeUp(req: Request, res: Response): Promise<void> {
   const userId = req.userId;
-  const [entries, purpose, quotes, videos, lastStep] = await Promise.all([
+  const [entries, purpose, quotes, videos, lastStep, today] = await Promise.all([
     DailyEntryModel.find({ userId, "goodThings.0": { $exists: true } })
       .sort({ date: -1 })
       .limit(365)
@@ -127,7 +132,9 @@ export async function liftMeUp(req: Request, res: Response): Promise<void> {
       .sort({ smallStepDoneAt: -1, updatedAt: -1 })
       .select("date smallStep smallStepDoneAt")
       .lean(),
+    DailyEntryModel.findOne({ userId, date: todayInTimezone() }).select("dailyPurpose").lean(),
   ]);
+  const todayPurpose = openDailyPurpose(fieldCrypto, today?.dailyPurpose as StoredDailyPurpose | undefined);
 
   const goodThings = pickRandom(
     entries.flatMap((e) => e.goodThings.map((g) => ({ text: g.text, date: e.date }))),
@@ -144,6 +151,8 @@ export async function liftMeUp(req: Request, res: Response): Promise<void> {
 
   res.json({
     goodThings,
+    // Today's purpose comes first on the page when it's set; otherwise the main purpose statement
+    todayPurpose: hasDailyPurpose(todayPurpose) && todayPurpose.text ? { text: todayPurpose.text, focusValues: todayPurpose.focusValues } : null,
     purpose: purpose && (purpose.purposeStatement || purpose.coreValues.length > 0)
       ? { purposeStatement: purpose.purposeStatement ?? "", coreValues: purpose.coreValues }
       : null,

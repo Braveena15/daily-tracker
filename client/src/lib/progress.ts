@@ -2,6 +2,7 @@
 import { BookOpen, Brain, Dumbbell, type LucideIcon } from 'lucide-react'
 import type { Tone } from '@/lib/tones'
 import { toLocalDate } from '@/lib/dates'
+import type { PurposeDay, PurposeStats } from '@/lib/purpose'
 
 export type Area = 'physical' | 'mental' | 'learning'
 
@@ -133,6 +134,8 @@ export type WeeklyReviewResponse = {
   /** This week's days since the journey started, oldest first */
   days: ReviewDay[]
   journeyStartDate: string
+  /** This week's daily purposes, oldest first */
+  purpose: { days: PurposeDay[]; stats: PurposeStats }
 }
 
 export type SleepResponse = {

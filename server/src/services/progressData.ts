@@ -7,6 +7,8 @@ import { findInsights, type InsightDay } from "../utils/insights";
 import { encouragement, summariseWeek, weekDifferences, weekRanges, type ReviewDay } from "../utils/progress";
 import { mentalScore } from "../utils/scores";
 import { dayMood } from "../utils/timeline";
+import { fieldCrypto } from "../config/encryption";
+import { hasDailyPurpose, openDailyPurpose, purposeStats, type StoredDailyPurpose } from "../utils/dailyPurpose";
 
 const minutes = (items: { durationMin?: number | null; minutes?: number | null }[]) =>
   items.reduce((s, i) => s + (i.durationMin ?? i.minutes ?? 0), 0);
@@ -60,11 +62,28 @@ export async function computeWeeklyReview(userId: string | undefined, weekEnding
     differences,
     message: encouragement(thisWeek, differences),
     journeyStartDate: start,
+    purpose: await weekPurpose(userId, clampFrom(current.from, start), current.to),
     // This week's days, oldest first, for the per-day rows and the mood range chart
     days,
     // For the AI's safety check only (never sent to the AI): this week's check-ins
     entriesThisWeek: listDates(current.from, current.to).flatMap((d) => (entries.has(d) ? [toScoreEntry(entries.get(d)!)] : [])),
   };
+}
+
+/** This week's daily purposes (decrypted, for the owner only) and their stats, oldest first. */
+async function weekPurpose(userId: string | undefined, from: string, to: string) {
+  const rows =
+    from > to
+      ? []
+      : await DailyEntryModel.find({ userId, date: { $gte: from, $lte: to }, dailyPurpose: { $exists: true } })
+          .select("date dailyPurpose")
+          .sort({ date: 1 })
+          .lean();
+  const days = rows.flatMap((r) => {
+    const p = openDailyPurpose(fieldCrypto, r.dailyPurpose as StoredDailyPurpose);
+    return hasDailyPurpose(p) ? [{ date: r.date, ...p }] : [];
+  });
+  return { days, stats: purposeStats(days) };
 }
 
 const INSIGHT_DAYS = 180;

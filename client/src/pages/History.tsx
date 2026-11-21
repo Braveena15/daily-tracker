@@ -11,6 +11,7 @@ import { EmptyState, ErrorNotice } from '@/components/StatusViews'
 import { api } from '@/lib/api'
 import { formatDate, listDates, relativeDay, todayInTimezone } from '@/lib/dates'
 import { historyRange, journeyDate } from '@/lib/journey'
+import { firstLine, intentionsDone } from '@/lib/purpose'
 import type { JourneyResponse } from '@/lib/progress'
 import { dayMood, energyEmoji, moodEmoji, type DailyEntry, type EntriesListResponse } from '@/lib/entries'
 import { toneSoft } from '@/lib/tones'
@@ -176,6 +177,15 @@ function DayCard({ date, today, entry, isStart }: { date: string; today: string;
           </span>
         )}
       </div>
+
+      {entry.dailyPurpose && (entry.dailyPurpose.text || intentionsDone(entry.dailyPurpose)) && (
+        <p className="flex min-w-0 items-baseline gap-2 text-sm">
+          <span className="min-w-0 truncate font-serif">🎯 {firstLine(entry.dailyPurpose.text) || "Today's intentions"}</span>
+          {intentionsDone(entry.dailyPurpose) && (
+            <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{intentionsDone(entry.dailyPurpose)} done</span>
+          )}
+        </p>
+      )}
 
       <p className="text-sm text-muted-foreground tabular-nums">
         {mood ? `Mood ${mood.avg}/10${mood.count > 1 ? ` (${mood.min}–${mood.max})` : ''}` : 'No mood check-in'}

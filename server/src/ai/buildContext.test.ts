@@ -71,6 +71,14 @@ function allMinimalPayloads() {
       scores: { physical: 70, mental: 65, learning: 80, overall: 72 },
       nutrition: { eatenKcal: 1900, targetKcal: 2000 },
       today: TODAY,
+      purpose: {
+        text: "SECRET_DAILY_PURPOSE",
+        focusValues: ["Growth", "SECRET_VALUE Sarah"],
+        intentions: [{ id: "1", text: "SECRET_INTENTION call Priya", done: true, doneAt: null }],
+        reflection: { rating: 4, note: "SECRET_REFLECTION_NOTE", at: "2026-11-19T15:00:00.000Z" },
+        setAt: null,
+        updatedAt: null,
+      },
     }),
     buildWeeklyContext({
       thisWeek: weekNumbers,

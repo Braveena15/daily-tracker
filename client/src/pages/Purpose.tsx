@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import { PageHeader } from '@/components/PageHeader'
 import { ErrorNotice } from '@/components/StatusViews'
+import { DailyPurposes, PurposeEvolution } from '@/components/purpose/PurposeJourney'
 import { api } from '@/lib/api'
 import { VALUE_SUGGESTIONS, type Purpose as PurposeData } from '@/lib/mind'
 import { cn } from '@/lib/utils'
@@ -19,6 +20,8 @@ export function Purpose() {
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [customValue, setCustomValue] = useState('')
+  // Bumped after each save, so "How my purpose evolved" shows a statement that was just replaced
+  const [saves, setSaves] = useState(0)
 
   useEffect(() => {
     api
@@ -59,6 +62,7 @@ export function Purpose() {
         longTermGoals: purpose.longTermGoals.filter((g) => g.title.trim()),
       })
       setPurpose(data.purpose)
+      setSaves((n) => n + 1)
       toast.success('Saved ✓')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save')
@@ -192,6 +196,9 @@ export function Purpose() {
               {saving ? 'Saving…' : 'Save'}
             </Button>
           </div>
+
+          <DailyPurposes />
+          <PurposeEvolution key={saves} />
         </div>
       )}
     </>

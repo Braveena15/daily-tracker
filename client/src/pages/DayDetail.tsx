@@ -1,6 +1,6 @@
 // A read-only view of one day (opened from History): the summary, timeline and graphs.
 import { Link, Navigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Footprints, Flame, ListOrdered, Moon, Scale, SquarePen, Smile, type LucideIcon } from 'lucide-react'
+import { ArrowLeft, Footprints, Flame, ListOrdered, Moon, Scale, SquarePen, Smile, Target, type LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -14,6 +14,8 @@ import { DayTimeline } from '@/components/day/DayTimeline'
 import { useDay } from '@/hooks/useDay'
 import { formatLongDate, isValidDateString, relativeDay, todayInTimezone } from '@/lib/dates'
 import { dayMood, moodEmoji, type DayResponse } from '@/lib/entries'
+import { intentionsDone } from '@/lib/purpose'
+import { PurposeDayView } from '@/components/purpose/PurposeDayView'
 import type { Tone } from '@/lib/tones'
 
 export function DayDetail() {
@@ -80,6 +82,17 @@ function DayBody({ day }: { day: DayResponse }) {
         <Stat icon={Flame} tone="physical" label="Active calories" value={entry?.activeCalories != null ? `${entry.activeCalories.toLocaleString()} kcal` : '—'} />
         <Stat icon={Scale} tone="primary" label="Weight" value={entry?.weightKg != null ? `${entry.weightKg} kg` : '—'} />
       </div>
+
+      {entry?.dailyPurpose && (
+        <Section
+          title="🎯 Purpose"
+          hint={intentionsDone(entry.dailyPurpose) ? `${intentionsDone(entry.dailyPurpose)} intentions done` : undefined}
+          icon={Target}
+          tone="mental"
+        >
+          <PurposeDayView purpose={entry.dailyPurpose} />
+        </Section>
+      )}
 
       {entry?.sleep && (
         <Section title="Sleep" icon={Moon} tone="mental">
