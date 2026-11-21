@@ -148,17 +148,3 @@ export function dayMood(logs: MoodLog[] | undefined): DayMood | null {
 export const WORKOUT_CHIPS = ['Cycling', 'Gym', 'Running', 'Walking', 'Swimming', 'Home workout']
 export const MENTAL_CHIPS = ['Meditation', 'Journaling', 'Reading', 'Breathing', 'Cold shower', 'Gratitude']
 export const OUTDOOR_CHIPS = ['Walk', 'Cycling', 'Sunlight', 'Nature', 'Sport']
-
-export function moodEmoji(mood: number): string {
-  if (mood <= 2) return '😞'
-  if (mood <= 4) return '😕'
-  if (mood <= 6) return '😐'
-  if (mood <= 8) return '🙂'
-  return '😄'
-}
-
-export function energyEmoji(energy: number): string {
-  if (energy <= 3) return '🪫'
-  if (energy <= 6) return '🔋'
-  return '⚡'
-}

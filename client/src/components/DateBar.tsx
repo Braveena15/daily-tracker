@@ -28,7 +28,7 @@ export function DateBar({ date, today, onChange }: { date: string; today: string
           >
             <span className="font-heading text-lg font-semibold">{title}</span>
             <span className="flex items-center gap-1 text-xs font-normal text-muted-foreground">
-              <CalendarDays className="size-3.5" aria-hidden />
+              <CalendarDays className="size-4" aria-hidden />
               {title === subtitle ? 'Pick a date' : subtitle}
             </span>
           </Button>

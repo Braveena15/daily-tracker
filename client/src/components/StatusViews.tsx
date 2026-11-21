@@ -27,7 +27,7 @@ export function FullPageLoader() {
         </span>
         {slow ? (
           <>
-            <span className="font-medium text-foreground">Waking up the server… this can take up to a minute ☕</span>
+            <span className="font-medium text-foreground">Waking up the server… this can take up to a minute</span>
             <span className="text-sm">It naps when nobody's using it. Thanks for your patience!</span>
           </>
         ) : (

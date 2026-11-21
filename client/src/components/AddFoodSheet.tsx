@@ -262,7 +262,7 @@ function FoodList({ foods, onPick }: { foods: Food[]; onPick: (food: Food) => vo
               <span className="flex items-center gap-1.5 font-medium">
                 <span className="truncate">{food.name}</span>
                 {food.isFavourite && (
-                  <Star className="size-3.5 shrink-0 fill-learning text-learning" aria-label="Favourite" />
+                  <Star className="size-4 shrink-0 fill-learning text-learning" aria-label="Favourite" />
                 )}
               </span>
               <span className="block truncate text-xs text-muted-foreground">

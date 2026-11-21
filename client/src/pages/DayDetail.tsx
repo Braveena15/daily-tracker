@@ -13,10 +13,13 @@ import { ActivityDayChart, MoodDayChart } from '@/components/day/LazyDayCharts'
 import { DayTimeline } from '@/components/day/DayTimeline'
 import { useDay } from '@/hooks/useDay'
 import { formatLongDate, isValidDateString, relativeDay, todayInTimezone } from '@/lib/dates'
-import { dayMood, moodEmoji, type DayResponse } from '@/lib/entries'
+import { dayMood, type DayResponse } from '@/lib/entries'
+import { moodBand } from '@/lib/mood'
+import { MoodIcon } from '@/components/MoodFace'
 import { intentionsDone } from '@/lib/purpose'
 import { EditableUntilLabel, LockedLabel, PurposeDayView } from '@/components/purpose/PurposeDayView'
 import type { Tone } from '@/lib/tones'
+import type { ReactNode } from 'react'
 
 export function DayDetail() {
   const { date } = useParams()
@@ -51,14 +54,14 @@ function DayView({ date, today }: { date: string; today: string }) {
   )
 }
 
-function Stat({ icon, tone, label, value }: { icon: LucideIcon; tone: Tone; label: string; value: string }) {
+function Stat({ icon, tone, label, value }: { icon: LucideIcon; tone: Tone; label: string; value: ReactNode }) {
   return (
     <Card size="sm">
       <CardContent className="flex items-center gap-3">
         <IconBubble icon={icon} tone={tone} className="size-9 rounded-lg [&_svg]:size-4" />
         <div className="min-w-0">
           <p className="text-xs text-muted-foreground">{label}</p>
-          <p className="font-heading text-lg font-semibold tabular-nums">{value}</p>
+          <div className="font-heading text-lg font-semibold tabular-nums">{value}</div>
         </div>
       </CardContent>
     </Card>
@@ -76,7 +79,20 @@ function DayBody({ day }: { day: DayResponse }) {
           icon={Smile}
           tone="mental"
           label={mood ? `Mood · ${mood.count} check-in${mood.count === 1 ? '' : 's'}` : 'Mood'}
-          value={mood ? `${moodEmoji(mood.avg)} ${mood.avg}${mood.count > 1 ? ` (${mood.min}–${mood.max})` : ''}` : '—'}
+          value={
+            mood ? (
+              <span className="flex flex-wrap items-center gap-x-1.5">
+                <MoodIcon mood={mood.avg} />
+                {moodBand(mood.avg).word}
+                <span className="text-sm font-normal text-muted-foreground">
+                  {mood.avg}
+                  {mood.count > 1 && ` (${mood.min}–${mood.max})`}
+                </span>
+              </span>
+            ) : (
+              '—'
+            )
+          }
         />
         <Stat icon={Footprints} tone="physical" label="Steps" value={entry?.steps != null ? entry.steps.toLocaleString() : '—'} />
         <Stat icon={Flame} tone="physical" label="Active calories" value={entry?.activeCalories != null ? `${entry.activeCalories.toLocaleString()} kcal` : '—'} />
@@ -85,7 +101,7 @@ function DayBody({ day }: { day: DayResponse }) {
 
       {entry?.dailyPurpose && (
         <Section
-          title="🎯 Purpose"
+          title="Purpose"
           hint={intentionsDone(entry.dailyPurpose) ? `${intentionsDone(entry.dailyPurpose)} intentions done` : undefined}
           icon={Target}
           tone="mental"

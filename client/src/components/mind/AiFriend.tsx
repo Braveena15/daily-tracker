@@ -64,7 +64,7 @@ export function AiFriend({ thoughtId, thoughtDate, isPrivate }: { thoughtId: str
     setSupport(false)
     if (data.conversation) setConversation(data.conversation)
     setMessagesLeft(data.messagesLeft)
-    if (data.limitReached) toast.message("You've used today's AI replies, so here's a message from us instead 💜")
+    if (data.limitReached) toast.message("You've used today's AI replies, so here's a message from us instead")
   }
 
   async function share() {
@@ -91,7 +91,7 @@ export function AiFriend({ thoughtId, thoughtDate, isPrivate }: { thoughtId: str
         <div className="flex flex-col items-center gap-3 text-center">
           <Button size="lg" onClick={talk} disabled={asking || !loaded}>
             {asking ? <Loader2 className="animate-spin" aria-hidden /> : <HeartHandshake aria-hidden />}
-            {asking ? 'Your friend is reading…' : 'Talk to my AI friend 💜'}
+            {asking ? 'Your friend is reading…' : 'Talk to my AI friend'}
           </Button>
           <p className="text-xs text-muted-foreground">Shares this thought with Gemini</p>
           <div className="flex items-center gap-2">
@@ -175,7 +175,7 @@ export function AiFriend({ thoughtId, thoughtDate, isPrivate }: { thoughtId: str
   )
 }
 
-/** 👍 / 👎 under a reply. */
+/** Thumbs up / down under a reply. */
 function Helpful({ value, onChange }: { value: boolean | null | undefined; onChange: (v: boolean | null) => void }) {
   const button = (helpful: boolean) => (
     <Button
@@ -224,7 +224,7 @@ function FriendReplyCard({
     setAdding(true)
     try {
       await api.post(`/entries/${todayInTimezone()}/purpose/intentions`, { text: reply.smallStep.slice(0, 200) })
-      toast.success("Added to today's intentions ✓")
+      toast.success("Added to today's intentions")
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not add it')
     } finally {
@@ -377,7 +377,7 @@ function FriendChat({
           </p>
         </form>
       ) : (
-        <p className="text-sm text-muted-foreground">That's the end of this conversation. Be gentle with yourself. 💜</p>
+        <p className="text-sm text-muted-foreground">That's the end of this conversation. Be gentle with yourself.</p>
       )}
       {error && (
         <p className="text-sm text-destructive" role="alert">

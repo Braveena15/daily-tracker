@@ -63,7 +63,7 @@ export function BodyCard({
     try {
       const data = await onSave(body)
       setValues(fromEntry(data.entry))
-      toast.success('Saved ✓', { description: data.profileWeightUpdated ? 'Your profile weight was updated too.' : undefined })
+      toast.success('Saved', { description: data.profileWeightUpdated ? 'Your profile weight was updated too.' : undefined })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save')
     } finally {

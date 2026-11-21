@@ -27,13 +27,12 @@ import {
   OUTDOOR_CHIPS,
   WORKOUT_CHIPS,
   dayMood,
-  energyEmoji,
-  moodEmoji,
   type Activity,
   type DailyEntry,
   type EntryKind,
 } from '@/lib/entries'
 import type { Tone } from '@/lib/tones'
+import { EnergyLabel, MoodBadge } from '@/components/MoodFace'
 
 export function Today() {
   // ?date=YYYY-MM-DD picks a past day; anything missing, invalid or in the future means today
@@ -111,13 +110,21 @@ function DayEditor({ date, today }: { date: string; today: string }) {
           isToday={isToday}
           onSubmit={async (body) => {
             await actions.add('moods', body)
-            toast.success('Check-in saved ✓')
+            toast.success('Check-in saved')
           }}
         />
         <EntryList
           label="mood check-in"
           items={entry?.moodLogs ?? []}
-          describe={(m) => ({ title: `${moodEmoji(m.mood)} Mood ${m.mood}/10 · ${energyEmoji(m.energy)} Energy ${m.energy}/10`, detail: m.note })}
+          describe={(m) => ({
+            title: (
+              <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <MoodBadge mood={m.mood} />
+                <EnergyLabel energy={m.energy} className="font-normal" />
+              </span>
+            ),
+            detail: m.note,
+          })}
           renderEdit={(m, close) => (
             <MoodForm initial={m} isToday={isToday} onCancel={close} onSubmit={(body) => actions.update('moods', m.id, body).then(close)} />
           )}
@@ -181,7 +188,7 @@ function DayEditor({ date, today }: { date: string; today: string }) {
         <EntryList
           label="good thing"
           items={entry?.goodThings ?? []}
-          describe={(g) => ({ title: `✨ ${g.text}` })}
+          describe={(g) => ({ title: g.text })}
           renderEdit={(g, close) => (
             <TextForm
               initial={g}
@@ -252,11 +259,11 @@ function DayEditor({ date, today }: { date: string; today: string }) {
       {day.logged && (
         <AiMessageCard
           key={date}
-          title={isToday ? 'Your note for tomorrow ✨' : `A note on ${dayName} ✨`}
+          title={isToday ? 'Your note for tomorrow' : `A note on ${dayName}`}
           request={aiRequests.daily(date)}
           // Today's note appears straight away; for past days it waits for a tap, to save AI calls
           autoLoad={isToday}
-          startLabel="Show the note ✨"
+          startLabel="Show the note"
         />
       )}
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { BookMarked, Copy, Flame, Heart, Loader2, Plus, RotateCw, Watch, X } from 'lucide-react'
+import { BookMarked, Check, Copy, Flame, Heart, Loader2, Plus, RotateCw, Watch, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -87,7 +87,7 @@ function LowIntakeNote() {
         <IconBubble icon={Heart} className="bg-card" />
         <p className="text-sm leading-relaxed text-secondary-foreground">
           You've eaten quite a bit less than your body needs for a few days. Fuelling well helps your energy, mood and
-          progress 💚
+          progress.
         </p>
       </CardContent>
     </Card>
@@ -127,7 +127,7 @@ function useAutosave(date: string, onSaved: (summary: DaySummary) => void) {
         onSavedRef.current(data.summary)
         if (version.current === v) {
           setStatus('saved')
-          toast.success('Saved ✓', { id: 'meals-saved', duration: 1500 })
+          toast.success('Saved', { id: 'meals-saved', duration: 1500 })
         }
       })
       .catch((err: unknown) => {
@@ -224,7 +224,7 @@ function MealEditor({ date, today }: { date: string; today: string }) {
       setRows(copied)
       setSummary(data.summary)
       const added = data.items.length - (rows?.length ?? 0)
-      toast.success(`Copied ${added} item${added === 1 ? '' : 's'} from yesterday ✓`, { id: 'meals-saved' })
+      toast.success(`Copied ${added} item${added === 1 ? '' : 's'} from yesterday`, { id: 'meals-saved' })
     } catch (err) {
       toast.error(errorMessage(err, 'Could not copy'), { id: 'meals-saved' })
     } finally {
@@ -290,7 +290,7 @@ function SaveIndicator({ status, onRetry }: { status: SaveStatus; onRetry: () =>
       </Button>
     )
   }
-  const text = status === 'pending' || status === 'saving' ? 'Saving…' : status === 'saved' ? 'Saved ✓' : ''
+  const text = status === 'pending' || status === 'saving' ? 'Saving…' : status === 'saved' ? 'Saved' : ''
   return (
     <span
       role="status"
@@ -382,7 +382,7 @@ function SummaryCard({
                   {burn.active !== null ? (
                     <>
                       (resting {kcal(burn.resting)} + active {kcal(burn.active)}{' '}
-                      <Watch className="inline size-3.5 align-[-2px]" aria-label="from Apple Watch" />)
+                      <Watch className="inline size-4 align-[-2px]" aria-label="from Apple Watch" />)
                     </>
                   ) : (
                     '(estimated · no watch sync yet today)'
@@ -447,7 +447,12 @@ function SummaryCard({
                 <span className="font-medium">Fibre</span>
                 <span className="text-muted-foreground tabular-nums">
                   {day.fiberG === null ? `No fibre info yet · goal ${fiberGoal} g` : `${Math.round(fiber)} / ${fiberGoal} g`}
-                  {fiber >= fiberGoal && ' ✓'}
+                  {fiber >= fiberGoal && (
+                    <>
+                      <Check className="ml-1 inline size-4 align-[-2px] text-success" aria-hidden />
+                      <span className="sr-only"> (goal reached)</span>
+                    </>
+                  )}
                 </span>
               </div>
               <Progress value={Math.min(100, (fiber / fiberGoal) * 100)} aria-label={`Fibre ${Math.round(fiber)} of ${fiberGoal} grams`} />

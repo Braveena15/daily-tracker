@@ -4,6 +4,8 @@ import { Activity, Smile } from 'lucide-react'
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart'
+import { MoodDot } from '@/components/day/MoodDot'
+import { energyBand, moodBand } from '@/lib/mood'
 import { IconBubble } from '@/components/IconBubble'
 import { EmptyState } from '@/components/StatusViews'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
@@ -84,7 +86,24 @@ export function MoodDayChart({ moodLogs }: { moodLogs: MoodLog[] }) {
             <CartesianGrid vertical={false} />
             <XAxis dataKey="minute" type="number" domain={domain} ticks={hourTicks(domain)} tickFormatter={clock} {...AXIS} />
             <YAxis {...AXIS} width={28} domain={[0, 10]} ticks={[0, 5, 10]} />
-            <ChartTooltip content={<ChartTooltipContent labelFormatter={(_, p) => clock(Number(p[0]?.payload.minute))} />} />
+            <ChartTooltip
+              content={({ active, payload }) => {
+                const p = active ? (payload?.[0]?.payload as (typeof points)[number] | undefined) : undefined
+                if (!p) return null
+                return (
+                  <div className="max-w-56 rounded-lg border bg-background px-2.5 py-1.5 text-xs shadow-raised">
+                    <p className="font-medium tabular-nums">{clock(p.minute)}</p>
+                    <p className="tabular-nums">
+                      Mood: {moodBand(p.mood).word} {p.mood}/10
+                    </p>
+                    <p className="tabular-nums">
+                      Energy: {energyBand(p.energy).word.replace(' energy', '')} {p.energy}/10
+                    </p>
+                    {p.note && <p className="mt-0.5 text-muted-foreground">{p.note}</p>}
+                  </div>
+                )
+              }}
+            />
             <ChartLegend content={<ChartLegendContent />} />
             {(['mood', 'energy'] as const).map((key) => (
               <Line
@@ -93,7 +112,7 @@ export function MoodDayChart({ moodLogs }: { moodLogs: MoodLog[] }) {
                 type="monotone"
                 stroke={`var(--color-${key})`}
                 strokeWidth={2}
-                dot={{ r: 3, strokeWidth: 0, fill: `var(--color-${key})` }}
+                dot={key === 'mood' ? MoodDot : { r: 3, strokeWidth: 0, fill: `var(--color-${key})` }}
                 activeDot={{ r: 5 }}
                 isAnimationActive={animate}
               />

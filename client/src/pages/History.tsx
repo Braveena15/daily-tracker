@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { BookOpen, Brain, CalendarDays, ChevronDown, Dumbbell, Plus, Sparkles, SquarePen, Sun } from 'lucide-react'
+import { BookOpen, Brain, CalendarDays, ChevronDown, Dumbbell, Plus, Sparkles, Sprout, SquarePen, Sun, Target } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -13,7 +13,9 @@ import { formatDate, listDates, relativeDay, todayInTimezone } from '@/lib/dates
 import { historyRange, journeyDate } from '@/lib/journey'
 import { firstLine, intentionsDone } from '@/lib/purpose'
 import type { JourneyResponse } from '@/lib/progress'
-import { dayMood, energyEmoji, moodEmoji, type DailyEntry, type EntriesListResponse } from '@/lib/entries'
+import { dayMood, type DailyEntry, type EntriesListResponse } from '@/lib/entries'
+import { energyBand, moodBand } from '@/lib/mood'
+import { MoodIcon } from '@/components/MoodFace'
 import { toneSoft } from '@/lib/tones'
 import { cn } from '@/lib/utils'
 
@@ -144,9 +146,13 @@ function grouped(items: { type: string }[]): { type: string; count: number }[] {
 }
 const times = (count: number) => (count > 1 ? ` ×${count}` : '')
 
-/** "Day 1 🌱 — your journey started here" on the start day's card. */
+/** "Day 1 — your journey started here" on the start day's card. */
 function StartMarker() {
-  return <p className="text-xs font-medium text-primary">Day 1 🌱 — your journey started here</p>
+  return (
+    <p className="flex items-center gap-1 text-xs font-medium text-primary">
+      <Sprout className="size-4" aria-hidden /> Day 1 — your journey started here
+    </p>
+  )
 }
 
 function DayCard({ date, today, entry, isStart }: { date: string; today: string; entry: DailyEntry; isStart: boolean }) {
@@ -157,7 +163,7 @@ function DayCard({ date, today, entry, isStart }: { date: string; today: string;
   const mood = dayMood(entry.moodLogs)
   const facts = [
     mood && `${mood.count} check-in${mood.count === 1 ? '' : 's'}`,
-    mood && `${energyEmoji(mood.avgEnergy)} ${mood.avgEnergy}/10`,
+    mood && `${energyBand(mood.avgEnergy).word} ${mood.avgEnergy}/10`,
     entry.sleepHours != null && `${entry.sleepHours}h sleep`,
   ].filter(Boolean)
 
@@ -172,15 +178,18 @@ function DayCard({ date, today, entry, isStart }: { date: string; today: string;
           {isStart && <StartMarker />}
         </div>
         {mood && (
-          <span className="text-3xl leading-none" role="img" aria-label={`Average mood ${mood.avg} out of 10`}>
-            {moodEmoji(mood.avg)}
+          <span className="flex shrink-0 flex-col items-center gap-0.5 text-xs font-medium">
+            <MoodIcon mood={mood.avg} className="size-6" />
+            {moodBand(mood.avg).word}
+            <span className="sr-only">, average mood {mood.avg} out of 10</span>
           </span>
         )}
       </div>
 
       {entry.dailyPurpose && (entry.dailyPurpose.text || intentionsDone(entry.dailyPurpose)) && (
         <p className="flex min-w-0 items-baseline gap-2 text-sm">
-          <span className="min-w-0 truncate font-serif">🎯 {firstLine(entry.dailyPurpose.text) || "Today's intentions"}</span>
+          <Target className="size-4 shrink-0 self-center text-mental" aria-hidden />
+          <span className="min-w-0 truncate font-serif">{firstLine(entry.dailyPurpose.text) || "Today's intentions"}</span>
           {intentionsDone(entry.dailyPurpose) && (
             <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{intentionsDone(entry.dailyPurpose)} done</span>
           )}

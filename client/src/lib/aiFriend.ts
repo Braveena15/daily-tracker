@@ -10,7 +10,7 @@ export type FriendReply = {
   closing: string
   at: string
   source: 'ai' | 'fallback'
-  /** 👍 true / 👎 false, null until answered */
+  /** Thumbs up true / down false, null until answered */
   helpful: boolean | null
 }
 

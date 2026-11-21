@@ -1,4 +1,4 @@
-// "🎯 Today's purpose" at the top of the Today page: what the day is about, up to 3 focus values from
+// "Today's purpose" at the top of the Today page: what the day is about, up to 3 focus values from
 // your core values, up to 5 small intentions to tick off, and an evening reflection.
 //
 // One purpose per day, editable only during that day (Asia/Colombo; the server enforces it too):
@@ -6,7 +6,7 @@
 // - today shows the saved purpose with an Edit button, intentions you can tick and the reflection.
 // The card is given `isToday` from a clock, so it locks by itself at midnight.
 import { useState, type FormEvent } from 'react'
-import { Check, Copy, Loader2, Pencil, Plus, Target, X } from 'lucide-react'
+import { Check, Copy, Loader2, Moon, Pencil, Plus, Star, Target, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -47,7 +47,7 @@ export function PurposeCard({ purpose, isToday, actions }: { purpose: DailyPurpo
   // Locked: a past day (also right after midnight, when the page moves on by itself)
   if (!isToday) {
     return (
-      <Section title="🎯 Purpose" hint={purpose ? undefined : 'No purpose was set for this day.'} icon={Target} tone="mental" aside={<LockedLabel />}>
+      <Section title="Purpose" hint={purpose ? undefined : 'No purpose was set for this day.'} icon={Target} tone="mental" aside={<LockedLabel />}>
         {purpose && <PurposeDayView purpose={purpose} />}
       </Section>
     )
@@ -63,7 +63,7 @@ function TodayPurpose({ purpose, actions }: { purpose: DailyPurpose | null; acti
 
   if (!purpose && !editing) {
     return (
-      <Section title="🎯 Today's purpose" hint="Optional: one line on what today is about." icon={Target} tone="mental">
+      <Section title="Today's purpose" hint="Optional: one line on what today is about." icon={Target} tone="mental">
         <Button type="button" variant="outline" className="w-full border-dashed sm:w-auto" onClick={() => setEditing(true)}>
           <Target aria-hidden /> Set today's purpose
         </Button>
@@ -73,12 +73,12 @@ function TodayPurpose({ purpose, actions }: { purpose: DailyPurpose | null; acti
 
   const reminders = [
     hour >= LAST_HOUR && '1 hour left to edit today\'s purpose',
-    hour >= EVENING_HOUR && !purpose?.reflection && 'Reflect on today before midnight 🌙',
+    hour >= EVENING_HOUR && !purpose?.reflection && 'Reflect on today before midnight',
   ].filter((r): r is string => Boolean(r))
 
   return (
     <Section
-      title="🎯 Today's purpose"
+      title="Today's purpose"
       hint="What do I want today to be about?"
       icon={Target}
       tone="mental"
@@ -138,7 +138,7 @@ function PurposeText({ purpose, statement, onSave }: { purpose: DailyPurpose | n
   async function save(value: string) {
     if (busy || value.trim() === saved) return
     setBusy(true)
-    if (await attempt(() => onSave(value.trim()))) toast.success("Today's purpose saved ✓")
+    if (await attempt(() => onSave(value.trim()))) toast.success("Today's purpose saved")
     setBusy(false)
   }
 
@@ -308,7 +308,7 @@ function EveningReflection({ purpose, hour, onSave }: { purpose: DailyPurpose | 
   if (!show) {
     return (
       <Button type="button" variant="ghost" size="sm" className="text-muted-foreground" onClick={() => setOpened(true)}>
-        🌙 Reflect on today now
+        <Moon aria-hidden /> Reflect on today now
       </Button>
     )
   }
@@ -317,7 +317,7 @@ function EveningReflection({ purpose, hour, onSave }: { purpose: DailyPurpose | 
     e.preventDefault()
     if (rating === null) return
     setBusy(true)
-    if (await attempt(() => onSave({ rating, note: note.trim() || null }))) toast.success('Reflection saved ✓')
+    if (await attempt(() => onSave({ rating, note: note.trim() || null }))) toast.success('Reflection saved')
     setBusy(false)
   }
 
@@ -325,7 +325,9 @@ function EveningReflection({ purpose, hour, onSave }: { purpose: DailyPurpose | 
 
   return (
     <form className="space-y-2 rounded-xl bg-mental-soft/50 p-3" onSubmit={submit} noValidate>
-      <p className="text-sm font-medium">🌙 How well did I live my purpose today?</p>
+      <p className="flex items-center gap-1.5 text-sm font-medium">
+        <Moon className="size-4 text-mental" aria-hidden /> How well did I live my purpose today?
+      </p>
       <div role="radiogroup" aria-label="How well did I live my purpose today, 1 to 5" className="flex gap-1">
         {[1, 2, 3, 4, 5].map((n) => (
           <button
@@ -336,11 +338,11 @@ function EveningReflection({ purpose, hour, onSave }: { purpose: DailyPurpose | 
             aria-label={`${n} out of 5`}
             onClick={() => setRating(n)}
             className={cn(
-              'size-10 rounded-lg text-2xl leading-none transition-transform outline-none focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-90',
-              rating !== null && n <= rating ? 'text-learning' : 'text-muted-foreground/50',
+              'grid size-11 place-items-center rounded-lg transition-transform outline-none focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-90',
+              rating !== null && n <= rating ? 'text-learning' : 'text-muted-foreground/60',
             )}
           >
-            {rating !== null && n <= rating ? '★' : '☆'}
+            <Star className={cn('size-6', rating !== null && n <= rating && 'fill-current')} aria-hidden />
           </button>
         ))}
       </div>

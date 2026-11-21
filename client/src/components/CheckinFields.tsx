@@ -48,31 +48,41 @@ export function RatingPicker({
   label,
   value,
   onChange,
-  emoji,
+  scale,
 }: {
   label: string
   value: number | null
   onChange: (value: number) => void
-  emoji: (value: number) => string
+  /** The word, icon and colour for a value (lib/mood.ts) */
+  scale: (value: number) => { word: string; icon: LucideIcon; text?: string }
 }) {
+  const chosen = value === null ? null : scale(value)
   return (
     <div role="radiogroup" aria-label={label}>
       <div className="mb-2 flex items-baseline justify-between gap-2">
         <span className="text-sm font-medium">{label}</span>
-        <span className="text-sm text-muted-foreground tabular-nums">
-          {value === null ? 'Tap to choose' : `${emoji(value)} ${value}/10`}
+        <span className="flex items-center gap-1.5 text-sm text-muted-foreground tabular-nums" aria-live="polite">
+          {chosen === null ? (
+            'Tap to choose'
+          ) : (
+            <>
+              <chosen.icon className={cn('size-4', chosen.text)} aria-hidden />
+              <span className="font-medium text-foreground">{chosen.word}</span> · {value}/10
+            </>
+          )}
         </span>
       </div>
       <div className="grid grid-cols-5 gap-2 sm:grid-cols-10">
         {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => {
           const selected = value === n
+          const { icon: Icon, text, word } = scale(n)
           return (
             <button
               key={n}
               type="button"
               role="radio"
               aria-checked={selected}
-              aria-label={`${label} ${n} out of 10`}
+              aria-label={`${label} ${n} out of 10, ${word}`}
               onClick={() => onChange(n)}
               className={cn(
                 'flex h-14 flex-col items-center justify-center gap-0.5 rounded-xl border bg-card text-xs font-semibold text-muted-foreground tabular-nums transition-all outline-none hover:-translate-y-0.5 hover:border-primary/40 hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-95 dark:bg-input/30',
@@ -80,9 +90,7 @@ export function RatingPicker({
                   'border-primary bg-primary text-primary-foreground shadow-soft hover:border-primary hover:bg-primary dark:bg-primary',
               )}
             >
-              <span className={cn('text-xl leading-none transition-opacity', !selected && 'opacity-75')} aria-hidden>
-                {emoji(n)}
-              </span>
+              <Icon className={cn('size-5', selected ? 'text-primary-foreground' : text)} aria-hidden />
               {n}
             </button>
           )
@@ -152,7 +160,7 @@ export function NumberField({
 export function WatchMark({ className }: { className?: string }) {
   return (
     <span className={cn('text-physical-foreground', className)} title="From Apple Watch">
-      <Watch className="inline size-3.5 align-[-2px]" aria-hidden />
+      <Watch className="inline size-4 align-[-2px]" aria-hidden />
       <span className="sr-only">(from Apple Watch)</span>
     </span>
   )

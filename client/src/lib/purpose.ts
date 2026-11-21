@@ -61,8 +61,6 @@ export function intentionsDone(p: Pick<DailyPurpose, 'intentions'> | null | unde
 /** The first line of the purpose text. */
 export const firstLine = (text: string) => text.split('\n')[0]?.trim() ?? ''
 
-/** "★★★★☆" */
-export const stars = (rating: number) => '★'.repeat(rating) + '☆'.repeat(5 - rating)
 
 /** "Sat, Nov 21 · 11:55" in the app's timezone. */
 export const savedAtLabel = (iso: string) => `${journeyDate(dayOf(iso))} · ${timeOf(iso)}`

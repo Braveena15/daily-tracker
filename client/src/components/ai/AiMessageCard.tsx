@@ -16,7 +16,7 @@ export function AiMessageCard({
   title,
   request,
   autoLoad = true,
-  startLabel = 'Show me ✨',
+  startLabel = 'Show me',
   className,
 }: {
   title: string
@@ -108,7 +108,7 @@ export function AiMessageCard({
               ) : (
                 <span />
               )}
-              {data.limitReached && <p className="text-xs text-muted-foreground">That's all the fresh messages for today 🌙</p>}
+              {data.limitReached && <p className="text-xs text-muted-foreground">That's all the fresh messages for today</p>}
             </div>
             {data.lowMood && <SupportButton className="bg-card" />}
           </>
@@ -121,7 +121,7 @@ export function AiMessageCard({
           </p>
         ) : (
           <Button variant="outline" className="bg-card" onClick={() => void load(false)} disabled={loading}>
-            {loading && <Loader2 className="animate-spin" aria-hidden />}
+            {loading ? <Loader2 className="animate-spin" aria-hidden /> : <Sparkles className="text-mental" aria-hidden />}
             {startLabel}
           </Button>
         )}

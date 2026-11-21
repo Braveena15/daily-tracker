@@ -129,7 +129,7 @@ function Editor({ id }: { id: string | undefined }) {
       setSaved(stored)
       setDraft(stored)
       setEntry(data.entry)
-      toast.success('Saved ✓')
+      toast.success('Saved')
       if (!id) navigate(`/diary/${data.entry.id}`, { replace: true, state: { showSupport: data.showSupport } })
       else if (data.showSupport) setSupport(true)
     } catch (err) {
@@ -280,7 +280,7 @@ function Editor({ id }: { id: string | undefined }) {
               <span className="text-muted-foreground">Draft kept on this device</span>
             ) : (
               <span className="flex items-center gap-1.5 text-muted-foreground">
-                <Lock className="size-3.5" aria-hidden /> {id ? 'Saved and encrypted' : 'Start writing'}
+                <Lock className="size-4" aria-hidden /> {id ? 'Saved and encrypted' : 'Start writing'}
               </span>
             )}
           </p>

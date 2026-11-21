@@ -38,14 +38,14 @@ export function Lift() {
 
   return (
     <>
-      <PageHeader title="Lift me up" description="A few good things, gathered just for you. 🌤️" />
+      <PageHeader title="Lift me up" description="A few good things, gathered just for you." />
 
       <div className="space-y-4 md:space-y-6">
         <div className="flex justify-end">
           <SupportButton />
         </div>
 
-        <AiMessageCard title="A boost for you" request={aiRequests.boost()} autoLoad={false} startLabel="Give me a boost ✨" />
+        <AiMessageCard title="A boost for you" request={aiRequests.boost()} autoLoad={false} startLabel="Give me a boost" />
 
         {error ? (
           <ErrorNotice>{error}</ErrorNotice>
@@ -57,7 +57,7 @@ export function Lift() {
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 md:gap-6">
-            <LiftCard icon={Compass} title={data.todayPurpose ? "🎯 Today's purpose" : 'What matters to you'}>
+            <LiftCard icon={Compass} title={data.todayPurpose ? "Today's purpose" : 'What matters to you'}>
               {data.todayPurpose ? (
                 <div className="space-y-3">
                   <p className="font-serif text-lg leading-relaxed whitespace-pre-line">{data.todayPurpose.text}</p>
@@ -103,7 +103,7 @@ export function Lift() {
                 <ul className="space-y-3">
                   {data.goodThings.map((g, i) => (
                     <li key={`${g.date}-${i}`} className="flex gap-3">
-                      <span aria-hidden>✨</span>
+                      <Sparkles className="mt-1 size-4 shrink-0 text-learning" aria-hidden />
                       <div>
                         <p className="font-serif text-lg leading-snug">{g.text}</p>
                         <p className="text-xs text-muted-foreground">{formatDate(g.date)}</p>

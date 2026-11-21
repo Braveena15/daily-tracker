@@ -34,7 +34,7 @@ export function Thoughts() {
     try {
       const data = await api.put<ThoughtResponse>(`/thoughts/${log.id}`, { smallStepDone: done })
       setLogs((list) => list?.map((l) => (l.id === log.id ? data.log : l)) ?? null)
-      if (done) toast.success('Small step done ✓ — nice one')
+      if (done) toast.success('Small step done — nice one')
     } catch (err) {
       setLogs((list) => list?.map((l) => (l.id === log.id ? log : l)) ?? null)
       toast.error(err instanceof Error ? err.message : 'Could not update')
@@ -122,7 +122,7 @@ export function Thoughts() {
                             {relativeDay(log.date, today)}
                             {log.isPrivate && (
                               <>
-                                · <Lock className="size-3" aria-hidden /> private
+                                · <Lock className="size-4" aria-hidden /> private
                               </>
                             )}
                           </p>

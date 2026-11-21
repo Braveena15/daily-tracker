@@ -19,7 +19,7 @@ export function EntryList<T extends Item>({
 }: {
   items: T[]
   /** The main line and an optional second line */
-  describe: (item: T) => { title: string; detail?: string }
+  describe: (item: T) => { title: ReactNode; detail?: string }
   /** Items that can't be changed here, e.g. workouts from the watch (shown with a note instead) */
   readOnly?: (item: T) => ReactNode | false
   renderEdit: (item: T, close: () => void) => ReactNode
@@ -61,7 +61,7 @@ function Row({
   onDelete,
 }: {
   item: Item
-  title: string
+  title: ReactNode
   detail?: string
   note: ReactNode
   label: string
@@ -96,7 +96,7 @@ function Row({
         {time}
       </time>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium break-words">{title}</p>
+        <div className="text-sm font-medium break-words">{title}</div>
         {detail && <p className="mt-0.5 text-sm break-words text-muted-foreground">{detail}</p>}
         {note && (
           <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">

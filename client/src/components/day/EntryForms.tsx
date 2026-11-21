@@ -11,7 +11,8 @@ import { TimeField } from '@/components/day/TimeField'
 import { useTimeInput } from '@/hooks/useTimeInput'
 import { RatingPicker } from '@/components/CheckinFields'
 import { timeOf } from '@/lib/healthSync'
-import { energyEmoji, moodEmoji, type Activity, type Learning, type MoodLog } from '@/lib/entries'
+import { type Activity, type Learning, type MoodLog } from '@/lib/entries'
+import { energyBand, moodBand } from '@/lib/mood'
 import { toneChipOn, type Tone } from '@/lib/tones'
 import { cn } from '@/lib/utils'
 
@@ -123,8 +124,8 @@ export function MoodForm({ initial, isToday, onSubmit, onCancel }: FormProps<Moo
 
   return (
     <form className={cn(formClass, editing && editClass)} onSubmit={submit} noValidate>
-      <RatingPicker label="Mood" value={mood} onChange={(v) => (setMood(v), clearError())} emoji={moodEmoji} />
-      <RatingPicker label="Energy" value={energy} onChange={(v) => (setEnergy(v), clearError())} emoji={energyEmoji} />
+      <RatingPicker label="Mood" value={mood} onChange={(v) => (setMood(v), clearError())} scale={moodBand} />
+      <RatingPicker label="Energy" value={energy} onChange={(v) => (setEnergy(v), clearError())} scale={energyBand} />
       <Input aria-label="Note (optional)" placeholder="A note (optional)" maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} />
       <FormFooter busy={busy} error={error} editing={editing} label="Save check-in" onCancel={onCancel}>
         <TimeField input={time} />

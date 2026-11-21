@@ -233,7 +233,7 @@ export function Profile() {
     try {
       const data = await api.put<ProfileResponse>('/profile', { ...profile, ...goalsBody })
       show(data)
-      toast.success('Profile saved ✓')
+      toast.success('Profile saved')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save your profile')
     } finally {

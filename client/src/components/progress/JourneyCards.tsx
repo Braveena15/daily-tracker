@@ -1,4 +1,4 @@
-import { Sprout } from 'lucide-react'
+import { Flame, Sprout } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -10,7 +10,7 @@ import type { JourneyResponse } from '@/lib/progress'
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
 
-/** "Day X of 100 🌱" with a progress bar, next to the 🔥 streak. */
+/** "Day X of 100" with a progress bar, next to the streak. */
 export function JourneyRow() {
   return (
     <div className="grid gap-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] md:gap-6">
@@ -38,7 +38,7 @@ function JourneyCard() {
           <>
             <div className="flex items-baseline justify-between gap-3">
               <p className="font-heading text-2xl font-semibold">
-                {data.complete ? 'Journey complete 🎉' : `Day ${data.dayNumber} of ${data.totalDays} 🌱`}
+                {data.complete ? 'Journey complete' : `Day ${data.dayNumber} of ${data.totalDays}`}
               </p>
               <span className="text-sm text-muted-foreground tabular-nums">{data.percentComplete}%</span>
             </div>
@@ -60,8 +60,8 @@ function StreakCard() {
   return (
     <Card size="sm">
       <CardContent className="flex h-full items-center gap-3">
-        <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-muted text-2xl" aria-hidden>
-          🔥
+        <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-physical-soft text-physical" aria-hidden>
+          <Flame className="size-6" />
         </span>
         {error ? (
           <p className="text-sm text-destructive">{error}</p>

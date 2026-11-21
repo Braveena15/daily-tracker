@@ -12,7 +12,10 @@ import { DayTimeline } from '@/components/day/DayTimeline'
 import { useFetch } from '@/hooks/useFetch'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { relativeDay } from '@/lib/dates'
-import { moodEmoji, type DayResponse } from '@/lib/entries'
+import { type DayResponse } from '@/lib/entries'
+import { moodBand } from '@/lib/mood'
+import { MoodIcon } from '@/components/MoodFace'
+import { MoodDot } from '@/components/day/MoodDot'
 import { shortDate, tooltipDate, type ReviewDay } from '@/lib/progress'
 import { cn } from '@/lib/utils'
 
@@ -58,7 +61,7 @@ export function WeekMoodChart({ days }: { days: ReviewDay[] }) {
                       <p className="text-muted-foreground tabular-nums">
                         {d.mood === null
                           ? 'No check-in'
-                          : `Average ${d.mood} · ${d.moodMin}–${d.moodMax} · ${d.moodCount} check-in${d.moodCount === 1 ? '' : 's'}`}
+                          : `${moodBand(d.mood).word} · average ${d.mood} · ${d.moodMin}–${d.moodMax} · ${d.moodCount} check-in${d.moodCount === 1 ? '' : 's'}`}
                       </p>
                     </div>
                   )
@@ -71,7 +74,7 @@ export function WeekMoodChart({ days }: { days: ReviewDay[] }) {
                 stroke="var(--color-mood)"
                 strokeWidth={2}
                 connectNulls={false}
-                dot={{ r: 3, strokeWidth: 0, fill: 'var(--color-mood)' }}
+                dot={MoodDot}
                 activeDot={{ r: 5 }}
                 isAnimationActive={animate}
               />
@@ -145,14 +148,15 @@ function DayRow({ day, today }: { day: ReviewDay; today: string }) {
   )
 }
 
-/** "🙂 6.3 · 4 ▬●▬ 8 · 3 check-ins": lowest – average – highest on a 1–10 track. */
+/** "(face) Good 6.3 · 4 ▬●▬ 8 · 3 check-ins": lowest – average – highest on a 1–10 track. */
 function MoodRange({ day }: { day: ReviewDay }) {
   if (day.mood === null || day.moodMin === null || day.moodMax === null) return <p className="text-muted-foreground">No mood check-in</p>
   const pos = (n: number) => `${((n - 1) / 9) * 100}%`
   return (
     <div className="flex items-center gap-2">
-      <span className="font-medium tabular-nums">
-        {moodEmoji(day.mood)} {day.mood}
+      <span className="flex items-center gap-1.5 font-medium tabular-nums">
+        <MoodIcon mood={day.mood} className="size-4" />
+        {moodBand(day.mood).word} {day.mood}
       </span>
       <span
         className="relative h-1.5 w-20 rounded-full bg-muted"

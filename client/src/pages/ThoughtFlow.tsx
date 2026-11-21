@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, Check, Loader2, Lock, Plus, Save, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, Leaf, Loader2, Lock, Plus, Save, Sun, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -136,7 +136,7 @@ export function ThoughtFlow() {
         navigate(`/thoughts/${data.log.id}`, { replace: true })
       }
       if (data.showSupport) setSupport(true)
-      if (!finishing) toast.success('Saved ✓ — you can come back to this any time')
+      if (!finishing) toast.success('Saved — you can come back to this any time')
       return true
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save')
@@ -398,7 +398,7 @@ function FeelingsStep({ feelings, onChange }: { feelings: Feeling[]; onChange: (
             onClick={() => add(name)}
             className="inline-flex h-9 items-center gap-1 rounded-full border px-3.5 text-sm transition-all outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-95"
           >
-            <Plus className="size-3.5" aria-hidden /> {name}
+            <Plus className="size-4" aria-hidden /> {name}
           </button>
         ))}
       </div>
@@ -474,9 +474,9 @@ function FinishScreen({
   return (
     <div className="mx-auto max-w-xl animate-in space-y-6 text-center duration-500 fade-in-0">
       <div className="space-y-3 pt-6">
-        <p className="text-4xl" aria-hidden>
-          🌿
-        </p>
+        <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-secondary text-primary" aria-hidden>
+          <Leaf className="size-6" />
+        </span>
         <h1 className="text-3xl font-semibold">Thank you for doing this</h1>
         {before && after !== null && (
           <p className="font-heading text-2xl tabular-nums" aria-label={`${before.name} went from ${before.intensityBefore} to ${after} out of 10`}>
@@ -503,7 +503,9 @@ function FinishScreen({
 
       <div className="flex flex-col items-center gap-3">
         <Button asChild size="lg">
-          <Link to="/lift">Lift me up 🌤️</Link>
+          <Link to="/lift">
+            <Sun aria-hidden /> Lift me up
+          </Link>
         </Button>
         <Button asChild variant="ghost">
           <Link to="/thoughts">Back to thought log</Link>

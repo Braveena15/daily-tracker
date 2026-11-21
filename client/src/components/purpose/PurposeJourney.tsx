@@ -131,7 +131,7 @@ export function DailyPurposes({ onSetToday, todayCardAbove = false }: { onSetTod
                       </p>
                       <span className="flex items-center gap-1 text-xs text-muted-foreground">
                         {intentionsDone(day) && `${intentionsDone(day)} done`}
-                        <ArrowRight className="size-3.5" aria-hidden />
+                        <ArrowRight className="size-4" aria-hidden />
                       </span>
                     </div>
                     <PurposeDayView purpose={day} />

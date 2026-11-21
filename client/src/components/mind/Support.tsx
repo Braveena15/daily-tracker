@@ -1,6 +1,6 @@
 // Support contacts. This content is fixed and written by people — never AI-generated.
 import { useState } from 'react'
-import { HeartHandshake, Phone } from 'lucide-react'
+import { Heart, HeartHandshake, Phone } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -89,7 +89,7 @@ export function SupportDialog({ open, onOpenChange }: { open: boolean; onOpenCha
   )
 }
 
-/** "Need support now 💜" — opens the support card. */
+/** "Need support now" — opens the support card. */
 export function SupportButton({ className }: { className?: string }) {
   const [open, setOpen] = useState(false)
   return (
@@ -100,7 +100,7 @@ export function SupportButton({ className }: { className?: string }) {
         className={cn('border-mental/40 bg-mental-soft text-mental-foreground hover:bg-mental-soft/80', className)}
         onClick={() => setOpen(true)}
       >
-        Need support now 💜
+        <Heart className="fill-current" aria-hidden /> Need support now
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md">

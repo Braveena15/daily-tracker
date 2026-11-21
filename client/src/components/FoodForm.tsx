@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils'
 
 const str = (n: number | undefined) => (n === undefined ? '' : String(n))
 
-/** Create or edit a food: name, serving, kcal, optional macros and ⭐ favourite. */
+/** Create or edit a food: name, serving, kcal, optional macros and a favourite star. */
 export function FoodForm({
   initial,
   initialName = '',

@@ -89,7 +89,7 @@ export function Purpose() {
       setDraft(toDraft(data.purpose))
       setEditing(isEmpty(data.purpose))
       setSaves((n) => n + 1)
-      toast.success('Purpose saved ✓')
+      toast.success('Purpose saved')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save')
     } finally {
@@ -333,7 +333,7 @@ function PurposeForm({ draft, onChange }: { draft: Draft; onChange: (draft: Draf
                     on && 'border-mental/50 bg-mental-soft text-mental-foreground hover:bg-mental-soft',
                   )}
                 >
-                  {on ? <Check className="size-3.5" aria-hidden /> : <Plus className="size-3.5" aria-hidden />}
+                  {on ? <Check className="size-4" aria-hidden /> : <Plus className="size-3.5" aria-hidden />}
                   {value}
                 </button>
               )

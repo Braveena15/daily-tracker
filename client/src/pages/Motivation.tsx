@@ -165,7 +165,7 @@ function QuotesTab() {
               onSaved={(quote) => {
                 setData((d) => d && { ...d, quotes: editing === 'new' ? [quote, ...d.quotes] : d.quotes.map((q) => (q.id === quote.id ? quote : q)) })
                 setEditing(null)
-                toast.success('Saved ✓')
+                toast.success('Saved')
               }}
             />
           )}
@@ -350,7 +350,7 @@ function VideosTab() {
               onSaved={(video) => {
                 setVideos((list) => (editing === 'new' ? [video, ...(list ?? [])] : (list ?? []).map((v) => (v.id === video.id ? video : v))))
                 setEditing(null)
-                toast.success('Saved ✓')
+                toast.success('Saved')
               }}
             />
           )}

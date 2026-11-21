@@ -1,24 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import {
-  ArrowDown,
-  ArrowRight,
-  ArrowUp,
-  BookOpen,
-  Brain,
-  CalendarCheck,
-  ChevronLeft,
-  ChevronRight,
-  Dumbbell,
-  Gauge,
-  Moon,
-  Smile,
-  Sparkles,
-  Trophy,
-  UtensilsCrossed,
-  Wheat,
-  type LucideIcon,
-} from 'lucide-react'
+import { ArrowDown, ArrowRight, ArrowUp, BookOpen, Brain, CalendarCheck, ChevronLeft, ChevronRight, Dumbbell, Gauge, Moon, Smile, Sparkles, Target, Trophy, UtensilsCrossed, Wheat, type LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -97,7 +79,7 @@ export function Review() {
           request={aiRequests.weekly(weekEnding)}
           // This week's reflection appears straight away; past weeks wait for a tap, to save AI calls
           autoLoad={weekEnding === today}
-          startLabel="Reflect on this week ✨"
+          startLabel="Reflect on this week"
         />
 
         {error ? <ErrorNotice>{error}</ErrorNotice> : !data ? <ReviewSkeleton /> : <ReviewBody data={data} today={today} />}
@@ -119,7 +101,7 @@ function Delta({ diff, unit = '', direction = 'higher-is-good', digits = 0 }: { 
   const colour = direction === 'neutral' || !up ? 'bg-muted text-muted-foreground' : 'bg-success/15 text-success'
   return (
     <span className={cn('inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-medium tabular-nums', colour)}>
-      <Icon className="size-3" aria-hidden />
+      <Icon className="size-4" aria-hidden />
       <span className="sr-only">{up ? 'up' : 'down'}</span>
       {Math.abs(rounded).toFixed(digits)}
       {unit} vs last week
@@ -312,7 +294,11 @@ function ReviewBody({ data, today }: { data: WeeklyReviewResponse; today: string
                         <Link to={`/history/${day.date}`} className="font-heading font-semibold hover:underline">
                           {relativeDay(day.date, today)}
                         </Link>
-                        {intentionsDone(day) && <span className="text-xs text-muted-foreground tabular-nums">🎯 {intentionsDone(day)} done</span>}
+                        {intentionsDone(day) && (
+                <span className="flex items-center gap-1 text-xs text-muted-foreground tabular-nums">
+                  <Target className="size-4 text-mental" aria-hidden /> {intentionsDone(day)} done
+                </span>
+              )}
                       </p>
                       <PurposeDayView purpose={day} />
                     </li>

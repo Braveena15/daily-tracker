@@ -66,11 +66,11 @@ export function Foods() {
     if (editing === 'new') {
       const data = await api.post<FoodResponse>('/foods', createBody(values))
       replace(data.food)
-      toast.success(`Added ${data.food.name} ✓`)
+      toast.success(`Added ${data.food.name}`)
     } else if (editing) {
       const data = await api.put<FoodResponse>(`/foods/${editing.id}`, values)
       replace(data.food)
-      toast.success('Saved ✓')
+      toast.success('Saved')
     }
     setEditing(null)
   }
