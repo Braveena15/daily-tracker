@@ -46,7 +46,13 @@ export function WeekMoodChart({ days }: { days: ReviewDay[] }) {
             Check in from the Today page and your week's mood will show up here.
           </EmptyState>
         ) : (
-          <ChartContainer config={chartConfig} className="aspect-auto h-52 w-full sm:h-60">
+          <ChartContainer
+            config={chartConfig}
+            className="aspect-auto h-52 w-full sm:h-60"
+            summary={`Average mood by day: ${days
+              .map((d) => `${tooltipDate(d.date)} ${d.mood === null ? 'no check-in' : `${moodBand(d.mood).word} ${d.mood}`}`)
+              .join('; ')}.`}
+          >
             <ComposedChart data={points} margin={{ left: 0, right: 8, top: 8 }}>
               <CartesianGrid vertical={false} />
               <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} tickFormatter={shortDate} minTickGap={8} />

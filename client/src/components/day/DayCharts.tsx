@@ -58,6 +58,25 @@ function DayChartCard({ icon, title, description, children }: { icon: LucideIcon
 
 // ---------- Mood & energy ----------
 
+/** "3 check-ins. Mood from Okay 5 to Good 8; latest Good 7 at 20:58, with some energy (6/10)." */
+function moodSummary(points: { minute: number; mood: number; energy: number }[]): string {
+  const moods = points.map((p) => p.mood)
+  const lo = Math.min(...moods)
+  const hi = Math.max(...moods)
+  const last = points.at(-1)!
+  const range = lo === hi ? `Mood ${moodBand(lo).word} ${lo}` : `Mood from ${moodBand(lo).word} ${lo} to ${moodBand(hi).word} ${hi}`
+  return `${points.length} check-in${points.length === 1 ? '' : 's'}. ${range}; latest ${moodBand(last.mood).word} ${last.mood} at ${clock(last.minute)}, ${energyBand(last.energy).word.toLowerCase()} (${last.energy}/10).`
+}
+
+/** "By 18:30: 8,712 steps and 194 active kcal, over 6 syncs." */
+function activitySummary(points: { minute: number; steps: number | null; activeCalories: number | null }[]): string {
+  const last = points.at(-1)!
+  const steps = [...points].reverse().find((p) => p.steps !== null)?.steps
+  const kcal = [...points].reverse().find((p) => p.activeCalories !== null)?.activeCalories
+  const parts = [steps != null && `${steps.toLocaleString()} steps`, kcal != null && `${kcal.toLocaleString()} active kcal`].filter(Boolean)
+  return `By ${clock(last.minute)}: ${parts.join(' and ')}, over ${points.length} syncs.`
+}
+
 const moodConfig = {
   mood: { label: 'Mood', color: 'var(--chart-mental)' },
   energy: { label: 'Energy', color: 'var(--chart-learning)' },
@@ -81,7 +100,7 @@ export function MoodDayChart({ moodLogs }: { moodLogs: MoodLog[] }) {
           Check in a couple of times through the day to see how your mood and energy move.
         </EmptyState>
       ) : (
-        <ChartContainer config={moodConfig} className={CHART_CLASS}>
+        <ChartContainer config={moodConfig} className={CHART_CLASS} summary={moodSummary(points)}>
           <LineChart data={points} margin={{ left: 0, right: 12, top: 8 }}>
             <CartesianGrid vertical={false} />
             <XAxis dataKey="minute" type="number" domain={domain} ticks={hourTicks(domain)} tickFormatter={clock} {...AXIS} />
@@ -151,7 +170,7 @@ export function ActivityDayChart({ snapshots }: { snapshots: HealthSnapshot[] })
           Each Apple Watch sync adds a point here, so you can see how your day built up.
         </EmptyState>
       ) : (
-        <ChartContainer config={activityConfig} className={CHART_CLASS}>
+        <ChartContainer config={activityConfig} className={CHART_CLASS} summary={activitySummary(points)}>
           <LineChart data={points} margin={{ left: 0, right: 0, top: 8 }}>
             <CartesianGrid vertical={false} />
             <XAxis dataKey="minute" type="number" domain={domain} ticks={hourTicks(domain)} tickFormatter={clock} {...AXIS} />

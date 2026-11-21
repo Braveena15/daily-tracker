@@ -42,9 +42,12 @@ function ChartContainer({
   children,
   config,
   initialDimension = INITIAL_DIMENSION,
+  summary,
   ...props
 }: React.ComponentProps<"div"> & {
   config: ChartConfig
+  /** What the chart shows, in one or two sentences, for screen readers */
+  summary?: string
   children: React.ComponentProps<
     typeof RechartsPrimitive.ResponsiveContainer
   >["children"]
@@ -58,6 +61,7 @@ function ChartContainer({
 
   return (
     <ChartContext.Provider value={{ config }}>
+      {summary && <p className="sr-only">{summary}</p>}
       <div
         data-slot="chart"
         data-chart={chartId}

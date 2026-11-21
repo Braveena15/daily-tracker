@@ -88,6 +88,16 @@ const ChartSkeleton = () => <Skeleton className="h-56 w-full rounded-xl sm:h-64"
 // ---------- Score trends ----------
 
 const RANGES = [7, 30, 90] as const
+
+/** "Over 7 days, 5 logged: average overall score 68. Latest (Sat, Nov 21): physical 90, mental 67, learning 60." */
+function scoreSummary(days: ScoresListResponse['days']): string {
+  const logged = days.filter((d) => d.overall !== null)
+  const avg = Math.round(logged.reduce((s, d) => s + d.overall!, 0) / logged.length)
+  const last = logged.at(-1)!
+  const area = (name: string, v: number | null) => (v === null ? null : `${name} ${v}`)
+  const parts = [area('physical', last.physical), area('mental', last.mental), area('learning', last.learning)].filter(Boolean)
+  return `Over ${days.length} days, ${logged.length} logged: average overall score ${avg}. Latest (${tooltipDate(last.date)}): ${parts.join(', ')}.`
+}
 type Range = (typeof RANGES)[number]
 
 const scoreConfig = Object.fromEntries(AREAS.map((a) => [a.key, { label: a.label, color: a.chartColor }])) satisfies ChartConfig
@@ -127,7 +137,7 @@ export function ScoreTrendCard() {
           Check in for a few days and your trends will show up here.
         </EmptyState>
       ) : (
-        <ChartContainer config={scoreConfig} className={CHART_CLASS}>
+        <ChartContainer config={scoreConfig} className={CHART_CLASS} summary={scoreSummary(data.days)}>
           <LineChart data={data.days} margin={{ left: 0, right: 8, top: 8 }}>
             <CartesianGrid vertical={false} />
             <XAxis dataKey="date" {...AXIS} minTickGap={28} tickFormatter={shortDate} />
@@ -194,7 +204,11 @@ export function WeightCard() {
         </EmptyState>
       ) : (
         <>
-          <ChartContainer config={weightConfig} className={CHART_CLASS}>
+          <ChartContainer
+            config={weightConfig}
+            className={CHART_CLASS}
+            summary={`Weight from ${values[0]} kg to ${values.at(-1)} kg over ${weights.length} weigh-ins${goal !== null ? `; goal ${goal} kg` : ''}.`}
+          >
             <ComposedChart data={points} margin={{ left: 0, right: 8, top: 8 }}>
               <CartesianGrid vertical={false} />
               <XAxis dataKey="date" {...AXIS} minTickGap={28} tickFormatter={shortDate} />
@@ -298,7 +312,11 @@ export function CaloriesChartCard() {
         </EmptyState>
       ) : (
         <>
-          <ChartContainer config={caloriesConfig} className={CHART_CLASS}>
+          <ChartContainer
+            config={caloriesConfig}
+            className={CHART_CLASS}
+            summary={`Calories on ${logged.length} of the last ${data.days.length} days, ${kcal(Math.round(logged.reduce((s, d) => s + d.kcal!, 0) / logged.length))} kcal a day on average${target !== null ? `; target ${kcal(target)} kcal` : ''}.`}
+          >
             <BarChart data={data.days} margin={{ left: 0, right: 8, top: 8 }}>
               <CartesianGrid vertical={false} />
               <XAxis dataKey="date" {...AXIS} minTickGap={20} tickFormatter={shortDate} />
@@ -389,7 +407,11 @@ export function SleepChartCard() {
         </EmptyState>
       ) : (
         <>
-          <ChartContainer config={sleepConfig} className={CHART_CLASS}>
+          <ChartContainer
+            config={sleepConfig}
+            className={CHART_CLASS}
+            summary={`Sleep on ${nights} of the last ${data.days.length} nights${data.avgHours !== null ? `, ${data.avgHours} hours on average` : ''}${data.avgScore !== null ? `, average sleep score ${data.avgScore}` : ''}.`}
+          >
             <ComposedChart data={data.days} margin={{ left: 0, right: 0, top: 8 }}>
               <CartesianGrid vertical={false} />
               <XAxis dataKey="date" {...AXIS} minTickGap={20} tickFormatter={shortDate} />
