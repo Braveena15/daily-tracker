@@ -72,6 +72,9 @@ function EditorSkeleton() {
 
 const minutesText = (min?: number) => (min ? ` · ${min} min` : '')
 
+/** An empty section shows as one "+ Add …" row until it's opened (purpose and mood always show in full). */
+const emptyLabel = (items: unknown[] | undefined, label: string) => ((items?.length ?? 0) === 0 ? label : undefined)
+
 function DayEditor({ date, today }: { date: string; today: string }) {
   const { day, error, ...actions } = useDay(date)
   const { hash } = useLocation()
@@ -154,6 +157,7 @@ function DayEditor({ date, today }: { date: string; today: string }) {
         tone="physical"
         chips={WORKOUT_CHIPS}
         itemLabel="Workout"
+        addLabel="Add workout"
         minutesRequired
         items={entry?.workouts ?? []}
         isToday={isToday}
@@ -167,6 +171,7 @@ function DayEditor({ date, today }: { date: string; today: string }) {
         tone="mental"
         chips={MENTAL_CHIPS}
         itemLabel="Activity"
+        addLabel="Add activity"
         items={entry?.mentalActivities ?? []}
         isToday={isToday}
         actions={actions}
@@ -179,12 +184,13 @@ function DayEditor({ date, today }: { date: string; today: string }) {
         tone="outdoor"
         chips={OUTDOOR_CHIPS}
         itemLabel="Activity"
+        addLabel="Add time outside"
         items={entry?.outdoorActivities ?? []}
         isToday={isToday}
         actions={actions}
       />
 
-      <Section title="Good things" hint="Small wins count." icon={Sparkles}>
+      <Section title="Good things" hint="Small wins count." icon={Sparkles} collapsedLabel={emptyLabel(entry?.goodThings, 'Add a good thing')}>
         <TextForm label="Good thing" placeholder="Something good that happened" maxLength={300} isToday={isToday} onSubmit={(body) => actions.add('goodThings', body)} />
         <EntryList
           label="good thing"
@@ -205,7 +211,7 @@ function DayEditor({ date, today }: { date: string; today: string }) {
         />
       </Section>
 
-      <Section title="Learnings" hint="Anything new, big or small." icon={BookOpen} tone="learning">
+      <Section title="Learnings" hint="Anything new, big or small." icon={BookOpen} tone="learning" collapsedLabel={emptyLabel(entry?.learnings, 'Add a learning')}>
         <LearningForm isToday={isToday} onSubmit={(body) => actions.add('learnings', body)} />
         <EntryList
           label="learning"
@@ -218,7 +224,7 @@ function DayEditor({ date, today }: { date: string; today: string }) {
         />
       </Section>
 
-      <Section title="Present moment" hint="How are you, right now?" icon={Feather}>
+      <Section title="Present moment" hint="How are you, right now?" icon={Feather} collapsedLabel={emptyLabel(entry?.presentMoments, 'Add a moment')}>
         <TextForm
           label="Present moment"
           placeholder="Write a few words…"
@@ -286,6 +292,7 @@ function ActivitySection({
   tone,
   chips,
   itemLabel,
+  addLabel,
   minutesRequired,
   items,
   isToday,
@@ -298,6 +305,7 @@ function ActivitySection({
   tone: Tone
   chips: string[]
   itemLabel: string
+  addLabel: string
   minutesRequired?: boolean
   items: (Activity & Partial<Pick<DailyEntry['workouts'][number], 'source' | 'calories'>>)[]
   isToday: boolean
@@ -305,7 +313,7 @@ function ActivitySection({
 }): ReactNode {
   const form = { chips, tone, itemLabel, minutesRequired, isToday }
   return (
-    <Section title={title} hint={hint} icon={icon} tone={tone}>
+    <Section title={title} hint={hint} icon={icon} tone={tone} collapsedLabel={emptyLabel(items, addLabel)}>
       <ActivityForm {...form} onSubmit={(body) => actions.add(kind, body)} />
       <EntryList
         label={itemLabel.toLowerCase()}

@@ -244,9 +244,9 @@ function Editor({ id }: { id: string | undefined }) {
                     type="button"
                     aria-label={`Remove tag ${t}`}
                     onClick={() => update({ tags: draft.tags.filter((x) => x !== t) })}
-                    className="grid size-6 place-items-center rounded-full outline-none hover:bg-card focus-visible:ring-3 focus-visible:ring-ring/50"
+                    className="relative grid size-6 place-items-center rounded-full outline-none after:absolute after:-inset-2.5 hover:bg-card focus-visible:ring-3 focus-visible:ring-ring/50"
                   >
-                    <X className="size-3.5" />
+                    <X className="size-4" aria-hidden />
                   </button>
                 </span>
               ))}

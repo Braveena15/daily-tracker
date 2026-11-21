@@ -14,7 +14,7 @@ import type { DiaryListResponse } from '@/lib/mind'
 import { cn } from '@/lib/utils'
 
 const chip =
-  'h-9 rounded-full px-3.5 text-sm transition-all outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-95'
+  'touch-hit h-9 overflow-visible rounded-full px-3.5 text-sm transition-all outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-95'
 
 export function Diary() {
   const [tag, setTag] = useState<string | null>(null)

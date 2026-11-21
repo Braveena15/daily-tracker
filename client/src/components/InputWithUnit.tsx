@@ -6,7 +6,7 @@ export function InputWithUnit({ unit, className, ...props }: ComponentProps<'inp
   return (
     <div
       className={cn(
-        'flex h-10 w-full min-w-0 items-center rounded-xl border border-input bg-card transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 dark:bg-input/30',
+        'flex h-10 w-full min-w-0 pointer-coarse:h-11 items-center rounded-xl border border-input bg-card transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 dark:bg-input/30',
         className,
       )}
     >

@@ -22,7 +22,7 @@ const errorMessage = (err: unknown, fallback: string) => (err instanceof Error ?
 function CategoryFilter({ value, onChange }: { value: Category | null; onChange: (c: Category | null) => void }) {
   const chip = (on: boolean) =>
     cn(
-      'h-8 rounded-full border px-3 text-sm transition-all outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50',
+      'touch-hit h-9 rounded-full border px-3.5 text-sm transition-all outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50',
       on && 'border-mental/50 bg-mental-soft text-mental-foreground hover:bg-mental-soft',
     )
   return (

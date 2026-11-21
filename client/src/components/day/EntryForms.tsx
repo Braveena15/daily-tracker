@@ -188,7 +188,7 @@ export function ActivityForm({
                 asChild
                 variant="outline"
                 className={cn(
-                  'h-9 gap-1.5 rounded-full px-3.5 text-sm transition-all hover:-translate-y-0.5 hover:bg-muted active:scale-95',
+                  'touch-hit h-9 gap-1.5 overflow-visible rounded-full px-3.5 text-sm transition-all hover:bg-muted active:scale-95',
                   on && toneChipOn[tone],
                 )}
               >

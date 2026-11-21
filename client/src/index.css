@@ -306,3 +306,19 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/*
+ * A 44px tap area on touch screens for small controls that look 36px (chips, pills), without
+ * making them look bigger: an invisible 4px margin all round. Keep chips gap-2 apart so the
+ * tap areas don't overlap.
+ */
+@utility touch-hit {
+  position: relative;
+  @media (pointer: coarse) {
+    &::after {
+      content: '';
+      position: absolute;
+      inset: -4px;
+    }
+  }
+}

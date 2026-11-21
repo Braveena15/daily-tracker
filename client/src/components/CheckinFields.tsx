@@ -1,6 +1,6 @@
 // Building blocks for the Today page's cards and fields.
-import { useId, type ReactNode } from 'react'
-import { Watch, type LucideIcon } from 'lucide-react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { Plus, Watch, type LucideIcon } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { IconBubble } from '@/components/IconBubble'
@@ -15,6 +15,7 @@ export function Section({
   icon,
   tone = 'primary',
   aside,
+  collapsedLabel,
   children,
 }: {
   title: string
@@ -23,9 +24,49 @@ export function Section({
   tone?: Tone
   /** Shown at the end of the heading row, e.g. a badge */
   aside?: ReactNode
+  /**
+   * "Add workout": while the section is empty it shows as one short row with this button, and
+   * opens on a tap. Leave it out (or pass undefined once there are entries) to always show it.
+   */
+  collapsedLabel?: string
   children: ReactNode
 }) {
   const headingId = useId()
+  const [opened, setOpened] = useState(false)
+  const contentRef = useRef<HTMLDivElement>(null)
+
+  // After "Add …", move focus into the form so typing can start straight away
+  useEffect(() => {
+    if (!opened) return
+    contentRef.current?.querySelector<HTMLElement>('input, textarea, button:not([disabled])')?.focus({ preventScroll: true })
+  }, [opened])
+
+  if (collapsedLabel && !opened) {
+    return (
+      <Card role="group" aria-labelledby={headingId} size="sm" className="relative">
+        <div className="flex items-center gap-3 px-(--card-spacing)">
+          <IconBubble icon={icon} tone={tone} />
+          <div className="min-w-0 flex-1">
+            <h2 id={headingId} className="text-lg leading-tight font-semibold">
+              {title}
+            </h2>
+            {hint && <p className="mt-0.5 truncate text-sm text-muted-foreground">{hint}</p>}
+          </div>
+          {/* The whole row is the button (after:inset-0), so it's an easy tap target */}
+          <button
+            type="button"
+            aria-expanded={false}
+            onClick={() => setOpened(true)}
+            className="flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-primary outline-none after:absolute after:inset-0 after:rounded-2xl hover:bg-secondary focus-visible:after:ring-3 focus-visible:after:ring-ring/50"
+          >
+            <Plus className="size-4" aria-hidden />
+            {collapsedLabel}
+          </button>
+        </div>
+      </Card>
+    )
+  }
+
   return (
     <Card role="group" aria-labelledby={headingId} className="gap-5">
       <div className="flex flex-wrap items-center gap-3 px-(--card-spacing)">
@@ -38,12 +79,14 @@ export function Section({
         </div>
         {aside && <div className="ml-auto shrink-0">{aside}</div>}
       </div>
-      <CardContent className="space-y-5">{children}</CardContent>
+      <CardContent ref={contentRef} className={cn('space-y-5', opened && 'animate-in duration-200 fade-in-0 slide-in-from-top-1')}>
+        {children}
+      </CardContent>
     </Card>
   )
 }
 
-/** Ten tappable emoji buttons for a 1–10 rating. */
+/** Ten tappable buttons for a 1–10 rating, each with its face (or icon) and word. */
 export function RatingPicker({
   label,
   value,
