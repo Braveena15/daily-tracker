@@ -17,6 +17,7 @@ import {
 import { usedToday } from "../ai/mongoStore";
 import { getEncouragement, type AiRequest, type AiResult } from "../ai/service";
 import { aiConfigured, aiDeps, aiMode } from "../config/ai";
+import { env } from "../config/env";
 import { fieldCrypto } from "../config/encryption";
 import { openDailyPurpose, purposeText, type StoredDailyPurpose } from "../utils/dailyPurpose";
 import { CHECKED_IN, DailyEntryModel } from "../models/DailyEntry";
@@ -250,6 +251,8 @@ export async function aiStatus(req: Request, res: Response): Promise<void> {
     mode: aiMode,
     usedToday: await usedToday(req.userId, today()),
     limit: aiDeps.limit,
+    // Public demo: every AI feature shows pre-written example replies
+    ...(env.demoMode && { demo: true }),
   });
 }
 

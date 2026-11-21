@@ -54,6 +54,16 @@ describe("envProblems", () => {
     ]);
   });
 
+  it("doesn't need the AI settings for the demo, which never calls the AI", () => {
+    expect(envProblems({ ...base, NODE_ENV: "production", DEMO_MODE: "true" })).toEqual([]);
+    expect(envProblems({ ...base, NODE_ENV: "production", DEMO_MODE: "true", DEMO_REPO_URL: "not a url" })).toEqual([
+      "DEMO_REPO_URL: DEMO_REPO_URL must be a full URL",
+    ]);
+    // Only exactly "true" turns the demo on
+    expect(envProblems({ ...base, NODE_ENV: "production", DEMO_MODE: "yes" })).toHaveLength(3);
+    expect(envSchema.parse(production).DEMO_MODE).toBe("false");
+  });
+
   it("treats an empty AI_DAILY_LIMIT as the default, not 0", () => {
     expect(envProblems({ ...production, AI_DAILY_LIMIT: "" })).toEqual([]);
     expect(envSchema.parse({ ...production, AI_DAILY_LIMIT: "" }).AI_DAILY_LIMIT).toBe(20);

@@ -1,4 +1,5 @@
 import { Schema, model, type InferSchemaType } from "mongoose";
+import { demoExpiryPlugin } from "../demo/expiryPlugin";
 
 // Shared limits, used by both the model and the API validation.
 export const ENTRY_LIMITS = {
@@ -241,4 +242,6 @@ export function isCheckedIn(entry: LoggedShape): boolean {
   return USER_LISTS.some((field) => (entry[field]?.length ?? 0) > 0) || (entry.workouts ?? []).some((w) => w.source !== "watch");
 }
 
+// Demo only: deleted with its demo account (see demo/expiryPlugin.ts)
+dailyEntrySchema.plugin(demoExpiryPlugin);
 export const DailyEntryModel = model("DailyEntry", dailyEntrySchema);

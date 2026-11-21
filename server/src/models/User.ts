@@ -1,4 +1,5 @@
 import { Schema, model, type InferSchemaType, type HydratedDocument } from "mongoose";
+import { demoExpiryPlugin } from "../demo/expiryPlugin";
 import { ACTIVITY_LEVELS, WEEKLY_GOALS } from "../utils/calories";
 
 // Shared limits for profile fields, used by both the model and the API validation.
@@ -107,6 +108,11 @@ const userSchema = new Schema(
     healthSyncTokenHash: { type: String, select: false, unique: true, sparse: true },
     healthSyncTokenCreatedAt: { type: Date },
     lastHealthSyncAt: { type: Date },
+
+    // Public demo only (DEMO_MODE=true): a temporary account with sample data. Never set otherwise.
+    isDemo: { type: Boolean },
+    // When a demo account (and all its data) is deleted by MongoDB's TTL index
+    expiresAt: { type: Date },
   },
   {
     timestamps: true,
@@ -123,4 +129,6 @@ const userSchema = new Schema(
 export type User = InferSchemaType<typeof userSchema>;
 export type UserDocument = HydratedDocument<User>;
 
+// Demo only: deleted with its demo account (see demo/expiryPlugin.ts)
+userSchema.plugin(demoExpiryPlugin);
 export const UserModel = model("User", userSchema);

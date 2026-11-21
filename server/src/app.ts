@@ -27,6 +27,8 @@ import { healthSyncRouter } from "./routes/healthSyncRoutes";
 import { errorHandler, notFound } from "./middleware/errorHandler";
 import { requestLogger } from "./middleware/requestLogger";
 import { serveClient } from "./middleware/serveClient";
+import { demoRestrictions } from "./demo/restrictions";
+import { demoRouter } from "./routes/demoRoutes";
 
 export const app = express();
 
@@ -59,6 +61,12 @@ app.use("/api/diary", express.json({ limit: "100kb" }));
 app.use("/api/thoughts", express.json({ limit: "64kb" }));
 app.use(express.json({ limit: "10kb" }));
 app.use(cookieParser());
+
+// Public demo only: some features are refused, and "Try the demo" creates temporary accounts
+if (env.demoMode) {
+  app.use(demoRestrictions);
+  app.use("/api/demo", demoRouter);
+}
 
 app.use("/api/health", healthRouter);
 app.use("/api/auth", authRouter);

@@ -5,10 +5,11 @@ import type { AiDeps } from "../ai/service";
 import { env } from "./env";
 
 export const aiMode = env.AI_DATA_MODE;
-export const aiConfigured = Boolean(env.GEMINI_API_KEY);
+// Demo mode never talks to Gemini: every AI feature shows its pre-written example replies
+export const aiConfigured = Boolean(env.GEMINI_API_KEY) && !env.demoMode;
 
 export const aiDeps: AiDeps = {
-  generate: env.GEMINI_API_KEY ? createGemini({ apiKey: env.GEMINI_API_KEY, model: env.GEMINI_MODEL }) : null,
+  generate: aiConfigured && env.GEMINI_API_KEY ? createGemini({ apiKey: env.GEMINI_API_KEY, model: env.GEMINI_MODEL }) : null,
   store: mongoAiStore,
   limit: env.AI_DAILY_LIMIT,
   // Only the kind of problem ("timeout", "blocked"…), never prompts or replies — and nothing in production

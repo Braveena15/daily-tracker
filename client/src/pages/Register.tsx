@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label'
 import { AuthLayout } from '@/components/AuthLayout'
 import { ErrorNotice, FullPageLoader } from '@/components/StatusViews'
 import { useAuth } from '@/context/useAuth'
+import { useDemoConfig } from '@/hooks/useDemoConfig'
 
 export function Register() {
   const { user, loading, register } = useAuth()
@@ -16,9 +17,12 @@ export function Register() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const demo = useDemoConfig()
 
   if (loading) return <FullPageLoader />
   if (user) return <Navigate to="/" replace />
+  // The public demo has no sign-up: "Try the demo" on the login page is the way in
+  if (demo?.enabled) return <Navigate to="/login" replace />
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()

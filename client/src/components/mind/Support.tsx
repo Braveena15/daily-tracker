@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { useAuth } from '@/context/useAuth'
 import { cn } from '@/lib/utils'
 
 const HELPLINES = [
@@ -33,6 +34,7 @@ function CallLink({ number, label }: { number: string; label: string }) {
 
 /** "You don't have to carry this alone" with tap-to-call helplines. */
 export function SupportCard({ className }: { className?: string }) {
+  const isDemo = useAuth().user?.isDemo === true
   return (
     <div className={cn('space-y-4', className)}>
       <p className="font-heading text-lg leading-snug">
@@ -69,6 +71,21 @@ export function SupportCard({ className }: { className?: string }) {
       </div>
 
       <p className="text-sm font-medium">If you're in immediate danger, please call 1990 or go to the nearest hospital.</p>
+
+      {/* The public demo has visitors from everywhere; these numbers are for Sri Lanka */}
+      {isDemo && (
+        <p className="text-sm text-muted-foreground">
+          Outside Sri Lanka? Find a free helpline near you at{' '}
+          <a
+            href="https://findahelpline.com"
+            target="_blank"
+            rel="noreferrer"
+            className="font-medium text-foreground underline underline-offset-4 hover:no-underline"
+          >
+            findahelpline.com
+          </a>
+        </p>
+      )}
     </div>
   )
 }

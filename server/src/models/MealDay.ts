@@ -1,4 +1,5 @@
 import { Schema, model, type InferSchemaType } from "mongoose";
+import { demoExpiryPlugin } from "../demo/expiryPlugin";
 import { FOOD_LIMITS, fiber } from "./Food";
 import { MEAL_TYPES } from "../utils/meals";
 
@@ -53,4 +54,6 @@ mealDaySchema.index({ userId: 1, date: 1 }, { unique: true });
 
 export type MealDay = InferSchemaType<typeof mealDaySchema>;
 
+// Demo only: deleted with its demo account (see demo/expiryPlugin.ts)
+mealDaySchema.plugin(demoExpiryPlugin);
 export const MealDayModel = model("MealDay", mealDaySchema);

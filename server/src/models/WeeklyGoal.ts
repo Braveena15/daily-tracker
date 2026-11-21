@@ -3,6 +3,7 @@
 // goal saved from it covers E+1..E+7 — exactly the review week that ends on E+7.
 // `text` is ENCRYPTED ("iv:authTag:ciphertext", see utils/crypto.ts) and is never sent to the AI.
 import { Schema, model, type InferSchemaType } from "mongoose";
+import { demoExpiryPlugin } from "../demo/expiryPlugin";
 
 export const GOAL_TEXT_MAX = 200;
 export const GOAL_SOURCES = ["ai", "edited", "typed"] as const;
@@ -28,4 +29,6 @@ weeklyGoalSchema.index({ userId: 1, weekStart: 1 }, { unique: true });
 weeklyGoalSchema.index({ userId: 1, weekEnd: 1 });
 
 export type WeeklyGoalDoc = InferSchemaType<typeof weeklyGoalSchema>;
+// Demo only: deleted with its demo account (see demo/expiryPlugin.ts)
+weeklyGoalSchema.plugin(demoExpiryPlugin);
 export const WeeklyGoalModel = model("WeeklyGoal", weeklyGoalSchema);

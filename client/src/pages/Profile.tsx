@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
-import { CalendarDays, Save } from 'lucide-react'
+import { CalendarDays, Save, Watch } from 'lucide-react'
+import { useAuth } from '@/context/useAuth'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/LazyCalendar'
@@ -202,6 +203,7 @@ function JourneyStartPicker({
 }
 
 export function Profile() {
+  const isDemo = useAuth().user?.isDemo === true
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
   const [goals, setGoals] = useState<GoalsForm>({
     stepGoal: '',
@@ -438,17 +440,32 @@ export function Profile() {
         </Card>
       )}
 
-      <section aria-label="Apple Watch sync" className="mt-4 md:mt-6">
-        <AppleWatchSync />
-      </section>
+      {isDemo ? (
+        // The server refuses both in the demo, so they aren't offered
+        <Card className="mt-4 max-w-3xl md:mt-6">
+          <CardContent className="flex items-start gap-3 text-sm text-muted-foreground">
+            <Watch className="mt-0.5 size-5 shrink-0" aria-hidden />
+            <p>
+              Apple Watch sync and deleting data are turned off in this demo. In your own copy of Daily Tracker, steps, workouts
+              and sleep arrive here automatically from an iOS Shortcut.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <section aria-label="Apple Watch sync" className="mt-4 md:mt-6">
+          <AppleWatchSync />
+        </section>
+      )}
 
       <section aria-label="AI settings" className="mt-4 md:mt-6">
         <AiSettings />
       </section>
 
-      <section aria-label="Data" className="mt-4 md:mt-6">
-        <DataCleanup />
-      </section>
+      {!isDemo && (
+        <section aria-label="Data" className="mt-4 md:mt-6">
+          <DataCleanup />
+        </section>
+      )}
     </>
   )
 }

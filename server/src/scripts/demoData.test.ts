@@ -1,6 +1,8 @@
 /// <reference types="vitest/globals" />
-import { DEMO_FOODS, generateDemoData } from "./demoData";
+import { DEMO_FOODS, DEMO_PURPOSE, generateDemoData, generateDemoMind } from "./demoData";
 import { dailySchema, entrySchemas } from "../validation/entrySchema";
+import { ENTRY_LIMITS } from "../models/DailyEntry";
+import { sleepScore } from "../utils/sleep";
 
 const TODAY = "2026-11-19";
 
@@ -61,5 +63,55 @@ describe("generateDemoData", () => {
     expect(entries.some((e) => e.moodLogs.length > 1)).toBe(true);
     const names = new Set<string>(DEMO_FOODS.map((f) => f.name));
     expect(mealDays.flatMap((d) => d.items).every((i) => names.has(i.foodName))).toBe(true);
+  });
+});
+
+describe("generateDemoData extras", () => {
+  const { entries } = generateDemoData(TODAY);
+
+  it("logs water the API would accept on every day", () => {
+    for (const e of entries) {
+      expect(e.waterLogs.length).toBeGreaterThan(0);
+      expect(e.waterLogs.every(({ loggedAt: _at, ...w }) => entrySchemas.water.safeParse(w).success)).toBe(true);
+    }
+  });
+
+  it("has a night of sleep with stages and a score worked out like a real sync", () => {
+    const bedtimes: string[] = [];
+    for (const e of entries) {
+      const s = e.sleep!;
+      expect(s.deepMin + s.remMin + s.coreMin).toBe(s.totalSleepMin);
+      expect(s.bedtime).toMatch(/^\d{2}:\d{2}$/);
+      expect(sleepScore(s, bedtimes.slice(-14)).score).toBe(s.score);
+      expect(e.sleepScoreValue).toBe(s.score);
+      expect(e.sleepHours).toBeCloseTo(s.totalSleepMin / 60, 1);
+      bedtimes.push(s.bedtime);
+    }
+  });
+
+  it("has daily purposes within the app's limits, always one today, and no reflection yet today", () => {
+    const withPurpose = entries.filter((e) => e.dailyPurpose);
+    expect(withPurpose.length).toBeGreaterThan(entries.length / 2);
+    for (const { dailyPurpose: p } of withPurpose) {
+      expect(p!.purposes.length).toBeGreaterThan(0);
+      expect(p!.intentions.length).toBeLessThanOrEqual(ENTRY_LIMITS.intentions);
+      expect(p!.focusValues.length).toBeLessThanOrEqual(ENTRY_LIMITS.focusValues);
+      expect(p!.focusValues.every((v) => DEMO_PURPOSE.coreValues.includes(v))).toBe(true);
+      expect(p!.intentions.every((i) => i.done === Boolean(i.doneAt))).toBe(true);
+    }
+    const today = entries.at(-1)!;
+    expect(today.dailyPurpose).toBeDefined();
+    expect(today.dailyPurpose!.reflection).toBeUndefined();
+  });
+
+  it("dates the diary, thought logs and weekly goals within the 60 days, one goal per week", () => {
+    const { diary, thoughts, weeklyGoals } = generateDemoMind(TODAY);
+    const inRange = (d: string) => d >= "2026-09-21" && d <= TODAY;
+    expect(diary.length).toBeGreaterThan(2);
+    expect(thoughts.length).toBeGreaterThan(1);
+    expect([...diary, ...thoughts].every((x) => inRange(x.date))).toBe(true);
+    expect(weeklyGoals.every((g) => inRange(g.weekStart) && inRange(g.weekEnd))).toBe(true);
+    expect(new Set(weeklyGoals.map((g) => g.weekStart)).size).toBe(weeklyGoals.length);
+    expect(weeklyGoals[0]).toEqual(expect.objectContaining({ weekEnd: TODAY, done: false }));
   });
 });

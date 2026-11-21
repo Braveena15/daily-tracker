@@ -3,6 +3,9 @@
 import { addDays } from "../utils/dates";
 import { atTime } from "../utils/timeline";
 import type { MealType } from "../utils/meals";
+import { clockMinutes, sleepHoursFrom, sleepScore, type NightSummary } from "../utils/sleep";
+import type { ScoreLine } from "../utils/scores";
+import type { Distortion } from "../utils/thoughts";
 
 /** Small seeded random number generator (mulberry32): same seed → same sequence. */
 function createRandom(seed: number) {
@@ -91,6 +94,22 @@ export type DemoEntry = {
   learnings: (Stamped & { topic: string; details?: string; minutes?: number })[];
   presentMoments: (Stamped & { text: string })[];
   healthSnapshots: { time: Date; steps?: number; activeCalories?: number }[];
+  waterLogs: (Stamped & { amountMl: number })[];
+  /** Last night's sleep as Apple Health sync would store it, with the calculated score */
+  sleep?: NightSummary & { score: number; breakdown: ScoreLine[]; source: "watch" };
+  sleepScoreValue?: number;
+  sleepScoreSource?: "auto";
+  /** Plain text here; the seed encrypts it the way the API does */
+  dailyPurpose?: DemoDailyPurpose;
+};
+
+export type DemoDailyPurpose = {
+  purposes: { text: string; at: Date }[];
+  focusValues: string[];
+  intentions: { text: string; done: boolean; doneAt?: Date }[];
+  reflection?: { rating: number; note?: string; at: Date };
+  setAt: Date;
+  updatedAt: Date;
 };
 
 export type DemoMealItem = { mealType: MealType; foodName: FoodName; servings: number };
@@ -184,6 +203,7 @@ export function generateDemoData(today: string, days = 60, seed = 2026): { entri
         learnings: learnings.map((l) => ({ ...l, loggedAt: at(rnd.int(9, 22)) })),
         presentMoments: rnd.chance(0.6) ? [{ text: rnd.pick(REFLECTIONS), loggedAt: at(21) }] : [],
         healthSnapshots: snapshots(date, steps, activeCalories),
+        waterLogs: [],
       });
     }
 
@@ -204,5 +224,229 @@ export function generateDemoData(today: string, days = 60, seed = 2026): { entri
     }
   }
 
+  addDailyExtras(entries, today, seed + 1);
   return { entries, mealDays };
+}
+
+// ---------- Water, sleep and daily purposes ----------
+// A second random stream, so adding these didn't change any of the data above.
+
+export const DEMO_PURPOSE = {
+  purposeStatement: "To live with curiosity and care: keep learning, stay active, and show up for the people around me.",
+  coreValues: ["Health", "Curiosity", "Family", "Kindness", "Growth", "Calm"],
+  longTermGoals: [
+    { title: "Ride 100 km in one day", why: "To prove to myself that steady training adds up." },
+    { title: "Build and ship a side project", why: "Learning is more fun when it becomes something real." },
+    { title: "Reach a healthy weight and keep it", why: "More energy for the things I love." },
+  ],
+};
+
+const PURPOSES = [
+  "Be present and patient today",
+  "Make steady progress on the project",
+  "Look after my body: move, eat well, rest",
+  "Be a good friend and listener",
+  "Learn one thing deeply instead of many things lightly",
+  "Keep the day calm and simple",
+];
+const INTENTIONS = [
+  "Go cycling",
+  "30 minutes of reading",
+  "Cook a healthy dinner",
+  "Call a friend",
+  "Stretch for 10 minutes",
+  "Study for an hour",
+  "Walk after lunch",
+  "Phone-free first hour",
+  "Drink 2 litres of water",
+  "Write three good things",
+];
+const REFLECTION_NOTES = ["Mostly on track.", "Got distracted in the afternoon, but the evening was good.", "A really good day.", "Tired, but I did what mattered."];
+
+const clock = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+
+function addDailyExtras(entries: DemoEntry[], today: string, seed: number): void {
+  const rnd = createRandom(seed);
+  const bedtimes: string[] = [];
+
+  for (const e of entries) {
+    const isToday = e.date === today;
+    const at = (hour: number, minute = rnd.int(0, 59)) => atTime(e.date, `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`);
+
+    // Water: 4–9 drinks through the day (fewer so far today)
+    const drinks = isToday ? rnd.int(2, 4) : rnd.int(4, 9);
+    const hours = [...new Set(Array.from({ length: drinks }, () => rnd.int(7, isToday ? 11 : 21)))].sort((a, b) => a - b);
+    e.waterLogs = hours.map((h) => ({ loggedAt: at(h), amountMl: rnd.pick([250, 250, 250, 330, 500]) }));
+
+    // Sleep: last night, split into stages, scored the same way as a real sync
+    const totalSleepMin = Math.round(e.sleepHours * 60);
+    const awakeCount = rnd.pick([0, 1, 1, 2, 2, 3]);
+    const awakeMin = awakeCount === 0 ? 0 : rnd.int(awakeCount * 3, awakeCount * 9);
+    const deepMin = Math.round(totalSleepMin * rnd.between(0.13, 0.2));
+    const remMin = Math.round(totalSleepMin * rnd.between(0.19, 0.25));
+    const bed = (clockMinutes("22:40") + rnd.int(0, 95)) % 1440; // 22:40 – 00:15
+    const night: NightSummary = {
+      totalSleepMin,
+      deepMin,
+      remMin,
+      coreMin: totalSleepMin - deepMin - remMin,
+      awakeCount,
+      awakeMin,
+      bedtime: clock(bed),
+      wakeTime: clock((bed + totalSleepMin + awakeMin) % 1440),
+    };
+    const { score, breakdown } = sleepScore(night, bedtimes.slice(-14));
+    bedtimes.push(night.bedtime);
+    e.sleepHours = sleepHoursFrom(totalSleepMin);
+    e.sleep = { ...night, score, breakdown, source: "watch" };
+    e.sleepScoreValue = score;
+    e.sleepScoreSource = "auto";
+
+    // A purpose on about 3 days in 4 (always today)
+    if (!isToday && !rnd.chance(0.75)) continue;
+    const setAt = at(7, rnd.int(0, 30));
+    const intentions = rnd.some(INTENTIONS, rnd.int(2, 4)).map((text) => {
+      const done = isToday ? rnd.chance(0.35) : rnd.chance(0.75);
+      return { text, done, ...(done && { doneAt: at(isToday ? rnd.int(8, 11) : rnd.int(9, 21)) }) };
+    });
+    e.dailyPurpose = {
+      purposes: rnd.some(PURPOSES, rnd.pick([1, 1, 2])).map((text) => ({ text, at: setAt })),
+      focusValues: rnd.some(DEMO_PURPOSE.coreValues, rnd.int(1, 3)),
+      intentions,
+      // Past days were reflected on in the evening; today's reflection is still to come
+      ...(!isToday &&
+        rnd.chance(0.8) && {
+          reflection: { rating: rnd.pick([3, 4, 4, 5]), ...(rnd.chance(0.5) && { note: rnd.pick(REFLECTION_NOTES) }), at: at(21) },
+        }),
+      setAt,
+      updatedAt: setAt,
+    };
+  }
+}
+
+// ---------- Diary, thought logs and weekly goals ----------
+// Neutral, made-up content only.
+
+export type DemoDiaryEntry = { date: string; title: string; body: string; tags: string[]; isFavourite: boolean };
+export type DemoThoughtLog = {
+  date: string;
+  situation: string;
+  thought: string;
+  feelings: { name: string; intensityBefore: number }[];
+  distortions: Distortion[];
+  evidenceFor: string;
+  evidenceAgainst: string;
+  friendAdvice: string;
+  balancedThought: string;
+  smallStep: string;
+  smallStepDone: boolean;
+  intensityAfter: number;
+};
+export type DemoWeeklyGoal = { weekStart: string; weekEnd: string; text: string; source: "typed" | "ai"; done: boolean };
+
+const DIARY: (Omit<DemoDiaryEntry, "date"> & { daysAgo: number })[] = [
+  {
+    daysAgo: 1,
+    title: "A slow Sunday",
+    body: "Slept in a little, then rode along the coast before it got hot. Spent the afternoon reading and cooking a big pot of dhal for the week. Nothing special happened, and that felt like exactly what I needed.",
+    tags: ["weekend", "calm"],
+    isFavourite: true,
+  },
+  {
+    daysAgo: 6,
+    title: "Progress on the side project",
+    body: "Finally got the charts working. It took longer than planned, but breaking the problem into small pieces helped. Note to self: write the plan down before starting.",
+    tags: ["learning", "work"],
+    isFavourite: false,
+  },
+  {
+    daysAgo: 15,
+    title: "Family dinner",
+    body: "Everyone was home for dinner tonight. Lots of laughing about old stories. I want to make these evenings happen more often, not just on special occasions.",
+    tags: ["family", "gratitude"],
+    isFavourite: true,
+  },
+  {
+    daysAgo: 29,
+    title: "Halfway through the month",
+    body: "Looking back at the last two weeks: more movement, better sleep on most nights, and the morning walks are still going. The evenings are where my routine slips.",
+    tags: ["reflection"],
+    isFavourite: false,
+  },
+  {
+    daysAgo: 47,
+    title: "Starting fresh",
+    body: "Decided to track how my days actually go instead of how I think they go. Small, honest check-ins. Curious what I'll notice.",
+    tags: ["reflection", "goals"],
+    isFavourite: false,
+  },
+];
+
+const THOUGHTS: (Omit<DemoThoughtLog, "date"> & { daysAgo: number })[] = [
+  {
+    daysAgo: 3,
+    situation: "A presentation at work didn't go as smoothly as I wanted.",
+    thought: "Everyone must think I don't know what I'm doing.",
+    feelings: [
+      { name: "Worried", intensityBefore: 7 },
+      { name: "Frustrated", intensityBefore: 5 },
+    ],
+    distortions: ["mind-reading", "all-or-nothing"],
+    evidenceFor: "I lost my place once and had to check my notes.",
+    evidenceAgainst: "Two people asked good follow-up questions, and my manager said the main points were clear.",
+    friendAdvice: "One stumble doesn't undo the preparation you did. People remember the content.",
+    balancedThought: "It wasn't perfect, but it was useful, and I can practise the opening next time.",
+    smallStep: "Rehearse the first two minutes out loud before the next one.",
+    smallStepDone: false,
+    intensityAfter: 3,
+  },
+  {
+    daysAgo: 18,
+    situation: "Skipped my workout three days in a row.",
+    thought: "I always give up on things.",
+    feelings: [{ name: "Frustrated", intensityBefore: 6 }],
+    distortions: ["overgeneralising", "labelling"],
+    evidenceFor: "I missed three planned sessions.",
+    evidenceAgainst: "I've exercised most weeks for over a month. It was a busy week.",
+    friendAdvice: "Missing a few days is normal. What matters is starting again.",
+    balancedThought: "I had a busy week and fell behind. I can pick it back up with a short session.",
+    smallStep: "A 20-minute ride tomorrow morning.",
+    smallStepDone: true,
+    intensityAfter: 2,
+  },
+  {
+    daysAgo: 35,
+    situation: "A friend didn't reply to my message all day.",
+    thought: "Maybe I said something wrong.",
+    feelings: [{ name: "Anxious", intensityBefore: 5 }],
+    distortions: ["personalising", "fortune-telling"],
+    evidenceFor: "They usually reply quickly.",
+    evidenceAgainst: "They mentioned a deadline this week. Nothing in my message was unkind.",
+    friendAdvice: "People get busy. You can check in tomorrow if you're still unsure.",
+    balancedThought: "They're probably just busy. No reply isn't a sign that something's wrong.",
+    smallStep: "Send a light message tomorrow if I still haven't heard back.",
+    smallStepDone: true,
+    intensityAfter: 1,
+  },
+];
+
+const WEEKLY_GOALS = [
+  "Three rides this week",
+  "In bed by 23:00 on weeknights",
+  "Cook at home five days",
+  "Read for 20 minutes every evening",
+  "A walk after lunch every workday",
+  "Call family twice",
+  "Two hours on the side project",
+];
+
+/** Diary entries, thought logs and weekly goals, dated back from `today` (all within 60 days). */
+export function generateDemoMind(today: string): { diary: DemoDiaryEntry[]; thoughts: DemoThoughtLog[]; weeklyGoals: DemoWeeklyGoal[] } {
+  const dated = <T extends { daysAgo: number }>({ daysAgo, ...rest }: T) => ({ ...rest, date: addDays(today, -daysAgo) });
+  // Weekly review weeks end on today, today−7, …; each goal covers one of those weeks. This week's is still open.
+  const weeklyGoals: DemoWeeklyGoal[] = WEEKLY_GOALS.map((text, i) => {
+    const weekEnd = addDays(today, -7 * i);
+    return { weekStart: addDays(weekEnd, -6), weekEnd, text, source: i % 3 === 1 ? "ai" : "typed", done: i > 0 && i % 4 !== 2 };
+  });
+  return { diary: DIARY.map(dated), thoughts: THOUGHTS.map(dated), weeklyGoals };
 }

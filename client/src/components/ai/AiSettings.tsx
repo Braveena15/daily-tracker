@@ -63,7 +63,9 @@ export function AiSettings() {
               <span>
                 <span className="block font-medium">Use AI</span>
                 <span className="text-sm text-muted-foreground">
-                  {!status.configured
+                  {status.demo
+                    ? 'This demo never contacts an AI: you see pre-written example replies.'
+                    : !status.configured
                     ? "AI isn't set up on this server, so you'll see pre-written messages."
                     : status.userEnabled
                       ? `${status.usedToday} of ${status.limit} AI messages used today.`

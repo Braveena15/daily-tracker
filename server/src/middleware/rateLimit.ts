@@ -10,6 +10,15 @@ export const loginLimiter = rateLimit({
   message: { message: "Too many login attempts. Please try again in 15 minutes." },
 });
 
+// Public demo: 5 new demo accounts per IP address an hour.
+export const demoStartLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 5,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { message: "You've started a few demos already. Please try again in an hour." },
+});
+
 // AI routes: a burst limit on top of the per-user daily limit, so a stuck page can't hammer them.
 export const aiRateLimit = rateLimit({
   windowMs: 60 * 1000,

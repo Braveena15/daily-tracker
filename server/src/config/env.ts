@@ -22,5 +22,7 @@ if (problems.length > 0 || !parsed.success) {
 export const env = {
   ...parsed.data,
   isProduction: parsed.data.NODE_ENV === "production",
-  allowRegistration: parsed.data.ALLOW_REGISTRATION === "true",
+  demoMode: parsed.data.DEMO_MODE === "true",
+  // The demo only ever creates temporary demo accounts
+  allowRegistration: parsed.data.ALLOW_REGISTRATION === "true" && parsed.data.DEMO_MODE !== "true",
 };

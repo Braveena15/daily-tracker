@@ -1,4 +1,5 @@
 import { Schema, model } from "mongoose";
+import { demoExpiryPlugin } from "../demo/expiryPlugin";
 
 // "friend": the AI friend's conversation about one thought log (encrypted; see ai/friend.ts)
 export const AI_TASKS = ["thought", "daily", "weekly", "boost", "friend"] as const;
@@ -20,6 +21,8 @@ const aiMessageSchema = new Schema(
 );
 aiMessageSchema.index({ userId: 1, type: 1, refId: 1 }, { unique: true });
 
+// Demo only: deleted with its demo account (see demo/expiryPlugin.ts)
+aiMessageSchema.plugin(demoExpiryPlugin);
 export const AiMessageModel = model("AiMessage", aiMessageSchema);
 
 // How many AI calls each user has made each day, for AI_DAILY_LIMIT.
@@ -30,4 +33,6 @@ const aiUsageSchema = new Schema({
 });
 aiUsageSchema.index({ userId: 1, date: 1 }, { unique: true });
 
+// Demo only: deleted with its demo account (see demo/expiryPlugin.ts)
+aiUsageSchema.plugin(demoExpiryPlugin);
 export const AiUsageModel = model("AiUsage", aiUsageSchema);

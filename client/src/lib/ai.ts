@@ -30,6 +30,8 @@ export type AiStatus = {
   mode: 'minimal' | 'full'
   usedToday: number
   limit: number
+  /** Public demo: the AI is never used; every reply is a pre-written example */
+  demo?: boolean
 }
 
 const again = (regenerate: boolean, hasQuery = false) => (regenerate ? `${hasQuery ? '&' : '?'}regenerate=true` : '')

@@ -4,7 +4,18 @@ import { ThemeToggle } from '@/components/ThemeToggle'
 import { SproutMark } from '@/components/SproutMark'
 
 /** Centred card for the login and register pages. */
-export function AuthLayout({ title, description, children }: { title: string; description: string; children: ReactNode }) {
+export function AuthLayout({
+  title,
+  description,
+  children,
+  footer,
+}: {
+  title: string
+  description: string
+  children: ReactNode
+  /** Below the card, e.g. the demo's "Built by" line */
+  footer?: ReactNode
+}) {
   return (
     <main className="relative isolate grid min-h-dvh place-items-center overflow-hidden px-4 py-12">
       {/* Soft colour glows in the background */}
@@ -36,6 +47,7 @@ export function AuthLayout({ title, description, children }: { title: string; de
           </CardHeader>
           <CardContent>{children}</CardContent>
         </Card>
+        {footer}
       </div>
     </main>
   )

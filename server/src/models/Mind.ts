@@ -2,6 +2,7 @@
 // Fields marked ENCRYPTED hold "iv:authTag:ciphertext" (see utils/crypto.ts), never plain text.
 // Controllers encrypt before saving and decrypt before sending.
 import { Schema, model, type InferSchemaType } from "mongoose";
+import { demoExpiryPlugin } from "../demo/expiryPlugin";
 import { QUOTE_CATEGORIES } from "../utils/builtInQuotes";
 import { DISTORTIONS } from "../utils/thoughts";
 
@@ -48,6 +49,8 @@ diaryEntrySchema.index({ userId: 1, date: -1 });
 diaryEntrySchema.index({ userId: 1, tags: 1 });
 
 export type DiaryEntry = InferSchemaType<typeof diaryEntrySchema>;
+// Demo only: deleted with its demo account (see demo/expiryPlugin.ts)
+diaryEntrySchema.plugin(demoExpiryPlugin);
 export const DiaryEntryModel = model("DiaryEntry", diaryEntrySchema);
 
 // ---------- Thought log (CBT) ----------
@@ -89,6 +92,8 @@ const thoughtLogSchema = new Schema(
 thoughtLogSchema.index({ userId: 1, date: -1 });
 
 export type ThoughtLog = InferSchemaType<typeof thoughtLogSchema>;
+// Demo only: deleted with its demo account (see demo/expiryPlugin.ts)
+thoughtLogSchema.plugin(demoExpiryPlugin);
 export const ThoughtLogModel = model("ThoughtLog", thoughtLogSchema);
 
 // ---------- Purpose (one per user) ----------
@@ -132,6 +137,8 @@ const purposeSchema = new Schema(
 );
 
 export type Purpose = InferSchemaType<typeof purposeSchema>;
+// Demo only: deleted with its demo account (see demo/expiryPlugin.ts)
+purposeSchema.plugin(demoExpiryPlugin);
 export const PurposeModel = model("Purpose", purposeSchema);
 
 // ---------- Motivation library ----------
@@ -154,6 +161,8 @@ const quoteSchema = new Schema(
 );
 quoteSchema.index({ userId: 1, createdAt: -1 });
 
+// Demo only: deleted with its demo account (see demo/expiryPlugin.ts)
+quoteSchema.plugin(demoExpiryPlugin);
 export const QuoteModel = model("Quote", quoteSchema);
 
 const videoSchema = new Schema(
@@ -170,4 +179,6 @@ const videoSchema = new Schema(
 );
 videoSchema.index({ userId: 1, createdAt: -1 });
 
+// Demo only: deleted with its demo account (see demo/expiryPlugin.ts)
+videoSchema.plugin(demoExpiryPlugin);
 export const VideoModel = model("Video", videoSchema);

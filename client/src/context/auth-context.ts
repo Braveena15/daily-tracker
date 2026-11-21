@@ -8,6 +8,10 @@ export type User = {
   birthYear?: number
   sex?: 'male' | 'female'
   goalWeightKg?: number
+  /** Public demo only: a temporary account with sample data */
+  isDemo?: boolean
+  /** Public demo only: when the account and its data are deleted */
+  expiresAt?: string
   createdAt: string
   updatedAt: string
 }
@@ -17,6 +21,8 @@ export type AuthContextValue = {
   loading: boolean
   login: (email: string, password: string) => Promise<void>
   register: (name: string, email: string, password: string) => Promise<void>
+  /** Public demo: a new temporary account with sample data, logged in */
+  startDemo: () => Promise<void>
   logout: () => Promise<void>
 }
 

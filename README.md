@@ -2,6 +2,35 @@
 
 A personal web app for tracking mood, meals, weight, learning and reflection every day, with AI encouragement along the way.
 
+## Live demo
+
+**[Try the demo →](https://YOUR-DEMO-SERVICE.onrender.com)** (no sign-up)
+
+"Try the demo" creates a fresh, temporary account filled with 60 days of made-up sample data. Everything works on your own copy, and it's deleted automatically after 24 hours. Please don't enter personal information. The free server sleeps when idle, so the first visit can take up to a minute. See [How the demo works](#how-the-demo-works).
+
+### Highlights
+
+- **Today as a timeline**: mood check-ins, water, workouts, learnings, good things and more, each with its own time
+- **Daily purpose**: what today is about, intentions to tick off and an evening reflection
+- **Scores and trends**: physical, mental and learning scores with a clear breakdown; weight, calories, sleep and water charts; a weekly review comparing this week with the last
+- **Meals and calories** against a daily target worked out from your profile, with macros and fibre
+- **Mind**: an encrypted diary, a step-by-step CBT thought log, "Lift me up" and box breathing
+- **Apple Health sync** through an iOS Shortcut: steps, workouts, and sleep stages with a calculated sleep score
+- **Gentle AI encouragement** (Gemini) with strict privacy rules, and always-visible support helplines
+- **Installable PWA**, accessible, with light and dark themes
+
+### Screenshots
+
+<!-- Add images to docs/screenshots/ and they'll show here -->
+
+| Dashboard | Today | Weekly review |
+| --------- | ----- | ------------- |
+| ![Dashboard](docs/screenshots/dashboard.png) | ![Today](docs/screenshots/today.png) | ![Weekly review](docs/screenshots/review.png) |
+
+| Meals | Thought log | Phone |
+| ----- | ----------- | ----- |
+| ![Meals](docs/screenshots/meals.png) | ![Thought log](docs/screenshots/thought-log.png) | ![Phone](docs/screenshots/mobile.png) |
+
 ## Features
 
 | Status | Feature |
@@ -22,10 +51,38 @@ A personal web app for tracking mood, meals, weight, learning and reflection eve
 
 ## Tech stack
 
-- **Frontend:** React, Vite, TypeScript, installable as a PWA (vite-plugin-pwa)
-- **Backend:** Express, TypeScript, Mongoose
-- **Database:** MongoDB Atlas
+- **Frontend:** React 19, Vite, TypeScript, Tailwind CSS v4, shadcn/ui (Radix), Recharts, lucide icons, React Router; installable as a PWA (vite-plugin-pwa)
+- **Backend:** Express 5, TypeScript, Mongoose, zod validation, helmet (strict CSP), JWT in an httpOnly cookie
+- **Database:** MongoDB Atlas (diary, thought-log and purpose text encrypted with AES-256-GCM)
+- **AI:** Google Gemini, behind privacy rules and pre-written fallbacks
+- **Tests:** Vitest (unit tests, plus integration tests against an in-memory MongoDB)
 - **Hosting:** Render (one web service: Express serves the API and the built client)
+
+## Architecture
+
+```mermaid
+flowchart LR
+  subgraph Phone["Browser / installed PWA"]
+    UI["React app<br/>(Vite build, service worker caches the app shell only)"]
+  end
+  Shortcut["iOS Shortcut<br/>(Apple Health)"]
+
+  subgraph Render["Render: one Node web service"]
+    Static["Express: serves client/dist<br/>+ SPA fallback"]
+    API["Express API /api/*<br/>auth · entries · meals · scores · mind · AI"]
+    Demo["Demo mode (DEMO_MODE=true only)<br/>/api/demo · restrictions"]
+  end
+
+  DB[("MongoDB Atlas")]
+  Gemini["Google Gemini"]
+
+  UI -- "pages, JS, CSS" --> Static
+  UI -- "JSON + httpOnly cookie" --> API
+  Shortcut -- "Bearer token" --> API
+  API --> DB
+  Demo --> DB
+  API -. "minimal, privacy-filtered summaries<br/>(never in the demo)" .-> Gemini
+```
 
 ## Project structure
 
@@ -96,6 +153,8 @@ cp server/.env.example server/.env
 | `GEMINI_MODEL` | Gemini model, e.g. `gemini-2.5-flash`. Required in production. |
 | `AI_DATA_MODE` | `minimal` (numbers and categories only) or `full` (thought-log text too, never private logs or the diary). Required in production. |
 | `AI_DAILY_LIMIT` | AI calls per user per day (default `20`) |
+| `DEMO_MODE` | `true` only for the public demo deployment (see [How the demo works](#how-the-demo-works)). Leave it unset everywhere else. |
+| `DEMO_REPO_URL` | Demo only: the GitHub repository linked from the demo banner and footer |
 
 The server checks these at startup and stops with a clear message if any are missing or invalid.
 
@@ -140,6 +199,8 @@ Open http://localhost:5173 and create an account, or log in. Vite forwards every
 | DELETE | `/api/entries/:date/:kind/:id` | Delete one entry |
 | DELETE | `/api/entries/:date` | Delete the whole day |
 | GET | `/api/entries/stats/streak` | Current and longest logging streak |
+| GET | `/api/demo/config` | Demo only: `{ enabled, repoUrl, ttlHours }` (404 when `DEMO_MODE` isn't `true`) |
+| POST | `/api/demo/start` | Demo only: create a temporary account with sample data and log in (5 per IP an hour) |
 
 `kind` is `moods`, `workouts`, `mental`, `outdoor`, `goodThings`, `learnings` or `presentMoments`. Every entry has its own `id` and a `loggedAt` time. Future dates and times are rejected. Workouts from Apple Watch are replaced by each sync, so they can't be edited by hand.
 
@@ -169,6 +230,8 @@ npm test
 ```
 
 Unit tests (Vitest) cover the calculations, scores, sleep, validation, AI privacy rules, Apple Health merging, environment checks and how production serves the client.
+
+Integration tests (`server/src/demo/*.test.ts`) run the real app against an in-memory MongoDB. They check demo mode end to end, and that nothing changes when it's off. The first run downloads a MongoDB binary (several hundred MB, cached in `~/.cache/mongodb-binaries` afterwards). The tests set every environment variable themselves and never read `server/.env` values for the database or AI.
 
 ## Deploying to Render
 
@@ -207,6 +270,58 @@ Every push to the main branch deploys again. The free plan sleeps after about 15
 The service worker caches only the app shell (HTML, JS, CSS, icons and fonts), so the app opens quickly. API responses are never cached: your data always comes fresh from the server. When a new version is deployed, a "New version available" toast offers a **Refresh** button.
 
 To change the icon, edit `client/public/favicon.svg` and run `npm run generate-pwa-assets` in `client/`.
+
+## How the demo works
+
+The public demo is the **same code** deployed a second time, with `DEMO_MODE=true` and **its own database**. A personal deployment leaves `DEMO_MODE` unset, and then none of the following exists: no demo routes, no expiry on any data, no TTL indexes, no restrictions.
+
+**Try the demo.** The login page shows **Try the demo — no sign-up**. Normal registration stays closed, even if `ALLOW_REGISTRATION=true`. `POST /api/demo/start`:
+
+1. creates a new account with a friendly name ("Demo Explorer") and a made-up `@demo.invalid` address that nobody can log in with;
+2. fills it with about 60 days of sample data ending today, with the same generator as `npm run seed:demo` (`server/src/scripts/demoData.ts`):
+   - check-ins with several mood logs a day, workouts, water, sleep with stages and scores, steps and calories through the day
+   - good things, learnings and present moments
+   - meals with macros and fibre
+   - daily purposes with intentions and reflections
+   - a purpose statement and values, weekly goals, a few diary entries and thought logs (all neutral, made-up content)
+3. logs the visitor in for 24 hours.
+
+**Everything expires after 24 hours.** Every document belonging to a demo account carries `expiresAt`: the account's own creation time plus 24 hours, covering both the sample data and whatever the visitor adds. At startup the demo server:
+
+- creates a MongoDB **TTL index** on `expiresAt` in every collection that holds user data, so Atlas deletes expired accounts and their data by itself, even while the server sleeps;
+- deletes anything already expired.
+
+An expired account's login stops working straight away.
+
+**Limits.** 5 demo starts per IP address an hour. At 300 active demo accounts, new visitors see "The demo is busy right now. Please try again a little later."
+
+**Turned off in the demo (refused by the server):**
+
+- the AI: every AI feature shows pre-written example replies, and Gemini is never contacted (no key is needed)
+- Apple Health sync and its tokens (all of `/api/health-sync`)
+- deleting data before the journey start
+- changing email or password, deleting the account, and data export: these routes are blocked in advance, so adding them later can't open them in the demo
+
+**In the app.** Every page shows a slim banner: "You're exploring a demo with sample data. It's deleted after 24 hours — please don't enter personal information", with a link to the GitHub repo. The footer says "Built by Routhiran · GitHub". The support card adds a link to [findahelpline.com](https://findahelpline.com) for visitors outside Sri Lanka.
+
+### Deploying the demo
+
+Create it as a **separate** Render web service, so your own deployment is never touched. Don't add it to `render.yaml`.
+
+1. In MongoDB Atlas, create a **new database** for the demo: a new database name in the connection string, or a separate (free) cluster. Never point the demo at your personal data.
+2. On Render: **New → Web Service**, the same repo, Node, region Singapore, plan Free, build command `npm run build`, start command `npm start`, health check path `/api/health`.
+3. Environment variables:
+
+| Variable | Value |
+| -------- | ----- |
+| `NODE_ENV` | `production` |
+| `DEMO_MODE` | `true` |
+| `MONGODB_URI` | The demo's own database |
+| `JWT_SECRET` | A new random value (not the one from your personal deployment) |
+| `DIARY_ENCRYPTION_KEY` | A new random 64-hex-character key |
+| `DEMO_REPO_URL` | Your GitHub repository URL |
+
+The demo needs no `GEMINI_*`, `AI_DATA_MODE` or `ALLOW_REGISTRATION`.
 
 ## Roadmap
 

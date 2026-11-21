@@ -33,6 +33,12 @@ export const envSchema = z.object({
   AI_DATA_MODE: z.enum(["minimal", "full"], { error: 'AI_DATA_MODE must be "minimal" or "full"' }).default("minimal"),
   // AI calls per user per day. Left empty means the default (an empty value isn't read as 0).
   AI_DAILY_LIMIT: z.preprocess((v) => (typeof v === "string" && v.trim() === "" ? undefined : v), z.coerce.number().int().min(0).max(1000).default(20)),
+
+  // Public demo deployment (its own database): "true" adds "Try the demo" with temporary seeded
+  // accounts, turns off the AI, Apple Health sync and data deletion. Anything else: no demo at all.
+  DEMO_MODE: z.string().default("false"),
+  // Demo only: the GitHub repository linked from the demo banner and footer
+  DEMO_REPO_URL: z.preprocess((v) => (typeof v === "string" && v.trim() === "" ? undefined : v), z.url({ error: "DEMO_REPO_URL must be a full URL" }).optional()),
 });
 
 // Must be set explicitly in production (no silent defaults there)
@@ -50,7 +56,9 @@ export function envProblems(source: Record<string, string | undefined>): string[
   const result = envSchema.safeParse(source);
   const problems = result.success ? [] : result.error.issues.map((i) => `${i.path.join(".") || "env"}: ${i.message}`);
   const mode = source.NODE_ENV ?? "development";
-  const required = mode === "production" ? REQUIRED_IN_PRODUCTION : mode === "development" ? REQUIRED_IN_DEVELOPMENT : {};
+  // The demo never calls the AI, so it needs no Gemini settings
+  const production = source.DEMO_MODE === "true" ? {} : REQUIRED_IN_PRODUCTION;
+  const required = mode === "production" ? production : mode === "development" ? REQUIRED_IN_DEVELOPMENT : {};
   for (const [key, message] of Object.entries(required)) {
     const reported = problems.some((p) => p.startsWith(`${key}:`));
     if (!source[key]?.trim() && !reported) problems.push(`${key}: ${message}`);

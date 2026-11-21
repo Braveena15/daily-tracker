@@ -1,4 +1,5 @@
 import { Schema, model, type InferSchemaType } from "mongoose";
+import { demoExpiryPlugin } from "../demo/expiryPlugin";
 
 // Shared limits, used by both the model and the API validation.
 export const FOOD_LIMITS = {
@@ -46,4 +47,6 @@ foodSchema.index({ userId: 1, name: 1 }, { unique: true, collation: { locale: "e
 
 export type Food = InferSchemaType<typeof foodSchema>;
 
+// Demo only: deleted with its demo account (see demo/expiryPlugin.ts)
+foodSchema.plugin(demoExpiryPlugin);
 export const FoodModel = model("Food", foodSchema);

@@ -14,26 +14,29 @@ dns.setServers(["8.8.8.8", "1.1.1.1"]);
 import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
 import { env } from "../config/env";
+import { seedSampleData, sampleProfile, DEMO_DAYS } from "../demo/seed";
+import { AiMessageModel, AiUsageModel } from "../models/Ai";
 import { DailyEntryModel } from "../models/DailyEntry";
 import { FoodModel } from "../models/Food";
 import { MealDayModel } from "../models/MealDay";
+import { DiaryEntryModel, PurposeModel, QuoteModel, ThoughtLogModel, VideoModel } from "../models/Mind";
 import { UserModel } from "../models/User";
-import { addDays, todayInTimezone } from "../utils/dates";
-import { DEMO_FOODS, DEMO_PROFILE, generateDemoData } from "./demoData";
+import { WeeklyGoalModel } from "../models/WeeklyGoal";
+import { todayInTimezone } from "../utils/dates";
 
 const DEMO_EMAIL = "demo@example.com";
 const DEMO_PASSWORD = "demo-password-123";
-const DAYS = 60;
 
 async function clearDemo(): Promise<boolean> {
   const user = await UserModel.findOne({ email: DEMO_EMAIL }).select("_id");
   if (!user) return false;
   // Every delete is limited to the demo user's id
-  await Promise.all([
-    DailyEntryModel.deleteMany({ userId: user._id }),
-    MealDayModel.deleteMany({ userId: user._id }),
-    FoodModel.deleteMany({ userId: user._id }),
-  ]);
+  const mine = { userId: user._id };
+  await Promise.all(
+    [DailyEntryModel, MealDayModel, FoodModel, DiaryEntryModel, ThoughtLogModel, PurposeModel, QuoteModel, VideoModel, WeeklyGoalModel, AiMessageModel, AiUsageModel].map(
+      (model) => (model as typeof FoodModel).deleteMany(mine),
+    ),
+  );
   await UserModel.deleteOne({ _id: user._id, email: DEMO_EMAIL });
   return true;
 }
@@ -42,55 +45,15 @@ async function seedDemo(): Promise<void> {
   await clearDemo();
 
   const today = todayInTimezone();
-  const { entries, mealDays } = generateDemoData(today, DAYS);
-  const latestWeight = [...entries].reverse().find((e) => e.weightKg !== undefined)?.weightKg ?? 84;
-
   const user = await UserModel.create({
-    ...DEMO_PROFILE,
+    ...sampleProfile(today),
     email: DEMO_EMAIL,
     passwordHash: await bcrypt.hash(DEMO_PASSWORD, 12),
-    currentWeightKg: latestWeight,
-    journeyStartDate: addDays(today, -(DAYS - 1)),
   });
-
-  const foods = await FoodModel.insertMany(DEMO_FOODS.map((f) => ({ ...f, userId: user._id })));
-  const foodByName = new Map(foods.map((f) => [f.name, f]));
-
-  await DailyEntryModel.insertMany(entries.map((e) => ({ ...e, userId: user._id })));
-  await MealDayModel.insertMany(
-    mealDays.map((day) => ({
-      userId: user._id,
-      date: day.date,
-      items: day.items.map(({ mealType, foodName, servings }) => {
-        const food = foodByName.get(foodName)!;
-        return {
-          mealType,
-          foodId: food._id,
-          name: food.name,
-          servingDescription: food.servingDescription,
-          servings,
-          kcalPerServing: food.kcalPerServing,
-          proteinG: food.proteinG ?? undefined,
-          carbsG: food.carbsG ?? undefined,
-          fatG: food.fatG ?? undefined,
-          fiberG: food.fiberG ?? undefined,
-        };
-      }),
-    })),
-  );
-
-  // Usage counts, so "Recent" in the food picker looks real
-  for (const food of foods) {
-    const usedOn = mealDays.filter((d) => d.items.some((i) => i.foodName === food.name)).map((d) => d.date);
-    if (usedOn.length === 0) continue;
-    await FoodModel.updateOne(
-      { _id: food._id, userId: user._id },
-      { $set: { timesUsed: usedOn.length, lastUsedAt: new Date(`${usedOn.at(-1)}T12:00:00Z`) } },
-    );
-  }
+  const { days, mealDays } = await seedSampleData(user._id, today);
 
   console.log(`✅ Demo account ready: ${DEMO_EMAIL} / ${DEMO_PASSWORD}`);
-  console.log(`   ${entries.length} logged days and ${mealDays.length} days of meals over the last ${DAYS} days.`);
+  console.log(`   ${days} logged days and ${mealDays} days of meals over the last ${DEMO_DAYS} days.`);
 }
 
 async function main(): Promise<void> {

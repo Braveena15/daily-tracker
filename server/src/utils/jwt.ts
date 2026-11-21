@@ -7,10 +7,11 @@ const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
 type TokenPayload = { userId: string };
 
-export function signToken(userId: string): string {
+/** `maxAgeMs`: how long the login lasts (7 days; a demo account only lasts as long as the account). */
+export function signToken(userId: string, maxAgeMs = SEVEN_DAYS_MS): string {
   return jwt.sign({ userId } satisfies TokenPayload, env.JWT_SECRET, {
     algorithm: "HS256",
-    expiresIn: "7d",
+    expiresIn: Math.max(1, Math.floor(maxAgeMs / 1000)),
   });
 }
 
@@ -34,8 +35,8 @@ const baseCookieOptions: CookieOptions = {
   path: "/",
 };
 
-export function setAuthCookie(res: Response, userId: string): void {
-  res.cookie(AUTH_COOKIE, signToken(userId), { ...baseCookieOptions, maxAge: SEVEN_DAYS_MS });
+export function setAuthCookie(res: Response, userId: string, maxAgeMs = SEVEN_DAYS_MS): void {
+  res.cookie(AUTH_COOKIE, signToken(userId, maxAgeMs), { ...baseCookieOptions, maxAge: maxAgeMs });
 }
 
 export function clearAuthCookie(res: Response): void {
