@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import { SproutMark } from '@/components/SproutMark'
 
 /** Centred card for the login and register pages. */
 export function AuthLayout({ title, description, children }: { title: string; description: string; children: ReactNode }) {
@@ -17,10 +18,10 @@ export function AuthLayout({ title, description, children }: { title: string; de
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           <div
-            className="mx-auto mb-4 grid size-16 place-items-center rounded-3xl bg-secondary text-3xl shadow-soft"
+            className="mx-auto mb-4 grid size-16 place-items-center rounded-2xl bg-secondary shadow-soft"
             aria-hidden
           >
-            🌱
+            <SproutMark className="size-10" />
           </div>
           <p className="font-heading text-3xl font-semibold tracking-tight">Daily Tracker</p>
           <p className="mt-2 text-pretty text-muted-foreground">

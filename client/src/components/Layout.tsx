@@ -18,6 +18,7 @@ import { useAuth } from '@/context/useAuth'
 import { useLogout } from '@/hooks/useLogout'
 import { MIND_PAGES } from '@/lib/mind'
 import { cn } from '@/lib/utils'
+import { SproutMark } from '@/components/SproutMark'
 
 type NavItem = {
   to: string
@@ -109,7 +110,9 @@ function Sidebar() {
 
   return (
     <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col overflow-y-auto border-r border-sidebar-border bg-sidebar px-4 py-6 md:flex">
-      <p className="px-3 font-heading text-xl font-semibold tracking-tight">🌱 Daily Tracker</p>
+      <p className="flex items-center gap-2 px-3 font-heading text-xl font-semibold tracking-tight">
+        <SproutMark className="size-7" /> Daily Tracker
+      </p>
 
       <nav aria-label="Main" className="mt-6 flex flex-col gap-0.5">
         {NAV.filter((item) => !item.mobileOnly).map((item) => (

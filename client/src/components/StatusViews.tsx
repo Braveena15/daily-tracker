@@ -4,6 +4,7 @@ import { IconBubble } from '@/components/IconBubble'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { Tone } from '@/lib/tones'
 import { cn } from '@/lib/utils'
+import { SproutMark } from '@/components/SproutMark'
 
 // The free hosting plan puts the server to sleep when it's idle; the first request wakes it up
 const SLOW_AFTER_MS = 3000
@@ -22,9 +23,7 @@ export function FullPageLoader() {
   return (
     <div className="grid min-h-dvh place-items-center px-6" role="status" aria-live="polite">
       <div className="flex max-w-xs flex-col items-center gap-3 text-center text-muted-foreground">
-        <span className="animate-pulse text-4xl" aria-hidden>
-          🌱
-        </span>
+        <SproutMark className="size-10 animate-pulse" />
         {slow ? (
           <>
             <span className="font-medium text-foreground">Waking up the server… this can take up to a minute</span>
