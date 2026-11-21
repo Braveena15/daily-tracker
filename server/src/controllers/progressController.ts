@@ -63,9 +63,9 @@ export async function getSleep(req: Request, res: Response): Promise<void> {
   const to = today();
   const from = addDays(to, -(days - 1));
   const rows = await DailyEntryModel.find({ userId: req.userId, date: { $gte: from, $lte: to }, sleepHours: { $ne: null } })
-    .select("date sleepHours sleep.score -_id")
+    .select("date sleepHours sleepScoreValue -_id")
     .lean();
-  const nights = new Map(rows.map((r) => [r.date, { hours: r.sleepHours ?? null, score: r.sleep?.score ?? null }]));
+  const nights = new Map(rows.map((r) => [r.date, { hours: r.sleepHours ?? null, score: r.sleepScoreValue ?? null }]));
   const points = sleepSeries(nights, from, to);
   const average = (values: (number | null)[], digits: number) => {
     const present = values.filter((v): v is number => v !== null);

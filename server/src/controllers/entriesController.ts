@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { CHECKED_IN, DailyEntryModel } from "../models/DailyEntry";
 import { updateProfileWeightIfLatest } from "../services/profileWeight";
 import { fieldsStillFromWatch } from "../utils/healthSyncMerge";
+import { sleepScoreAfterSave } from "../utils/sleepScoreField";
 import { AppError } from "../utils/AppError";
 import { addDays, daysBetween, isValidDateString, todayInTimezone } from "../utils/dates";
 import { calculateStreaks } from "../utils/streaks";
@@ -56,7 +57,8 @@ export async function saveByDate(req: Request, res: Response): Promise<void> {
   const body = entrySchema.parse(req.body ?? {});
 
   // Optional numbers that were left out or set to null are removed from the entry.
-  const $set: Record<string, unknown> = { ...body };
+  const { sleepScoreValue, ...rest } = body;
+  const $set: Record<string, unknown> = { ...rest };
   const $unset: Record<string, 1> = {};
   for (const key of OPTIONAL_NUMBERS) {
     if (body[key] === undefined || body[key] === null) {
@@ -65,10 +67,16 @@ export async function saveByDate(req: Request, res: Response): Promise<void> {
     }
   }
 
-  // A watch value you changed by hand loses its ⌚ mark (see utils/healthSyncMerge.ts)
   const before = await DailyEntryModel.findOne({ userId: req.userId, date })
-    .select("weightKg steps activeCalories sleepHours healthSync")
+    .select("weightKg steps activeCalories sleepHours healthSync sleepScoreValue sleepScoreSource sleep.score")
     .lean();
+
+  // Sleep score: a typed value is "manual"; clearing it goes back to the calculated score
+  const sleepScore = sleepScoreAfterSave(before, sleepScoreValue);
+  Object.assign($set, sleepScore.set);
+  for (const key of sleepScore.unset) $unset[key] = 1;
+
+  // A watch value you changed by hand loses its ⌚ mark (see utils/healthSyncMerge.ts)
   const marked = before?.healthSync?.fields ?? [];
   if (marked.length > 0) {
     $set["healthSync.fields"] = fieldsStillFromWatch(marked, before ?? {}, body);

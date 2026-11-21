@@ -185,6 +185,22 @@ function EntryEditor({ date, today }: { date: string; today: string }) {
   const fromWatch = (field: 'weightKg' | 'steps' | 'activeCalories' | 'sleepHours') =>
     syncedFields.has(field) && stored !== null && form[field] === (stored[field] == null ? '' : String(stored[field]))
   const sync = stored?.healthSync
+  // Where the Sleep score will come from once saved: unchanged keeps its source, cleared goes back to auto
+  const storedScore = stored?.sleepScoreValue == null ? '' : String(stored.sleepScoreValue)
+  const scoreSource =
+    form.sleepScoreValue.trim() === ''
+      ? stored?.sleep
+        ? 'auto'
+        : null
+      : form.sleepScoreValue === storedScore
+        ? (stored?.sleepScoreSource ?? 'manual')
+        : 'manual'
+  const sleepScoreHint =
+    scoreSource === 'auto'
+      ? "⌚ Auto from Daily Tracker · type Apple's score to replace"
+      : scoreSource === 'manual'
+        ? '✏️ Entered by you · clear to use the auto score'
+        : undefined
   const syncLabel = sync ? (dayOf(sync.syncedAt) === date ? timeOf(sync.syncedAt) : formatSyncTime(sync.syncedAt, today)) : null
   const watchExtras = [
     stored?.restingCalories != null && `Resting ${stored.restingCalories.toLocaleString()} kcal`,
@@ -213,14 +229,15 @@ function EntryEditor({ date, today }: { date: string; today: string }) {
             fromWatch={fromWatch('sleepHours')}
           />
           <NumberField
-            label="Apple Sleep Score (from your Watch)"
+            label="Sleep score"
             unit="/ 100"
             step="1"
             min={0}
             max={100}
             placeholder="Optional"
-            value={form.appleSleepScore}
-            onChange={(v) => set('appleSleepScore', v)}
+            value={form.sleepScoreValue}
+            onChange={(v) => set('sleepScoreValue', v)}
+            hint={sleepScoreHint}
           />
         </div>
       </Section>

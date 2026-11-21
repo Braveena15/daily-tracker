@@ -29,7 +29,7 @@ export async function computeWeeklyReview(userId: string | undefined, weekEnding
         overall: s.overall,
         mood: entry?.mood ?? null,
         sleepHours: entry?.sleepHours ?? null,
-        sleepScore: entry?.sleep?.score ?? null,
+        sleepScore: entry?.sleepScoreValue ?? null,
         workouts: entry?.workouts.length ?? 0,
         workoutMinutes: entry ? minutes(entry.workouts) : 0,
         learningMinutes: entry ? minutes(entry.learnings) : 0,

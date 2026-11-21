@@ -33,8 +33,9 @@ export const entrySchema = z.strictObject({
   activeCalories: numberIn("Active calories", L.activeCalories.min, L.activeCalories.max, " kcal")
     .nullable()
     .optional(),
-  appleSleepScore: numberIn("Apple Sleep Score", L.score.min, L.score.max)
-    .int("Apple Sleep Score must be a whole number")
+  // Empty (null) means "use the calculated score"; the source is decided by the server
+  sleepScoreValue: numberIn("Sleep score", L.score.min, L.score.max)
+    .int("Sleep score must be a whole number")
     .nullable()
     .optional(),
 
@@ -69,6 +70,6 @@ export const entrySchema = z.strictObject({
   presentMoment: text("Present moment", L.presentMoment).default(""),
 });
 
-export const OPTIONAL_NUMBERS = ["weightKg", "steps", "activeCalories", "appleSleepScore"] as const;
+export const OPTIONAL_NUMBERS = ["weightKg", "steps", "activeCalories"] as const;
 
 export type EntryInput = z.infer<typeof entrySchema>;

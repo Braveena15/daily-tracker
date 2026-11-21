@@ -108,6 +108,7 @@ export function NumberField({
   max,
   placeholder,
   fromWatch = false,
+  hint,
 }: {
   label: string
   unit?: string
@@ -119,8 +120,11 @@ export function NumberField({
   placeholder?: string
   /** Shows a ⌚: the value came from Apple Health (it can still be edited) */
   fromWatch?: boolean
+  /** A small line under the input */
+  hint?: string
 }) {
   const id = useId()
+  const hintId = useId()
   return (
     <div className="space-y-2">
       <Label htmlFor={id}>
@@ -138,7 +142,13 @@ export function NumberField({
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        aria-describedby={hint ? hintId : undefined}
       />
+      {hint && (
+        <p id={hintId} className="text-xs text-muted-foreground">
+          {hint}
+        </p>
+      )}
     </div>
   )
 }

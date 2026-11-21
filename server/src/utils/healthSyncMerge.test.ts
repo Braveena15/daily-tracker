@@ -100,6 +100,34 @@ describe("planHealthMerge", () => {
     expect(plan.keptFields).toEqual([]);
   });
 
+  describe("sleep score field", () => {
+    const night = (score: number): StoredSleep => ({
+      totalSleepMin: 434, deepMin: 60, remMin: 110, coreMin: 264, awakeCount: 2, awakeMin: 16,
+      bedtime: "23:00", wakeTime: "06:30", score, breakdown: [], source: "watch",
+    });
+
+    it("auto-fills the field from the calculated score on a new or empty day", () => {
+      expect(planHealthMerge(null, {}, at, night(82)).set).toMatchObject({ sleepScoreValue: 82, sleepScoreSource: "auto" });
+      expect(planHealthMerge({ sleepHours: 6 }, {}, at, night(82)).set).toMatchObject({ sleepScoreValue: 82, sleepScoreSource: "auto" });
+    });
+
+    it("refreshes an auto value on a later sync", () => {
+      const plan = planHealthMerge({ sleepScoreValue: 82, sleepScoreSource: "auto" }, {}, at, night(76));
+      expect(plan.set).toMatchObject({ sleepScoreValue: 76, sleepScoreSource: "auto" });
+    });
+
+    it("never overwrites a score you typed in", () => {
+      const plan = planHealthMerge({ sleepScoreValue: 91, sleepScoreSource: "manual" }, {}, at, night(76));
+      expect(plan.set).not.toHaveProperty("sleepScoreValue");
+      expect(plan.set).not.toHaveProperty("sleepScoreSource");
+      expect(plan.set.sleep).toEqual(night(76));
+    });
+
+    it("leaves the field alone when no sleep samples were synced", () => {
+      expect(planHealthMerge({ sleepScoreValue: 82, sleepScoreSource: "auto" }, { steps: 10 }, at).set).not.toHaveProperty("sleepScoreValue");
+    });
+  });
+
   it("only fills weight and sleep when the day doesn't have them", () => {
     const manual: MergeTarget = { weightKg: 71.0, sleepHours: 6, workouts: [] };
     const plan = planHealthMerge(manual, { weightKg: 72.4, sleepHours: 8, steps: 100 }, at);

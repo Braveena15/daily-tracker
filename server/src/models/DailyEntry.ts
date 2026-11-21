@@ -25,6 +25,8 @@ const minutes = { type: Number, min: L.minutes.min, max: L.minutes.max };
 const notes = { type: String, trim: true, maxlength: L.notes };
 const activityName = { type: String, required: true, trim: true, maxlength: L.activityName };
 
+export const SLEEP_SCORE_SOURCES = ["auto", "manual"] as const;
+
 export const WORKOUT_SOURCES = ["manual", "watch"] as const;
 export type WorkoutSource = (typeof WORKOUT_SOURCES)[number];
 
@@ -120,8 +122,10 @@ const dailyEntrySchema = new Schema(
     sleepHours: { type: Number, min: L.sleepHours.min, max: L.sleepHours.max },
     // Only set by Apple Health sync
     sleep: { type: sleepSchema, default: undefined },
-    // Typed in by hand from the Watch, for comparison; not used in any score
-    appleSleepScore: { type: Number, min: L.score.min, max: L.score.max },
+    // The "Sleep score" field: the calculated score ("auto") or one you typed in ("manual").
+    // Used for the Physical score, charts and the weekly review. See utils/sleepScoreField.ts
+    sleepScoreValue: { type: Number, min: L.score.min, max: L.score.max },
+    sleepScoreSource: { type: String, enum: SLEEP_SCORE_SOURCES },
 
     weightKg: { type: Number, min: L.weightKg.min, max: L.weightKg.max },
     steps: { type: Number, min: L.steps.min, max: L.steps.max },

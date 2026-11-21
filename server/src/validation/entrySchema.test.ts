@@ -44,10 +44,10 @@ describe("entrySchema", () => {
   });
 
   it("accepts an optional Apple Sleep Score from 0 to 100", () => {
-    expect(entrySchema.parse({ ...minimal, appleSleepScore: 84 }).appleSleepScore).toBe(84);
-    expect(errorOf({ ...minimal, appleSleepScore: null })).toBeUndefined();
-    expect(errorOf({ ...minimal, appleSleepScore: 101 })).toBe("Apple Sleep Score must be between 0 and 100");
-    expect(errorOf({ ...minimal, appleSleepScore: 84.5 })).toBe("Apple Sleep Score must be a whole number");
+    expect(entrySchema.parse({ ...minimal, sleepScoreValue: 84 }).sleepScoreValue).toBe(84);
+    expect(errorOf({ ...minimal, sleepScoreValue: null })).toBeUndefined();
+    expect(errorOf({ ...minimal, sleepScoreValue: 101 })).toBe("Sleep score must be between 0 and 100");
+    expect(errorOf({ ...minimal, sleepScoreValue: 84.5 })).toBe("Sleep score must be a whole number");
   });
 
   it("doesn't let a check-in change the watch's sleep summary", () => {

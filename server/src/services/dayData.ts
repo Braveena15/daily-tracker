@@ -72,7 +72,7 @@ export function toScoreEntry(entry: LeanEntry): ScoreEntry {
     mood: entry.mood,
     energy: entry.energy,
     sleepHours: entry.sleepHours,
-    sleepScore: entry.sleep?.score ?? null,
+    sleepScore: entry.sleepScoreValue ?? null,
     steps: entry.steps,
     activeCalories: entry.activeCalories,
     workouts: entry.workouts.map((w) => ({ type: w.type, durationMin: w.durationMin })),

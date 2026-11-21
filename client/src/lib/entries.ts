@@ -1,6 +1,7 @@
 // Daily entry types, matching the server's /api/entries routes.
 
 export type WorkoutSource = 'manual' | 'watch'
+export type SleepScoreSource = 'auto' | 'manual'
 // source "watch": added by Apple Health sync, and replaced on the next sync
 export type Workout = { type: string; durationMin: number; notes?: string; source?: WorkoutSource; calories?: number }
 export type Activity = { type: string; durationMin?: number; notes?: string }
@@ -13,8 +14,8 @@ export type EntryInput = {
   weightKg?: number | null
   steps?: number | null
   activeCalories?: number | null
-  /** Typed in from the Watch, for comparison */
-  appleSleepScore?: number | null
+  /** The "Sleep score" field. null/empty = use the calculated score */
+  sleepScoreValue?: number | null
   workouts: Workout[]
   mentalActivities: Activity[]
   outdoorActivities: Activity[]
@@ -64,6 +65,8 @@ export type DailyEntry = Omit<EntryInput, 'mood' | 'energy' | 'sleepHours'> & {
   exerciseMinutes?: number | null
   /** Only set by Apple Health sync */
   sleep?: SleepSummary | null
+  /** auto: the calculated score; manual: typed in by you (a sync won't overwrite it) */
+  sleepScoreSource?: SleepScoreSource | null
   /** fields: which values currently come from the watch */
   healthSync?: { source: 'apple-health'; syncedAt: string; fields: HealthSyncField[] } | null
   createdAt: string

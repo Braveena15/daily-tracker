@@ -7,12 +7,14 @@
 //   day isn't marked as having watch calories, so the calorie burn falls back to the TDEE estimate.
 // - weightKg, sleepHours: only filled in when the day doesn't have them yet (manual entries win).
 // - sleep (from sleepSamples): stored, and sleepHours is overwritten from it — the watch's
-//   measured sleep is more accurate than a typed guess.
+//   measured sleep is more accurate than a typed guess. Its score fills the "Sleep score" field unless
+//   you typed one in yourself (see utils/sleepScoreField.ts).
 // - workouts: the day's previous watch workouts are replaced by the new ones, so syncing twice
 //   doesn't add them twice. Manual workouts are never touched.
 import { ENTRY_LIMITS, type HealthSyncField, type WorkoutSource } from "../models/DailyEntry";
 import type { HealthSyncInput } from "../validation/healthSyncSchema";
 import { sleepHoursFrom, type NightSummary, type SleepScore } from "./sleep";
+import { sleepScoreAfterSync, type SleepScoreSource } from "./sleepScoreField";
 
 /** A night's sleep as stored on the entry. */
 export type StoredSleep = NightSummary & SleepScore & { source: "watch" };
@@ -31,6 +33,8 @@ export type MergeTarget = {
   sleepHours?: number | null;
   workouts?: StoredWorkout[] | null;
   healthSync?: { fields?: string[] | null } | null;
+  sleepScoreValue?: number | null;
+  sleepScoreSource?: SleepScoreSource | null;
 } | null;
 
 export const OVERWRITE_FIELDS = ["activeCalories", "restingCalories", "steps", "exerciseMinutes"] as const;
@@ -69,6 +73,7 @@ export function planHealthMerge(
     if (field === "sleepHours" && sleep) {
       set.sleep = sleep;
       set.sleepHours = sleepHoursFrom(sleep.totalSleepMin);
+      Object.assign(set, sleepScoreAfterSync(existing, sleep.score));
       updatedFields.push("sleepHours");
       continue;
     }

@@ -158,12 +158,12 @@ describe("minimal mode never sends free text", () => {
       sleepScore: 88,
       sleep: { bedtime: "23:00", wakeTime: "06:30", deepMin: 60, breakdown: [{ reason: "SECRET_SLEEP_REASON" }] },
       sleepSamples: "2026-11-19T23:00:00+05:30;2026-11-20T06:30:00+05:30;Core",
-      appleSleepScore: 91,
+      sleepScoreSource: "manual",
     } as ScoreEntry & { date: string };
     const daily = buildDailyContext({ entry: withSleep, scores: { physical: 1, mental: 2, learning: 3, overall: 2 }, nutrition: null, today: TODAY });
     expect(daily.data).toMatchObject({ sleepHours: 7.5, sleepScore: 88 });
     const sent = json(daily);
-    for (const leak of ["SECRET_SLEEP_REASON", "bedtime", "wakeTime", "deepMin", "Core", "+05:30", "appleSleepScore"]) {
+    for (const leak of ["SECRET_SLEEP_REASON", "bedtime", "wakeTime", "deepMin", "Core", "+05:30", "sleepScoreSource"]) {
       expect(sent).not.toContain(leak);
     }
   });

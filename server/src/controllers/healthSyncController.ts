@@ -94,7 +94,7 @@ export async function healthSync(req: Request, res: Response): Promise<void> {
   }
 
   const existing = await DailyEntryModel.findOne({ userId: req.userId, date })
-    .select("weightKg sleepHours workouts healthSync")
+    .select("weightKg sleepHours workouts healthSync sleepScoreValue sleepScoreSource")
     .lean();
   const sleep = input.sleepSamples === undefined ? null : await nightFromSamples(req.userId, date, input.sleepSamples);
   const syncedAt = new Date();
