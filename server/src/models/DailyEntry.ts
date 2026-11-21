@@ -137,9 +137,17 @@ const intentionSchema = new Schema({
   done: { type: Boolean, default: false },
   doneAt: Date,
 });
+// One of the day's purposes (a day can have several). `text` is encrypted.
+const purposeLineSchema = new Schema({
+  text: { type: String, required: true },
+  at: { type: Date, required: true },
+});
 const dailyPurposeSchema = new Schema(
   {
+    // Older days: a single purpose (encrypted). It becomes the first of `purposes` the next time that
+    // day's purposes are changed (see controllers/dailyPurposeController.ts).
     text: String,
+    purposes: { type: [purposeLineSchema], default: undefined },
     // Words chosen from the user's core values
     focusValues: { type: [{ type: String, trim: true, maxlength: 40 }], default: [] },
     intentions: { type: [intentionSchema], default: [] },

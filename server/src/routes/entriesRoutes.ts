@@ -12,6 +12,9 @@ import {
 } from "../controllers/entriesController";
 import {
   addIntention,
+  addPurposeLine,
+  deletePurposeLine,
+  updatePurposeLine,
   deleteIntention,
   saveReflection,
   savePurposeOfDay,
@@ -34,6 +37,9 @@ entriesRouter.delete("/:date", deleteByDate);
 entriesRouter.put("/:date/daily", saveDaily);
 // Today's purpose, its intentions and the evening reflection
 entriesRouter.put("/:date/purpose", savePurposeOfDay);
+entriesRouter.post("/:date/purpose/lines", addPurposeLine);
+entriesRouter.patch("/:date/purpose/lines/:id", updatePurposeLine);
+entriesRouter.delete("/:date/purpose/lines/:id", deletePurposeLine);
 entriesRouter.post("/:date/purpose/intentions", addIntention);
 entriesRouter.patch("/:date/purpose/intentions/:id", updateIntention);
 entriesRouter.delete("/:date/purpose/intentions/:id", deleteIntention);

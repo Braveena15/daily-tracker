@@ -39,6 +39,9 @@ export function useDay(date: string) {
     saveDaily: (body: DailyInput) => apply(api.put<DayResponse>(`/entries/${date}/daily`, body)),
     // Today's purpose
     savePurpose: (body: { text?: string; focusValues?: string[] }) => apply(api.put<DayResponse>(`/entries/${date}/purpose`, body)),
+    addPurposeLine: (text: string) => apply(api.post<DayResponse>(`/entries/${date}/purpose/lines`, { text })),
+    updatePurposeLine: (id: string, text: string) => apply(api.patch<DayResponse>(`/entries/${date}/purpose/lines/${id}`, { text })),
+    removePurposeLine: (id: string) => apply(api.delete<DayResponse>(`/entries/${date}/purpose/lines/${id}`)),
     addIntention: (text: string) => apply(api.post<DayResponse>(`/entries/${date}/purpose/intentions`, { text })),
     updateIntention: (id: string, body: { text?: string; done?: boolean }) =>
       apply(api.patch<DayResponse>(`/entries/${date}/purpose/intentions/${id}`, body)),

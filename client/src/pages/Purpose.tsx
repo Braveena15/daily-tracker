@@ -188,7 +188,7 @@ function scrollToToday() {
 
 /** Today's purpose, editable on this page. Every save also refreshes the Daily purposes list. */
 function TodayPurposeEditor({ today, onSaved }: { today: string; onSaved: () => void }) {
-  const { day, error, savePurpose, addIntention, updateIntention, removeIntention, saveReflection } = useDay(today)
+  const { day, error, savePurpose, addPurposeLine, updatePurposeLine, removePurposeLine, addIntention, updateIntention, removeIntention, saveReflection } = useDay(today)
   const after =
     <A extends unknown[], R>(action: (...args: A) => Promise<R>) =>
     async (...args: A) => {
@@ -198,6 +198,9 @@ function TodayPurposeEditor({ today, onSaved }: { today: string; onSaved: () => 
     }
   const actions = {
     savePurpose: after(savePurpose),
+    addPurposeLine: after(addPurposeLine),
+    updatePurposeLine: after(updatePurposeLine),
+    removePurposeLine: after(removePurposeLine),
     addIntention: after(addIntention),
     updateIntention: after(updateIntention),
     removeIntention: after(removeIntention),

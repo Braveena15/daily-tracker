@@ -29,6 +29,7 @@ const at = new Date("2026-11-21T03:00:00.000Z");
 
 const day = (overrides: Partial<DailyPurpose> = {}): DailyPurpose => ({
   text: "Be present with family",
+  purposes: [{ id: "p1", text: "Be present with family" }],
   focusValues: ["Family"],
   intentions: [],
   reflection: null,
@@ -54,6 +55,8 @@ describe("encryption", () => {
 
     expect(openDailyPurpose(crypto, stored)).toEqual({
       text: "Be present with family",
+      // An older day's single purpose shows as its one purpose line
+      purposes: [{ id: "legacy", text: "Be present with family" }],
       focusValues: ["Family", "Health"],
       intentions: [
         { id: "i1", text: "Call Amma", done: true, doneAt: at.toISOString() },
@@ -63,6 +66,24 @@ describe("encryption", () => {
       setAt: at.toISOString(),
       updatedAt: null,
     });
+  });
+
+  it("opens several purposes a day, in order, and joins them into `text`", () => {
+    const stored = {
+      text: sealText(crypto, "An old single purpose"), // ignored once there are purpose lines
+      purposes: [
+        { _id: "a", text: crypto.encrypt("Be patient with the kids"), at },
+        { _id: "b", text: crypto.encrypt("Finish the report calmly"), at },
+      ],
+      setAt: at,
+    };
+    expect(JSON.stringify(stored)).not.toMatch(/patient|report/);
+    const opened = openDailyPurpose(crypto, stored)!;
+    expect(opened.purposes).toEqual([
+      { id: "a", text: "Be patient with the kids" },
+      { id: "b", text: "Finish the report calmly" },
+    ]);
+    expect(opened.text).toBe("Be patient with the kids\nFinish the report calmly");
   });
 
   it("stores nothing for empty text", () => {
@@ -220,6 +241,8 @@ describe("AI facts", () => {
   it("still checks every purpose text for crisis language", () => {
     const p = day({ intentions: [{ id: "1", text: "Rest", done: false, doneAt: null }], reflection: { rating: 2, note: "Hard day", at: "" } });
     expect(purposeText(p)).toEqual(["Be present with family", "Rest", "Hard day"]);
+    const several = day({ purposes: [{ id: "a", text: "One" }, { id: "b", text: "Two" }] });
+    expect(purposeText(several).slice(0, 2)).toEqual(["One", "Two"]);
   });
 });
 

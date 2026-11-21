@@ -1,13 +1,30 @@
-// A day's purpose, read-only: the text, focus value chips, intentions (done / not done) and the evening rating.
-import { Check, Clock, Lock, Star, X } from 'lucide-react'
+// A day's purposes, read-only: each purpose line, focus value chips, intentions (done / not done) and the evening rating.
+import { Check, Clock, Lock, Star, Target, X } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { type DailyPurpose } from '@/lib/purpose'
 import { cn } from '@/lib/utils'
 
+/** One purpose as a line; several as a list, each with a small target mark. */
+function PurposeLines({ purpose }: { purpose: DailyPurpose }) {
+  const lines = purpose.purposes ?? (purpose.text ? [{ id: 'text', text: purpose.text }] : [])
+  if (lines.length === 0) return null
+  if (lines.length === 1) return <p className="font-serif text-lg leading-snug whitespace-pre-line">{lines[0]!.text}</p>
+  return (
+    <ul className="space-y-1.5" aria-label={`${lines.length} purposes`}>
+      {lines.map((line) => (
+        <li key={line.id} className="flex items-start gap-2 font-serif text-lg leading-snug">
+          <Target className="mt-1 size-4 shrink-0 text-mental" aria-hidden />
+          <span className="min-w-0 break-words whitespace-pre-line">{line.text}</span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 export function PurposeDayView({ purpose, className }: { purpose: DailyPurpose; className?: string }) {
   return (
     <div className={cn('space-y-2.5', className)}>
-      {purpose.text && <p className="font-serif text-lg leading-snug whitespace-pre-line">{purpose.text}</p>}
+      <PurposeLines purpose={purpose} />
       {purpose.focusValues.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {purpose.focusValues.map((v) => (

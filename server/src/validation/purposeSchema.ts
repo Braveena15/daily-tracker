@@ -20,6 +20,11 @@ export const dailyPurposeSchema = z
   })
   .refine((v) => v.text !== undefined || v.focusValues !== undefined, "Send text or focusValues");
 
+/** POST /:date/purpose/lines and PATCH /:date/purpose/lines/:id — one of the day's purposes */
+export const purposeLineSchema = z.strictObject({
+  text: text("Purpose", L.dailyPurpose).min(1, "Write the purpose first"),
+});
+
 /** POST /:date/purpose/intentions */
 export const intentionSchema = z.strictObject({
   text: text("Intention", L.intentionText).min(1, "Write the intention first"),

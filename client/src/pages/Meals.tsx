@@ -16,7 +16,7 @@ import { ServingsStepper } from '@/components/ServingsStepper'
 import { ErrorNotice } from '@/components/StatusViews'
 import { useDateParam } from '@/hooks/useDateParam'
 import { api } from '@/lib/api'
-import { addDays, timeInTimezone } from '@/lib/dates'
+import { addDays } from '@/lib/dates'
 import {
   MEALS,
   formatServings,
@@ -63,7 +63,7 @@ export function Meals() {
         <LowIntakeNote />
         <DateBar date={date} today={today} onChange={goTo} />
         {/* key: a fresh editor (and a fresh load) for each date */}
-        <MealEditor key={date} date={date} today={today} />
+        <MealEditor key={date} date={date} />
       </div>
     </>
   )
@@ -180,7 +180,7 @@ function useAutosave(date: string, onSaved: (summary: DaySummary) => void) {
   return { status, change, flush, reset }
 }
 
-function MealEditor({ date, today }: { date: string; today: string }) {
+function MealEditor({ date }: { date: string }) {
   const [rows, setRows] = useState<Row[] | null>(null)
   const [summary, setSummary] = useState<DaySummary | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -274,9 +274,7 @@ function MealEditor({ date, today }: { date: string; today: string }) {
         onOpenChange={(open) => setSheet((s) => ({ ...s, open }))}
         mealType={sheet.meal}
         mealLabel={sheetMeal.label}
-        onAdd={(item) =>
-          update([...rows, { ...item, key: newKey(), ...(date === today && { time: timeInTimezone() }) }])
-        }
+        onAdd={(item) => update([...rows, { ...item, key: newKey() }])}
       />
     </div>
   )
@@ -514,7 +512,6 @@ function MealSection({
                   <p className="truncate font-medium">{row.name}</p>
                   <p className="truncate text-xs text-muted-foreground">
                     {formatServings(row.servings)} × {row.servingDescription ?? 'serving'}
-                    {row.time && ` · ${row.time}`}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">

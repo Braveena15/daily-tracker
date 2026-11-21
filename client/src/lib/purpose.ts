@@ -5,7 +5,10 @@ import { journeyDate } from '@/lib/journey'
 export type Intention = { id: string; text: string; done: boolean; doneAt: string | null }
 
 export type DailyPurpose = {
+  /** All of the day's purposes, one per line */
   text: string
+  /** The day's purposes (up to 5), in the order they were added */
+  purposes: { id: string; text: string }[]
   /** Up to 3 of the user's core values */
   focusValues: string[]
   /** Up to 5 */
@@ -50,6 +53,7 @@ export type PurposeVersion = { statement: string; coreValues: string[]; goals: {
 export type PurposeHistoryResponse = { current: PurposeVersion | null; history: PurposeVersion[] }
 
 export const MAX_INTENTIONS = 5
+export const MAX_PURPOSES = 5
 export const MAX_FOCUS_VALUES = 3
 
 /** "3/4" intentions done, or null without intentions. */

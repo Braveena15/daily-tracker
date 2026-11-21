@@ -7,7 +7,9 @@ import type { FieldCrypto } from "./crypto";
 import { addDays } from "./dates";
 
 export type StoredDailyPurpose = {
+  /** Older days: one purpose, before a day could have several */
   text?: string | null;
+  purposes?: { _id?: unknown; text: string; at?: Date | string | null }[] | null;
   focusValues?: string[] | null;
   intentions?: { _id?: unknown; text: string; done?: boolean | null; doneAt?: Date | string | null }[] | null;
   reflection?: { rating: number; note?: string | null; at: Date | string } | null;
@@ -16,7 +18,10 @@ export type StoredDailyPurpose = {
 };
 
 export type DailyPurpose = {
+  /** All of the day's purposes, one per line (kept for everything that shows or checks the text) */
   text: string;
+  /** The day's purposes, in the order they were added. An older single purpose has id "legacy". */
+  purposes: { id: string; text: string }[];
   focusValues: string[];
   intentions: { id: string; text: string; done: boolean; doneAt: string | null }[];
   reflection: { rating: number; note: string; at: string } | null;
@@ -36,8 +41,16 @@ export function sealText(crypto: FieldCrypto, text: string | null | undefined): 
 export function openDailyPurpose(crypto: FieldCrypto, stored: StoredDailyPurpose | null | undefined): DailyPurpose | null {
   if (!stored) return null;
   const open = (value: string | null | undefined) => (value ? (crypto.tryDecrypt(value) ?? "") : "");
+  const purposes = (
+    stored.purposes && stored.purposes.length > 0
+      ? stored.purposes.map((p) => ({ id: String(p._id), text: open(p.text) }))
+      : stored.text
+        ? [{ id: LEGACY_PURPOSE_ID, text: open(stored.text) }]
+        : []
+  ).filter((p) => p.text.trim() !== "");
   return {
-    text: open(stored.text),
+    text: purposes.map((p) => p.text).join("\n"),
+    purposes,
     focusValues: [...(stored.focusValues ?? [])],
     intentions: (stored.intentions ?? []).map((i) => ({
       id: String(i._id),
@@ -52,6 +65,12 @@ export function openDailyPurpose(crypto: FieldCrypto, stored: StoredDailyPurpose
     updatedAt: iso(stored.updatedAt),
   };
 }
+
+/** A day can have up to 5 purposes. */
+export const MAX_PURPOSES = 5;
+
+/** The id an older day's single purpose is shown with, until it's moved into `purposes`. */
+export const LEGACY_PURPOSE_ID = "legacy";
 
 /** True when the day has anything purpose-related worth showing. */
 export function hasDailyPurpose(p: DailyPurpose | null): p is DailyPurpose {
@@ -245,4 +264,4 @@ export function purposeFacts(p: DailyPurpose | null, safeValue: (value: string) 
 
 /** Every user-written purpose text, for the crisis check only (never sent anywhere). */
 export const purposeText = (p: DailyPurpose | null): string[] =>
-  p ? [p.text, ...p.intentions.map((i) => i.text), p.reflection?.note ?? ""] : [];
+  p ? [...p.purposes.map((l) => l.text), ...p.intentions.map((i) => i.text), p.reflection?.note ?? ""] : [];
