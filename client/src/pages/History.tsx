@@ -24,7 +24,7 @@ const PAGE_DAYS = 30
 const MAX_DAYS = 366
 
 const cardBase =
-  'flex h-full flex-col gap-3 rounded-2xl p-4 transition-all outline-none hover:-translate-y-0.5 focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.99]'
+  'flex h-full flex-col gap-3 rounded-2xl p-4 transition-all outline-none focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.99]'
 
 export function History() {
   const [today] = useState(() => todayInTimezone())

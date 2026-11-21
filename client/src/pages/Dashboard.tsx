@@ -76,7 +76,7 @@ function StatCard({
   hint: string
 }) {
   return (
-    <Card className="gap-3 transition-all hover:-translate-y-0.5">
+    <Card className="gap-3 transition-all">
       <CardContent className="space-y-3">
         <IconBubble icon={icon} tone={tone} />
         <div>

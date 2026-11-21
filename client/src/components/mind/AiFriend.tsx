@@ -232,7 +232,7 @@ function FriendReplyCard({
   }
 
   return (
-    <Card className="animate-in bg-mental-soft/60 ring-mental/20 duration-300 fade-in-0">
+    <Card className="animate-in bg-mental-soft/60 ring-mental/20 duration-250 fade-in-0">
       <CardContent className="space-y-5">
         <p className="font-heading text-lg leading-snug">{reply.acknowledge}</p>
 

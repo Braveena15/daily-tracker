@@ -175,7 +175,7 @@ function ReviewBody({ data, today }: { data: WeeklyReviewResponse; today: string
       {w.bestDay && (
         <Link
           to={`/history/${w.bestDay.date}`}
-          className="flex items-center gap-3 surface p-4 transition-all outline-none hover:-translate-y-0.5 hover:ring-primary/30 focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="flex items-center gap-3 surface p-4 transition-all outline-none hover:ring-primary/30 focus-visible:ring-3 focus-visible:ring-ring/50"
         >
           <IconBubble icon={Trophy} tone="learning" />
           <div className="min-w-0 flex-1">

@@ -128,7 +128,7 @@ export function RatingPicker({
               aria-label={`${label} ${n} out of 10, ${word}`}
               onClick={() => onChange(n)}
               className={cn(
-                'flex h-14 flex-col items-center justify-center gap-0.5 rounded-xl border bg-card text-xs font-semibold text-muted-foreground tabular-nums transition-all outline-none hover:-translate-y-0.5 hover:border-primary/40 hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-95 dark:bg-input/30',
+                'flex h-14 flex-col items-center justify-center gap-0.5 rounded-xl border bg-card text-xs font-semibold text-muted-foreground tabular-nums transition-all outline-none hover:border-primary/40 hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-95 dark:bg-input/30',
                 selected &&
                   'border-primary bg-primary text-primary-foreground shadow-soft hover:border-primary hover:bg-primary dark:bg-primary',
               )}

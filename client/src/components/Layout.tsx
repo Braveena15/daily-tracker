@@ -64,6 +64,7 @@ function useIsActive(mobile: boolean) {
 
 // Page frame for logged-in pages: a sidebar on desktop, a bottom tab bar on phones.
 export function Layout() {
+  const section = useLocation().pathname.split('/')[1]
   return (
     <div className="min-h-dvh md:pl-64">
       <Sidebar />
@@ -71,7 +72,11 @@ export function Layout() {
       <main className="mx-auto w-full max-w-5xl px-4 pt-6 pb-[calc(7rem+env(safe-area-inset-bottom))] sm:px-6 md:px-10 md:pt-10 md:pb-12">
         {/* While a page's code loads the first time; the navigation stays in place */}
         <Suspense fallback={<PageSkeleton />}>
-          <Outlet />
+          {/* A short fade when moving between sections (opacity only, so nothing shifts). Keyed by the
+              first path segment, so /thoughts/new → /thoughts/:id after the first save doesn't remount. */}
+          <div key={section} className="animate-in duration-200 fade-in-0">
+            <Outlet />
+          </div>
         </Suspense>
       </main>
       <BottomTabs />

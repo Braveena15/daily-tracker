@@ -198,7 +198,7 @@ export function ThoughtFlow() {
       </ol>
 
       <Card>
-        <CardContent key={step} className="animate-in space-y-5 duration-300 fade-in-0 slide-in-from-right-2">
+        <CardContent key={step} className="animate-in space-y-5 duration-200 fade-in-0 slide-in-from-right-2">
           <StepContent step={step} form={form} set={set} />
           {error && <FormError>{error}</FormError>}
         </CardContent>
@@ -469,7 +469,7 @@ function FinishScreen({
           : "It feels stronger right now, and that's okay too. Be gentle with yourself — and if it would help to talk to someone, support is here."
 
   return (
-    <div className="mx-auto max-w-xl animate-in space-y-6 text-center duration-500 fade-in-0">
+    <div className="mx-auto max-w-xl animate-in space-y-6 text-center duration-250 fade-in-0">
       <div className="space-y-3 pt-6">
         <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-secondary text-primary" aria-hidden>
           <Leaf className="size-6" />

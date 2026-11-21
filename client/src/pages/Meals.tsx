@@ -292,11 +292,12 @@ function SaveIndicator({ status, onRetry }: { status: SaveStatus; onRetry: () =>
   }
   const text = status === 'pending' || status === 'saving' ? 'Saving…' : status === 'saved' ? 'Saved' : ''
   return (
-    <span
-      role="status"
-      className={cn('min-w-16 text-right text-xs', status === 'saved' ? 'text-success' : 'text-muted-foreground')}
-    >
-      {text}
+    <span role="status" className={cn('min-w-16 text-right text-xs', status === 'saved' ? 'text-success' : 'text-muted-foreground')}>
+      {/* key: each new state fades in, so "Saved" is a gentle confirmation */}
+      <span key={status} className="inline-flex animate-in items-center gap-1 duration-200 fade-in-0">
+        {status === 'saved' && <Check className="size-4" aria-hidden />}
+        {text}
+      </span>
     </span>
   )
 }
