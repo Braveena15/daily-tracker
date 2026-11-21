@@ -103,7 +103,7 @@ export function Review() {
           }
         />
 
-        <WeeklyGoalsCard key={weekEnding} weekEnding={weekEnding} suggestion={goalSuggestion} />
+        <WeeklyGoalsCard key={`goals-${weekEnding}`} weekEnding={weekEnding} suggestion={goalSuggestion} />
 
         {error ? <ErrorNotice>{error}</ErrorNotice> : !data ? <ReviewSkeleton /> : <ReviewBody data={data} today={today} />}
       </div>
