@@ -4,6 +4,7 @@ import { Heart, HeartHandshake, Phone } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 
 const HELPLINES = [
@@ -117,10 +118,18 @@ export const SUPPORT_NOW = 'Reaching out is a strong thing to do.'
  * "Need support now" — opens the support card. `compact` is a round heart button for page
  * headers (labelled for screen readers), in the same lavender as the full button.
  */
-export function SupportButton({ className, compact = false }: { className?: string; compact?: boolean }) {
+export function SupportButton({
+  className,
+  compact = false,
+  tooltip,
+}: {
+  className?: string
+  compact?: boolean
+  /** Show this in a tooltip (needs a TooltipProvider above, like the desktop sidebar's) */
+  tooltip?: string
+}) {
   const [open, setOpen] = useState(false)
-  return (
-    <>
+  const button = (
       <Button
         type="button"
         variant="outline"
@@ -132,11 +141,22 @@ export function SupportButton({ className, compact = false }: { className?: stri
         )}
         onClick={() => setOpen(true)}
         aria-label={compact ? 'Need support now' : undefined}
-        title={compact ? 'Need support now' : undefined}
+        title={compact && !tooltip ? 'Need support now' : undefined}
       >
         <Heart className="fill-current" aria-hidden />
         {!compact && 'Need support now'}
       </Button>
+  )
+  return (
+    <>
+      {tooltip ? (
+        <Tooltip>
+          <TooltipTrigger asChild>{button}</TooltipTrigger>
+          <TooltipContent side="right">{tooltip}</TooltipContent>
+        </Tooltip>
+      ) : (
+        button
+      )}
       <SupportDialog open={open} onOpenChange={setOpen} description={SUPPORT_NOW} />
     </>
   )
