@@ -25,7 +25,8 @@ import { loadDays, loadUserContext, scoresFor, toScoreEntry } from "../services/
 import { computeInsights, computeWeeklyReview } from "../services/progressData";
 import { AppError } from "../utils/AppError";
 import { addDays, isValidDateString, listDates, todayInTimezone } from "../utils/dates";
-import { calculateStreaks } from "../utils/streaks";
+import { journeyStart } from "../services/journey";
+import { streaksSince } from "../utils/journey";
 
 const today = () => todayInTimezone();
 const wantsRegenerate = (req: Request) => req.query.regenerate === "true";
@@ -177,10 +178,12 @@ export async function weeklyReflection(req: Request, res: Response): Promise<voi
 /** POST /api/ai/boost — a pick-me-up for the "Lift me up" page (one per day unless regenerated). */
 export async function boost(req: Request, res: Response): Promise<void> {
   const to = today();
-  const from = addDays(to, -6);
+  const start = await journeyStart(req.userId);
+  // Only days since the journey started
+  const from = [addDays(to, -6), start].sort().at(-1)!;
   const [ctx, { entries, mealKcal }, { userEnabled, lowMood }, purpose, dates, thoughtWords] = await Promise.all([
     loadUserContext(req.userId),
-    loadDays(req.userId, from, to),
+    loadDays(req.userId, from, to, start),
     basics(req.userId),
     PurposeModel.findOne({ userId: req.userId }).select("coreValues").lean(),
     DailyEntryModel.find({ userId: req.userId, ...CHECKED_IN }).select("date -_id").lean(),
@@ -204,7 +207,7 @@ export async function boost(req: Request, res: Response): Promise<void> {
     buildContext: () =>
       buildBoostContext({
         recentScores,
-        streak: calculateStreaks(dates.map((d) => d.date), to),
+        streak: streaksSince(dates.map((d) => d.date), start, to),
         coreValues: purpose?.coreValues ?? [],
         today: to,
         mode: aiMode,

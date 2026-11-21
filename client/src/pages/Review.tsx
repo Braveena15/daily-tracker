@@ -27,9 +27,10 @@ import { IconBubble } from '@/components/IconBubble'
 import { WeekDayList, WeekMoodChart } from '@/components/progress/WeekDays'
 import { aiRequests } from '@/lib/ai'
 import { PageHeader } from '@/components/PageHeader'
-import { ErrorNotice } from '@/components/StatusViews'
+import { EmptyState, ErrorNotice } from '@/components/StatusViews'
 import { useFetch } from '@/hooks/useFetch'
 import { addDays, formatDate, isValidDateString, relativeDay, todayInTimezone, toLocalDate } from '@/lib/dates'
+import { journeyDate } from '@/lib/journey'
 import { kcal } from '@/lib/meals'
 import type { WeeklyReviewResponse } from '@/lib/progress'
 import type { Tone } from '@/lib/tones'
@@ -62,7 +63,14 @@ export function Review() {
 
       <div className="space-y-4 md:space-y-6">
         <Card size="sm" className="flex-row items-center justify-between gap-2 px-(--card-spacing)">
-          <Button variant="ghost" size="icon" aria-label="Previous week" onClick={() => goTo(addDays(weekEnding, -7))}>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Previous week"
+            // Weeks before the journey start have nothing to show
+            disabled={data !== null && addDays(weekEnding, -6) <= data.journeyStartDate}
+            onClick={() => goTo(addDays(weekEnding, -7))}
+          >
             <ChevronLeft />
           </Button>
           <div className="text-center">
@@ -153,6 +161,16 @@ const show = (n: number | null, suffix = '') => (n === null ? '—' : `${n.toLoc
 function ReviewBody({ data, today }: { data: WeeklyReviewResponse; today: string }) {
   const { thisWeek: w, lastWeek: p, differences: d } = data
 
+  if (w.daysTracked === 0) {
+    return (
+      <Card>
+        <EmptyState icon={CalendarCheck} title="Before your journey">
+          Your journey started on {journeyDate(data.journeyStartDate)}. Weeks before that are hidden.
+        </EmptyState>
+      </Card>
+    )
+  }
+
   return (
     <>
       <Card className="bg-secondary/60 ring-primary/15">
@@ -161,7 +179,9 @@ function ReviewBody({ data, today }: { data: WeeklyReviewResponse; today: string
           <div>
             <p className="font-heading text-lg leading-snug font-semibold text-secondary-foreground">{data.message}</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              {w.daysLogged} of 7 days logged{w.mealDays > 0 && ` · meals on ${w.mealDays}`}
+              {w.daysLogged} of {w.daysTracked} {w.daysTracked === 1 ? 'day' : 'days'} logged
+              {w.daysTracked < 7 && ` · your journey started ${journeyDate(data.journeyStartDate)}`}
+              {w.mealDays > 0 && ` · meals on ${w.mealDays}`}
             </p>
           </div>
         </CardContent>
@@ -259,8 +279,8 @@ function ReviewBody({ data, today }: { data: WeeklyReviewResponse; today: string
           <StatCard
             icon={CalendarCheck}
             label="Days logged"
-            value={`${w.daysLogged} of 7`}
-            previous={`${p.daysLogged} of 7`}
+            value={`${w.daysLogged} of ${w.daysTracked}`}
+            previous={p.daysTracked === 0 ? 'before your journey' : `${p.daysLogged} of ${p.daysTracked}`}
             delta={<Delta diff={d.daysLogged} unit={Math.abs(d.daysLogged ?? 0) === 1 ? ' day' : ' days'} />}
           />
         </div>

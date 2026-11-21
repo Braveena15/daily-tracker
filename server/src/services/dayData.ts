@@ -6,6 +6,8 @@ import { buildSummary, type Summary } from "./profileSummary";
 import { AppError } from "../utils/AppError";
 import { MIN_CALORIES } from "../utils/calories";
 import { todayInTimezone } from "../utils/dates";
+import { clampFrom } from "../utils/journey";
+import { journeyStart } from "./journey";
 import { dayTotals, type MealItemLike } from "../utils/meals";
 import { dayScores, type DayScores, type ScoreEntry, type ScoreGoals } from "../utils/scores";
 
@@ -24,12 +26,7 @@ export function goalNumbers(user: Partial<Pick<User, keyof typeof GOAL_LIMITS>>)
   };
 }
 
-/** The journey start: the date the user chose, else their first check-in, else today. */
-export async function journeyStart(userId: string | undefined, user: { journeyStartDate?: string | null }): Promise<string> {
-  if (user.journeyStartDate) return user.journeyStartDate;
-  const first = await DailyEntryModel.findOne({ userId, ...CHECKED_IN }).sort({ date: 1 }).select("date").lean();
-  return first?.date ?? todayInTimezone();
-}
+export { journeyStart } from "./journey";
 
 export type UserContext = {
   user: User;
@@ -57,8 +54,13 @@ async function loadEntries(userId: string | undefined, from: string, to: string)
   return new Map(rows.filter(isCheckedIn).map((r) => [r.date, r]));
 }
 
-/** Logged days, plus eaten kcal and fibre (only for days with meals logged) for a date range. */
-export async function loadDays(userId: string | undefined, from: string, to: string) {
+/**
+ * Logged days, plus eaten kcal and fibre (only for days with meals logged) for a date range.
+ * Days before the journey start are left out (hidden, not deleted), so they never count as
+ * logged or missed. Pass `start` when it's already known, to save a lookup.
+ */
+export async function loadDays(userId: string | undefined, rangeFrom: string, to: string, start?: string) {
+  const from = clampFrom(rangeFrom, start ?? (await journeyStart(userId)));
   const [entries, mealDays] = await Promise.all([
     loadEntries(userId, from, to),
     MealDayModel.find({ userId, date: { $gte: from, $lte: to }, "items.0": { $exists: true } }).lean(),

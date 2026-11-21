@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { BookOpen, Brain, CalendarDays, Dumbbell, Plus, Sparkles, SquarePen, Sun } from 'lucide-react'
+import { BookOpen, Brain, CalendarDays, ChevronDown, Dumbbell, Plus, Sparkles, SquarePen, Sun } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -9,41 +9,61 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { PageHeader } from '@/components/PageHeader'
 import { EmptyState, ErrorNotice } from '@/components/StatusViews'
 import { api } from '@/lib/api'
-import { addDays, formatDate, listDates, relativeDay, todayInTimezone } from '@/lib/dates'
+import { formatDate, listDates, relativeDay, todayInTimezone } from '@/lib/dates'
+import { historyRange, journeyDate } from '@/lib/journey'
+import type { JourneyResponse } from '@/lib/progress'
 import { dayMood, energyEmoji, moodEmoji, type DailyEntry, type EntriesListResponse } from '@/lib/entries'
 import { toneSoft } from '@/lib/tones'
 import { cn } from '@/lib/utils'
 
-const DAYS = 30
+const PAGE_DAYS = 30
+// The entries route returns at most this many days at once
+const MAX_DAYS = 366
 
 const cardBase =
   'flex h-full flex-col gap-3 rounded-2xl p-4 transition-all outline-none hover:-translate-y-0.5 focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.99]'
 
 export function History() {
   const [today] = useState(() => todayInTimezone())
-  const from = addDays(today, -(DAYS - 1))
-
+  // How many of the newest journey days are shown; "Show older days" adds another 30
+  const [shown, setShown] = useState(PAGE_DAYS)
+  const [start, setStart] = useState<string | null>(null)
   const [entries, setEntries] = useState<Map<string, DailyEntry> | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  // History begins on the journey start: no empty days before it
   useEffect(() => {
+    api
+      .get<JourneyResponse>('/progress/journey')
+      .then((data) => setStart(data.startDate))
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Could not load your history'))
+  }, [])
+
+  const range = start ? historyRange(start, today, Math.min(shown, MAX_DAYS)) : null
+  const from = range?.from
+
+  useEffect(() => {
+    if (!from) return
     api
       .get<EntriesListResponse>(`/entries?from=${from}&to=${today}`)
       .then((data) => setEntries(new Map(data.entries.map((e) => [e.date, e]))))
       .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Could not load your history'))
   }, [from, today])
 
-  const days = listDates(from, today).reverse() // newest first
+  const days = from ? listDates(from, today).reverse() : [] // newest first
+  const total = range?.total ?? 0
+  const logged = entries ? [...entries.keys()].filter((d) => start !== null && d >= start).length : 0
+  const loggedLabel = `${logged} of ${total} ${total === 1 ? 'day' : 'days'} logged`
 
   return (
     <>
-      <PageHeader title="History" description={`Your last ${DAYS} days. Tap a day to see its timeline.`} />
+      <PageHeader title="History" description="Every day since your journey started. Tap a day to see its timeline." />
 
       {error ? (
         <ErrorNotice>{error}</ErrorNotice>
-      ) : !entries ? (
+      ) : !entries || !start ? (
         <HistorySkeleton />
-      ) : entries.size === 0 ? (
+      ) : entries.size === 0 && total > 1 ? (
         <Card>
           <EmptyState
             icon={CalendarDays}
@@ -56,7 +76,7 @@ export function History() {
               </Button>
             }
           >
-            Nothing logged in the last {DAYS} days yet. Each day you log will show up here.
+            Nothing logged since your journey started on {journeyDate(start)}. Each day you log will show up here.
           </EmptyState>
         </Card>
       ) : (
@@ -64,12 +84,10 @@ export function History() {
           <Card size="sm">
             <CardContent className="space-y-2">
               <p className="flex items-baseline justify-between gap-2 text-sm">
-                <span className="font-medium">
-                  {entries.size} of {DAYS} days logged
-                </span>
-                <span className="text-muted-foreground tabular-nums">{Math.round((entries.size / DAYS) * 100)}%</span>
+                <span className="font-medium">{loggedLabel}</span>
+                <span className="text-muted-foreground tabular-nums">{total > 0 ? Math.round((logged / total) * 100) : 0}%</span>
               </p>
-              <Progress value={(entries.size / DAYS) * 100} aria-label={`${entries.size} of ${DAYS} days logged`} />
+              <Progress value={total > 0 ? (logged / total) * 100 : 0} aria-label={loggedLabel} />
             </CardContent>
           </Card>
 
@@ -78,11 +96,23 @@ export function History() {
               const entry = entries.get(date)
               return (
                 <li key={date}>
-                  {entry ? <DayCard date={date} today={today} entry={entry} /> : <EmptyDay date={date} today={today} />}
+                  {entry ? (
+                    <DayCard date={date} today={today} entry={entry} isStart={date === start} />
+                  ) : (
+                    <EmptyDay date={date} today={today} isStart={date === start} />
+                  )}
                 </li>
               )
             })}
           </ul>
+
+          {range?.hasOlder && shown < MAX_DAYS && (
+            <div className="flex justify-center">
+              <Button type="button" variant="outline" onClick={() => setShown((n) => n + PAGE_DAYS)}>
+                <ChevronDown aria-hidden /> Show older days
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </>
@@ -113,7 +143,12 @@ function grouped(items: { type: string }[]): { type: string; count: number }[] {
 }
 const times = (count: number) => (count > 1 ? ` ×${count}` : '')
 
-function DayCard({ date, today, entry }: { date: string; today: string; entry: DailyEntry }) {
+/** "Day 1 🌱 — your journey started here" on the start day's card. */
+function StartMarker() {
+  return <p className="text-xs font-medium text-primary">Day 1 🌱 — your journey started here</p>
+}
+
+function DayCard({ date, today, entry, isStart }: { date: string; today: string; entry: DailyEntry; isStart: boolean }) {
   const learnings = entry.learnings.length
   const goodThings = entry.goodThings.length
   const hasActivities =
@@ -131,7 +166,10 @@ function DayCard({ date, today, entry }: { date: string; today: string; entry: D
       className={cn(cardBase, 'bg-card shadow-soft ring-1 ring-foreground/[0.06] hover:ring-primary/30')}
     >
       <div className="flex items-start justify-between gap-3">
-        <DayHeading date={date} today={today} />
+        <div className="min-w-0 space-y-1">
+          <DayHeading date={date} today={today} />
+          {isStart && <StartMarker />}
+        </div>
         {mood && (
           <span className="text-3xl leading-none" role="img" aria-label={`Average mood ${mood.avg} out of 10`}>
             {moodEmoji(mood.avg)}
@@ -182,7 +220,7 @@ function DayCard({ date, today, entry }: { date: string; today: string; entry: D
   )
 }
 
-function EmptyDay({ date, today }: { date: string; today: string }) {
+function EmptyDay({ date, today, isStart }: { date: string; today: string; isStart: boolean }) {
   return (
     <Link
       to={`/today?date=${date}`}
@@ -191,7 +229,10 @@ function EmptyDay({ date, today }: { date: string; today: string }) {
         'justify-between border border-dashed text-muted-foreground hover:border-primary/40 hover:bg-card hover:text-foreground',
       )}
     >
-      <DayHeading date={date} today={today} />
+      <div className="space-y-1">
+        <DayHeading date={date} today={today} />
+        {isStart && <StartMarker />}
+      </div>
       <p className="flex items-center gap-1.5 text-sm">
         <Plus className="size-4" aria-hidden /> Nothing logged · tap to add
       </p>

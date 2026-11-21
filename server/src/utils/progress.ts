@@ -124,6 +124,8 @@ export type ReviewDay = {
 export type WeekSummary = {
   from: string;
   to: string;
+  /** Days of this week since the journey started (7 for a full week; fewer in the first week) */
+  daysTracked: number;
   daysLogged: number;
   avgPhysical: number | null;
   avgMental: number | null;
@@ -156,6 +158,7 @@ export function summariseWeek(days: ReviewDay[], from: string, to: string): Week
   return {
     from,
     to,
+    daysTracked: days.length,
     daysLogged: days.filter((d) => d.overall !== null).length,
     avgPhysical: avg(days.map((d) => d.physical)),
     avgMental: avg(days.map((d) => d.mental)),
@@ -191,10 +194,14 @@ const COMPARED = [
 ] as const;
 export type Compared = (typeof COMPARED)[number];
 
-/** This week minus last week for each number (null when either week has no value). */
+/**
+ * This week minus last week for each number (null when either week has no value, and for every
+ * number when last week was before the journey started).
+ */
 export function weekDifferences(current: WeekSummary, previous: WeekSummary): Record<Compared, number | null> {
   return Object.fromEntries(
     COMPARED.map((key) => {
+      if (previous.daysTracked === 0) return [key, null];
       const a = current[key];
       const b = previous[key];
       return [key, a === null || b === null ? null : key === "avgMood" || key === "avgSleepHours" || key === "avgFiberG" ? round1(a - b) : a - b];

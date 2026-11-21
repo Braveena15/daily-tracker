@@ -103,7 +103,8 @@ export function ScoreTrendCard() {
     <ChartCard
       icon={LineIcon}
       title="Score trends"
-      description={data ? `${logged} of ${range} days logged` : undefined}
+      // The range starts at the journey start when that's more recent
+      description={data ? `${logged} of ${data.days.length} ${data.days.length === 1 ? 'day' : 'days'} logged` : undefined}
       action={
         <Tabs value={String(range)} onValueChange={(v) => setRange(Number(v) as Range)}>
           <TabsList className="h-9 rounded-xl bg-muted p-1" aria-label="Time range">
@@ -334,7 +335,7 @@ export function CaloriesChartCard() {
                 Target {kcal(target)} kcal ·
               </span>
             )}
-            {logged.length} of 14 days logged · days without meals are left blank
+            {logged.length} of {data.days.length} {data.days.length === 1 ? 'day' : 'days'} logged · days without meals are left blank
           </p>
           <p className="text-sm">
             <span className="text-muted-foreground">Average fibre </span>
@@ -432,7 +433,7 @@ export function SleepChartCard() {
             </ComposedChart>
           </ChartContainer>
           <p className="text-xs text-muted-foreground">
-            {nights} of 14 nights logged
+            {nights} of {data.days.length} {data.days.length === 1 ? 'night' : 'nights'} logged
             {scored ? ' · the score is calculated by Daily Tracker from Apple Health sleep' : ' · sync sleep from Apple Health to see a sleep score'}
           </p>
         </>

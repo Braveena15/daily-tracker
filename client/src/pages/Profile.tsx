@@ -10,13 +10,15 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
+import { DataCleanup } from '@/components/DataCleanup'
+import { journeyDate } from '@/lib/journey'
 import { AiSettings } from '@/components/ai/AiSettings'
 import { AppleWatchSync } from '@/components/AppleWatchSync'
 import { InputWithUnit } from '@/components/InputWithUnit'
 import { PageHeader } from '@/components/PageHeader'
 import { ErrorNotice } from '@/components/StatusViews'
 import { api } from '@/lib/api'
-import { formatDate, formatLongDate, fromLocalDate, todayInTimezone, toLocalDate } from '@/lib/dates'
+import { formatLongDate, fromLocalDate, todayInTimezone, toLocalDate } from '@/lib/dates'
 import {
   ACTIVITY_OPTIONS,
   WEEKLY_GOAL_OPTIONS,
@@ -172,7 +174,7 @@ function JourneyStartPicker({
               setOpen(false)
             }}
           >
-            Use automatic (first check-in)
+            Use automatic (first entry)
           </Button>
         )}
       </PopoverContent>
@@ -391,11 +393,9 @@ export function Profile() {
                   <Field
                     id="journeyStartDate"
                     label="Journey start"
-                    hint={
-                      goals.journeyStartDate
-                        ? 'Day 1 of your journey'
-                        : `Automatic: your first check-in (${formatDate(journeyStartResolved)})`
-                    }
+                    hint={`Your journey started on ${journeyDate(goals.journeyStartDate || journeyStartResolved)}${
+                      goals.journeyStartDate ? '' : ' (your first entry)'
+                    }. Days before this date are hidden from History, streaks, scores and charts.`}
                   >
                     <JourneyStartPicker
                       value={goals.journeyStartDate}
@@ -423,6 +423,10 @@ export function Profile() {
 
       <section aria-label="AI settings" className="mt-4 md:mt-6">
         <AiSettings />
+      </section>
+
+      <section aria-label="Data" className="mt-4 md:mt-6">
+        <DataCleanup />
       </section>
     </>
   )

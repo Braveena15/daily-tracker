@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { loadDays, loadUserContext, scoresFor } from "../services/dayData";
+import { journeyStart, loadDays, loadUserContext, scoresFor } from "../services/dayData";
 import { AppError } from "../utils/AppError";
 import { addDays, daysBetween, isValidDateString, listDates, todayInTimezone } from "../utils/dates";
 
@@ -29,11 +29,13 @@ export async function listScores(req: Request, res: Response): Promise<void> {
     throw new AppError(400, `You can load at most ${MAX_RANGE_DAYS} days at a time`);
   }
 
-  const [ctx, { entries, mealKcal }] = await Promise.all([loadUserContext(req.userId), loadDays(req.userId, from, to)]);
-  const days = listDates(from, to).map((date) => {
+  // Days before the journey start aren't listed at all
+  const start = await journeyStart(req.userId);
+  const [ctx, { entries, mealKcal }] = await Promise.all([loadUserContext(req.userId), loadDays(req.userId, from, to, start)]);
+  const days = listDates(from < start ? start : from, to).map((date) => {
     const s = scoresFor(ctx, entries.get(date), mealKcal.get(date));
     return { date, physical: s.physical.score, mental: s.mental.score, learning: s.learning.score, overall: s.overall };
   });
 
-  res.json({ from, to, days });
+  res.json({ from, to, journeyStartDate: start, days });
 }

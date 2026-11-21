@@ -1,6 +1,7 @@
 // The weekly review and insights, shared by the progress routes and the AI weekly reflection.
 import { CHECKED_IN, DailyEntryModel } from "../models/DailyEntry";
-import { loadDays, loadUserContext, scoresFor, toScoreEntry } from "./dayData";
+import { journeyStart, loadDays, loadUserContext, scoresFor, toScoreEntry } from "./dayData";
+import { clampFrom } from "../utils/journey";
 import { addDays, listDates, todayInTimezone } from "../utils/dates";
 import { findInsights, type InsightDay } from "../utils/insights";
 import { encouragement, summariseWeek, weekDifferences, weekRanges, type ReviewDay } from "../utils/progress";
@@ -13,13 +14,15 @@ const minutes = (items: { durationMin?: number | null; minutes?: number | null }
 /** This week (the 7 days ending on `weekEnding`) compared with the week before. */
 export async function computeWeeklyReview(userId: string | undefined, weekEnding: string) {
   const { current, previous } = weekRanges(weekEnding);
+  const start = await journeyStart(userId);
   const [ctx, { entries, mealKcal, mealFiber }] = await Promise.all([
     loadUserContext(userId),
-    loadDays(userId, previous.from, current.to),
+    loadDays(userId, previous.from, current.to, start),
   ]);
 
+  // Only days from the journey start count; earlier days are neither logged nor "missed"
   const reviewDays = (from: string, to: string): ReviewDay[] =>
-    listDates(from, to).map((date) => {
+    listDates(clampFrom(from, start), to).map((date) => {
       const entry = entries.get(date);
       const s = scoresFor(ctx, entry, mealKcal.get(date));
       return {
@@ -56,6 +59,7 @@ export async function computeWeeklyReview(userId: string | undefined, weekEnding
     lastWeek,
     differences,
     message: encouragement(thisWeek, differences),
+    journeyStartDate: start,
     // This week's days, oldest first, for the per-day rows and the mood range chart
     days,
     // For the AI's safety check only (never sent to the AI): this week's check-ins
@@ -68,7 +72,8 @@ const INSIGHT_DAYS = 180;
 /** Up to 3 patterns from the last 180 days with a mood check-in. */
 export async function computeInsights(userId: string | undefined) {
   const to = todayInTimezone();
-  const rows = await DailyEntryModel.find({ userId, date: { $gte: addDays(to, -(INSIGHT_DAYS - 1)), $lte: to }, ...CHECKED_IN }).lean();
+  const from = clampFrom(addDays(to, -(INSIGHT_DAYS - 1)), await journeyStart(userId));
+  const rows = await DailyEntryModel.find({ userId, date: { $gte: from, $lte: to }, ...CHECKED_IN }).lean();
 
   const days: InsightDay[] = rows.flatMap((entry) => {
     const mood = dayMood(entry.moodLogs);

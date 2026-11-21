@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { CHECKED_IN, DailyEntryModel } from "../models/DailyEntry";
 import { journeyStart, loadUserContext } from "../services/dayData";
+import { clampFrom } from "../utils/journey";
 import { computeInsights, computeWeeklyReview } from "../services/progressData";
 import { AppError } from "../utils/AppError";
 import { addDays, isValidDateString, todayInTimezone } from "../utils/dates";
@@ -25,9 +26,10 @@ export async function getWeight(req: Request, res: Response): Promise<void> {
   const ctx = await loadUserContext(req.userId);
   const start = await journeyStart(req.userId, ctx.user);
   const to = today();
-  const from = addDays(to, -(days - 1));
-  // Load at least 5 weeks so the 4-week trend has a full average at both ends
-  const loadFrom = [from, addDays(to, -34), start].sort()[0]!;
+  // The chart starts at the journey start when that's more recent
+  const from = clampFrom(addDays(to, -(days - 1)), start);
+  // Load at least 5 weeks so the 4-week trend has a full average at both ends (never before the start)
+  const loadFrom = clampFrom([from, addDays(to, -34)].sort()[0]!, start);
 
   const rows = await DailyEntryModel.find({
     userId: req.userId,
@@ -61,7 +63,7 @@ export async function getSleep(req: Request, res: Response): Promise<void> {
     throw new AppError(400, '"days" must be a whole number from 7 to 90');
   }
   const to = today();
-  const from = addDays(to, -(days - 1));
+  const from = clampFrom(addDays(to, -(days - 1)), await journeyStart(req.userId));
   const rows = await DailyEntryModel.find({ userId: req.userId, date: { $gte: from, $lte: to }, sleepHours: { $ne: null } })
     .select("date sleepHours sleepScoreValue -_id")
     .lean();

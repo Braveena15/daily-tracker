@@ -5,7 +5,8 @@ import { updateProfileWeightIfLatest } from "../services/profileWeight";
 import { fieldsStillFromWatch } from "../utils/healthSyncMerge";
 import { AppError } from "../utils/AppError";
 import { addDays, daysBetween, isValidDateString, todayInTimezone } from "../utils/dates";
-import { calculateStreaks } from "../utils/streaks";
+import { journeyStart } from "../services/journey";
+import { clampFrom, streaksSince } from "../utils/journey";
 import {
   KIND_FIELDS,
   LoggedAtError,
@@ -258,17 +259,20 @@ export async function listEntries(req: Request, res: Response): Promise<void> {
     throw new AppError(400, `You can load at most ${MAX_RANGE_DAYS} days at a time`);
   }
 
-  // Logged days only: days that so far only hold Apple Health data are left out
-  const rows = (await DailyEntryModel.find({ userId: req.userId, date: { $gte: from, $lte: to }, ...CHECKED_IN })
+  // Logged days from the journey start only: days that only hold Apple Health data are left out,
+  // and days before the start are hidden (not deleted)
+  const start = await journeyStart(req.userId);
+  const rows = (await DailyEntryModel.find({ userId: req.userId, date: { $gte: clampFrom(from, start), $lte: to }, ...CHECKED_IN })
     .select("-healthSnapshots")
     .sort({ date: -1 })
     .lean()) as LeanDay[];
-  res.json({ from, to, entries: rows.map(serializeEntry) });
+  res.json({ from, to, journeyStartDate: start, entries: rows.map(serializeEntry) });
 }
 
 export async function getStreak(req: Request, res: Response): Promise<void> {
   // Only the date strings are needed, so this stays light even after years of entries.
-  const rows = await DailyEntryModel.find({ userId: req.userId, ...CHECKED_IN }).select("date -_id").lean();
+  const start = await journeyStart(req.userId);
+  const rows = await DailyEntryModel.find({ userId: req.userId, date: { $gte: start }, ...CHECKED_IN }).select("date -_id").lean();
   const todayDate = today();
-  res.json({ today: todayDate, ...calculateStreaks(rows.map((r) => r.date), todayDate) });
+  res.json({ today: todayDate, journeyStartDate: start, ...streaksSince(rows.map((r) => r.date), start, todayDate) });
 }

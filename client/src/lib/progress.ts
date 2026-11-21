@@ -24,7 +24,7 @@ export type DayScoresResponse = {
 }
 
 export type ScoreRow = { date: string; physical: number | null; mental: number | null; learning: number | null; overall: number | null }
-export type ScoresListResponse = { from: string; to: string; days: ScoreRow[] }
+export type ScoresListResponse = { from: string; to: string; journeyStartDate: string; days: ScoreRow[] }
 
 export type WeightResponse = {
   from: string
@@ -64,6 +64,8 @@ export type InsightsResponse = { daysAnalysed: number; insights: Insight[] }
 export type WeekSummary = {
   from: string
   to: string
+  /** Days of the week since the journey started (7 for a full week) */
+  daysTracked: number
   daysLogged: number
   avgPhysical: number | null
   avgMental: number | null
@@ -128,8 +130,9 @@ export type WeeklyReviewResponse = {
     number | null
   >
   message: string
-  /** This week's 7 days, oldest first */
+  /** This week's days since the journey started, oldest first */
   days: ReviewDay[]
+  journeyStartDate: string
 }
 
 export type SleepResponse = {

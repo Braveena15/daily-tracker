@@ -10,6 +10,7 @@ import {
   type User,
 } from "../models/User";
 import { goalNumbers, journeyStart } from "../services/dayData";
+import { countBeforeStart, deleteBeforeStart } from "../services/journey";
 import { isValidDateString, todayInTimezone } from "../utils/dates";
 import { AppError } from "../utils/AppError";
 import { ACTIVITY_LEVELS, WEEKLY_GOALS } from "../utils/calories";
@@ -59,7 +60,7 @@ function updateSchema() {
     learningMinutesGoal: goalField("Learning minutes goal", "learningMinutesGoal"),
     journeyLengthDays: goalField("Journey length", "journeyLengthDays"),
     fiberGoalG: goalField("Fibre goal", "fiberGoalG"),
-    // null = automatic (the first check-in)
+    // null = automatic (the first real entry)
     journeyStartDate: z
       .string({ error: "Journey start must be a date" })
       .refine(isValidDateString, "Journey start must be a real date in YYYY-MM-DD format")
@@ -83,7 +84,7 @@ function goalField(label: string, key: keyof typeof GOAL_LIMITS) {
 
 /**
  * Goals with defaults filled in. journeyStartDate is what the user chose (null = automatic);
- * journeyStartResolved is the date actually used (the first check-in, or today).
+ * journeyStartResolved is the date actually used (the first real entry, or today).
  */
 async function pickGoals(userId: string | undefined, user: User) {
   return {
@@ -152,4 +153,29 @@ export async function getSummary(req: Request, res: Response): Promise<void> {
   }
 
   res.json({ complete: true, summary });
+}
+
+// ---------- Data from before the journey ----------
+
+/** GET /api/profile/data-before-start — how much of the user's data is dated before their journey start. */
+export async function countDataBeforeStart(req: Request, res: Response): Promise<void> {
+  const start = await journeyStart(req.userId);
+  const counts = await countBeforeStart(req.userId, start);
+  res.json({ journeyStartDate: start, counts, total: Object.values(counts).reduce((s, n) => s + n, 0) });
+}
+
+const deleteBeforeStartSchema = z.strictObject({
+  confirm: z.literal("DELETE", { error: 'Type DELETE to confirm' }),
+});
+
+/**
+ * DELETE /api/profile/data-before-start — permanently deletes the user's own days, meals, diary
+ * entries, thought logs and AI messages dated before the journey start. Nothing on or after the
+ * start date, and nothing of any other user, is touched.
+ */
+export async function deleteDataBeforeStart(req: Request, res: Response): Promise<void> {
+  deleteBeforeStartSchema.parse(req.body ?? {});
+  const start = await journeyStart(req.userId);
+  const deleted = await deleteBeforeStart(req.userId, start);
+  res.json({ journeyStartDate: start, deleted, total: Object.values(deleted).reduce((s, n) => s + n, 0) });
 }

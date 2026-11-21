@@ -4,7 +4,8 @@ import { DailyEntryModel } from "../models/DailyEntry";
 import { FoodModel } from "../models/Food";
 import { MEAL_LIMITS, MealDayModel } from "../models/MealDay";
 import { UserModel } from "../models/User";
-import { goalNumbers } from "../services/dayData";
+import { goalNumbers, journeyStart } from "../services/dayData";
+import { clampFrom } from "../utils/journey";
 import { buildSummary } from "../services/profileSummary";
 import { AppError } from "../utils/AppError";
 import { MIN_CALORIES } from "../utils/calories";
@@ -182,7 +183,9 @@ export async function copyMeals(req: Request, res: Response): Promise<void> {
 export async function getWeeklyStats(req: Request, res: Response): Promise<void> {
   const to = req.query.to === undefined || req.query.to === "" ? today() : req.query.to;
   if (!isValidDateString(to)) throw new AppError(400, '"to" must be a real date in YYYY-MM-DD format');
-  const from = addDays(to, -6);
+  const start = await journeyStart(req.userId);
+  // Days before the journey start aren't counted (or shown as missed)
+  const from = clampFrom(addDays(to, -6), start);
 
   const [rows, user] = await Promise.all([
     MealDayModel.find({ userId: req.userId, date: { $gte: from, $lte: to } }).lean(),
@@ -214,7 +217,7 @@ export async function getDailyStats(req: Request, res: Response): Promise<void> 
     throw new AppError(400, '"days" must be a whole number from 1 to 90');
   }
   const to = today();
-  const from = addDays(to, -(days - 1));
+  const from = clampFrom(addDays(to, -(days - 1)), await journeyStart(req.userId));
 
   const [rows, user] = await Promise.all([
     MealDayModel.find({ userId: req.userId, date: { $gte: from, $lte: to }, "items.0": { $exists: true } }).lean(),

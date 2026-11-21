@@ -148,6 +148,22 @@ describe("summariseWeek", () => {
     expect(week).toMatchObject({ avgSleepHours: 6.6, avgSleepScore: 90 });
   });
 
+  it("counts only the days since the journey started in its first week", () => {
+    // Journey started on the 19th: the week is 3 days, and the 13th–18th aren't "missed"
+    const week = summariseWeek(
+      [reviewDay("2026-11-19"), reviewDay("2026-11-20"), unlogged("2026-11-21")],
+      "2026-11-15",
+      "2026-11-21",
+    );
+    expect(week).toMatchObject({ daysTracked: 3, daysLogged: 2 });
+  });
+
+  it("doesn't compare with a week from before the journey", () => {
+    const first = summariseWeek([reviewDay("2026-11-21")], "2026-11-15", "2026-11-21");
+    const before = summariseWeek([], "2026-11-08", "2026-11-14");
+    expect(Object.values(weekDifferences(first, before)).every((v) => v === null)).toBe(true);
+  });
+
   it("averages daily fibre over the days that have it", () => {
     const week = summariseWeek(
       [reviewDay("2026-11-13", { fiberG: 20 }), reviewDay("2026-11-14", { fiberG: 25.5 }), reviewDay("2026-11-15", { fiberG: null })],

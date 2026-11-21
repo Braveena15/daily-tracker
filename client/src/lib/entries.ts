@@ -119,8 +119,9 @@ export type DayResponse = {
 }
 
 export type DailyInput = { weightKg?: number | null; steps?: number | null; activeCalories?: number | null }
-export type EntriesListResponse = { from: string; to: string; entries: DailyEntry[] }
-export type StreakResponse = { today: string; current: number; longest: number }
+export type EntriesListResponse = { from: string; to: string; journeyStartDate: string; entries: DailyEntry[] }
+/** Counting only days since the journey started */
+export type StreakResponse = { today: string; journeyStartDate: string; current: number; longest: number }
 
 // ---------- Mood ----------
 
