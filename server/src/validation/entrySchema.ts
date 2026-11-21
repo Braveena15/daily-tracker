@@ -76,6 +76,9 @@ const fields = {
     notes: optionalText("Notes", L.notes),
   },
   goodThings: { text: required("Good thing", L.goodThing, "Good things can't be empty") },
+  water: {
+    amountMl: numberIn("Water", L.waterMl.min, L.waterMl.max, " ml").int("Water must be a whole number of ml"),
+  },
   learnings: {
     topic: required("Learning topic", L.learningTopic, "Each learning needs a topic"),
     details: optionalText("Learning details", L.learningDetails),
@@ -93,6 +96,7 @@ export const CLEARABLE: Record<EntryKind, readonly string[]> = {
   goodThings: [],
   learnings: ["details", "minutes"],
   presentMoments: [],
+  water: [],
 };
 
 export const entrySchemas = Object.fromEntries(

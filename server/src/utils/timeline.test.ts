@@ -98,3 +98,23 @@ it("knows the entry kinds", () => {
   expect(isEntryKind("daily")).toBe(false);
   expect(isEntryKind("constructor")).toBe(false);
 });
+
+describe("water on the timeline", () => {
+  it("shows each drink in time order", () => {
+    const timeline = buildTimeline({
+      date: "2026-11-20",
+      waterLogs: [
+        { _id: "w2", amountMl: 500, loggedAt: "2026-11-20T08:00:00.000Z" },
+        { _id: "w1", amountMl: 250, loggedAt: "2026-11-20T04:45:00.000Z" },
+      ],
+    } as Parameters<typeof buildTimeline>[0]);
+    expect(timeline.map((t) => [t.kind, t.summary, t.id])).toEqual([
+      ["water", "250 ml", "w1"],
+      ["water", "500 ml", "w2"],
+    ]);
+    expect(isEntryKind("water")).toBe(true);
+  });
+  it("refuses a drink later than now (no future times)", () => {
+    expect(() => resolveLoggedAt("2026-11-20", "23:00", new Date("2026-11-20T10:00:00.000Z"), "2026-11-20")).toThrow(LoggedAtError);
+  });
+});

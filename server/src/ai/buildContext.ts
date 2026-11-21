@@ -263,7 +263,12 @@ export function buildWeeklyContext(input: {
   /** This week's check-ins: only activity types are read (and only built-in names are sent) */
   activities?: WeekActivities[];
 }): AiContext {
-  const week = ({ bestDay, ...rest }: WeekNumbers) => ({
+  // Water isn't part of the reflection (or the scores): left out of what's sent, by name
+  const week = ({ bestDay, ...all }: WeekNumbers & { avgWaterMl?: unknown; waterDays?: unknown; waterGoalDays?: unknown }) => {
+    const { avgWaterMl: _avg, waterDays: _days, waterGoalDays: _goal, ...rest } = all;
+    return weekWithBest(rest, bestDay);
+  };
+  const weekWithBest = (rest: Omit<WeekNumbers, "bestDay">, bestDay: WeekNumbers["bestDay"]) => ({
     ...rest,
     bestDay: bestDay ? { day: relativeDay(bestDay.date, input.today), overall: bestDay.overall } : null,
   });

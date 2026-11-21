@@ -19,6 +19,7 @@ import { MoodIcon } from '@/components/MoodFace'
 import { toneSoft } from '@/lib/tones'
 import { cn } from '@/lib/utils'
 import { CardChevron } from '@/components/CardChevron'
+import { litres, waterTotalOf } from '@/lib/water'
 
 const PAGE_DAYS = 30
 // The entries route returns at most this many days at once
@@ -166,6 +167,7 @@ function DayCard({ date, today, entry, isStart }: { date: string; today: string;
     mood && `${mood.count} check-in${mood.count === 1 ? '' : 's'}`,
     mood && `${energyBand(mood.avgEnergy).word} ${mood.avgEnergy}/10`,
     entry.sleepHours != null && `${entry.sleepHours}h sleep`,
+    waterTotalOf(entry.waterLogs) > 0 && `${litres(waterTotalOf(entry.waterLogs))} water`,
   ].filter(Boolean)
 
   return (

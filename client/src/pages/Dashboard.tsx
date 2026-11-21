@@ -8,7 +8,7 @@ import { PageHeader } from '@/components/PageHeader'
 import { EmptyState, ErrorNotice } from '@/components/StatusViews'
 import { LowMoodCard } from '@/components/mind/Support'
 import { JourneyRow } from '@/components/progress/JourneyCards'
-import { CaloriesChartCard, InsightsCard, ScoreTrendCard, SleepChartCard, WeightCard } from '@/components/progress/ProgressCharts'
+import { CaloriesChartCard, InsightsCard, ScoreTrendCard, SleepChartCard, WaterChartCard, WeightCard } from '@/components/progress/ProgressCharts'
 import { TodayScores } from '@/components/progress/TodayScores'
 import { useFetch } from '@/hooks/useFetch'
 import type { SummaryResponse } from '@/lib/profile'
@@ -42,7 +42,10 @@ export function Dashboard() {
           <WeightCard />
           <CaloriesChartCard />
         </div>
-        <SleepChartCard />
+        <div className="grid gap-4 md:gap-6 lg:grid-cols-2">
+          <SleepChartCard />
+          <WaterChartCard />
+        </div>
         <InsightsCard />
       </div>
 

@@ -281,3 +281,12 @@ describe("weekly reflection context", () => {
     expect(buildPrompt(thin, { lowMood: false })).toMatch(/only a little to go on/);
   });
 });
+
+describe("water stays out of the AI", () => {
+  it("isn't sent with the weekly reflection", () => {
+    const week = { ...weekNumbers, avgWaterMl: 1800, waterDays: 5, waterGoalDays: 3 };
+    const sent = json(buildWeeklyContext({ thisWeek: week, lastWeek: week, calorieTarget: null, insights: [], today: TODAY }));
+    expect(sent).not.toMatch(/water/i);
+    expect(sent).toContain("avgOverall");
+  });
+});

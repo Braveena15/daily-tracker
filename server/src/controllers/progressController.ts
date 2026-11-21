@@ -1,9 +1,11 @@
 import type { Request, Response } from "express";
 import { CHECKED_IN, DailyEntryModel } from "../models/DailyEntry";
-import { journeyStart, loadUserContext } from "../services/dayData";
+import { goalNumbers, journeyStart, loadUserContext, loadWater } from "../services/dayData";
 import { clampFrom } from "../utils/journey";
 import { computeInsights, computeWeeklyReview } from "../services/progressData";
 import { AppError } from "../utils/AppError";
+import { UserModel } from "../models/User";
+import { waterSeries, waterWeek } from "../utils/water";
 import { addDays, isValidDateString, todayInTimezone } from "../utils/dates";
 import {
   changeSinceStart,
@@ -116,4 +118,18 @@ export async function getJourney(req: Request, res: Response): Promise<void> {
 /** GET /api/progress/insights — up to 3 patterns from the last 180 days of check-ins. */
 export async function getInsights(req: Request, res: Response): Promise<void> {
   res.json(await computeInsights(req.userId));
+}
+
+/** GET /api/progress/water?days=7 — each day's water (0 when none), from the journey start, with the goal. */
+export async function getWater(req: Request, res: Response): Promise<void> {
+  const days = req.query.days === undefined ? 7 : Number(req.query.days);
+  if (!Number.isInteger(days) || days < 7 || days > 90) {
+    throw new AppError(400, '"days" must be a whole number from 7 to 90');
+  }
+  const to = today();
+  const [start, user] = await Promise.all([journeyStart(req.userId), UserModel.findById(req.userId).select("waterGoalMl glassSizeMl").lean()]);
+  const from = clampFrom(addDays(to, -(days - 1)), start);
+  const goalMl = goalNumbers(user ?? {}).waterGoalMl;
+  const points = waterSeries(await loadWater(req.userId, from, to), from, to);
+  res.json({ from, to, goalMl, days: points, ...waterWeek(points.map((p) => p.ml), goalMl) });
 }

@@ -111,10 +111,11 @@ const reviewDay = (date: string, overrides: Partial<ReviewDay> = {}): ReviewDay 
   learningMinutes: 20,
   kcal: 2000,
   fiberG: 24,
+  waterMl: 0,
   ...overrides,
 });
 const unlogged = (date: string): ReviewDay =>
-  reviewDay(date, { physical: null, mental: null, learning: null, overall: null, mood: null, moodMin: null, moodMax: null, moodCount: 0, goodThings: 0, learnings: 0, presentMoments: 0, steps: null, activeCalories: null, sleepHours: null, sleepScore: null, workouts: 0, workoutMinutes: 0, learningMinutes: 0, kcal: null, fiberG: null });
+  reviewDay(date, { physical: null, mental: null, learning: null, overall: null, mood: null, moodMin: null, moodMax: null, moodCount: 0, goodThings: 0, learnings: 0, presentMoments: 0, steps: null, activeCalories: null, sleepHours: null, sleepScore: null, workouts: 0, workoutMinutes: 0, learningMinutes: 0, kcal: null, fiberG: null, waterMl: 0 });
 
 describe("summariseWeek", () => {
   it("averages only logged days and finds the best day", () => {
@@ -224,5 +225,19 @@ describe("sleepSeries", () => {
       { date: "2026-11-19", hours: null, score: null },
       { date: "2026-11-20", hours: 6, score: null },
     ]);
+  });
+});
+
+describe("summariseWeek: water", () => {
+  it("averages water over days with water, counts goal days, and compares weeks", () => {
+    const days = [
+      reviewDay("2026-11-13", { waterMl: 2500 }),
+      unlogged("2026-11-14"), // nothing at all
+      { ...unlogged("2026-11-15"), waterMl: 1500 }, // only water: still counted for water
+    ];
+    const week = summariseWeek(days, "2026-11-13", "2026-11-19", 2000);
+    expect(week).toMatchObject({ avgWaterMl: 2000, waterDays: 2, waterGoalDays: 1, daysLogged: 1 });
+    const before = summariseWeek([reviewDay("2026-11-06", { waterMl: 1000 })], "2026-11-06", "2026-11-12", 2000);
+    expect(weekDifferences(week, before)).toMatchObject({ avgWaterMl: 1000, waterGoalDays: 1 });
   });
 });

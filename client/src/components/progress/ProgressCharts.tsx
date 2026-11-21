@@ -3,7 +3,7 @@
 // one series, a tooltip on hover/tap, and a friendly empty state when there's nothing to draw.
 import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, BarChart3, LineChart as LineIcon, Lightbulb, Moon, Scale, UtensilsCrossed } from 'lucide-react'
+import { ArrowRight, BarChart3, GlassWater, LineChart as LineIcon, Lightbulb, Moon, Scale, UtensilsCrossed } from 'lucide-react'
 import {
   Bar,
   BarChart,
@@ -33,6 +33,7 @@ import { useFetch } from '@/hooks/useFetch'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { addDays, todayInTimezone } from '@/lib/dates'
 import { kcal } from '@/lib/meals'
+import { litres, litres1, type WaterResponse } from '@/lib/water'
 import {
   AREAS,
   shortDate,
@@ -485,6 +486,73 @@ export function InsightsCard() {
       <p className="text-xs text-muted-foreground">
         These are patterns in your own logs, not proof that one thing causes another. Many things change from day to day.
       </p>
+    </ChartCard>
+  )
+}
+
+// ---------- Water (last 7 days) ----------
+
+const waterConfig = { ml: { label: 'Water', color: 'var(--outdoor)' } } satisfies ChartConfig
+
+export function WaterChartCard() {
+  const animate = useAnimate()
+  const { data, error } = useFetch<WaterResponse>('/progress/water?days=7')
+  const goal = data?.goalMl ?? null
+  const today = data?.days.at(-1)
+
+  return (
+    <ChartCard
+      icon={GlassWater}
+      title="Water"
+      description={today ? `Today ${litres(today.ml)}${goal !== null ? ` of ${litres1(goal)}` : ''}` : 'Last 7 days'}
+    >
+      {error ? (
+        <ErrorNotice>{error}</ErrorNotice>
+      ) : !data ? (
+        <ChartSkeleton />
+      ) : data.waterDays === 0 ? (
+        <EmptyState icon={GlassWater} tone="outdoor" title="No water logged yet" className="py-10">
+          Tap “+1 glass” on Today and your week will show up here.
+        </EmptyState>
+      ) : (
+        <>
+          <ChartContainer
+            config={waterConfig}
+            className={CHART_CLASS}
+            summary={`Water on ${data.waterDays} of the last ${data.days.length} days, ${litres(data.avgWaterMl ?? 0)} a day on average; goal ${litres1(data.goalMl)}, reached on ${data.waterGoalDays} ${data.waterGoalDays === 1 ? 'day' : 'days'}.`}
+          >
+            <BarChart data={data.days} margin={{ left: 0, right: 8, top: 8 }}>
+              <CartesianGrid vertical={false} />
+              <XAxis dataKey="date" {...AXIS} interval={0} tickFormatter={shortDate} />
+              <YAxis
+                {...AXIS}
+                width={36}
+                tickFormatter={(v: number) => `${v / 1000}L`}
+                domain={[0, (dataMax: number) => Math.max(dataMax, data.goalMl * 1.15)]}
+              />
+              <ChartTooltip
+                cursor={false}
+                content={
+                  <ChartTooltipContent
+                    hideIndicator
+                    labelFormatter={(_, p) => tooltipDate(String(p[0]?.payload.date))}
+                    formatter={(value) => <span className="font-medium tabular-nums">{litres(Number(value))}</span>}
+                  />
+                }
+              />
+              <Bar dataKey="ml" fill="var(--color-ml)" radius={[4, 4, 0, 0]} maxBarSize={28} isAnimationActive={animate} />
+              <ReferenceLine y={data.goalMl} stroke="var(--foreground)" strokeOpacity={0.45} strokeDasharray="5 4" />
+            </BarChart>
+          </ChartContainer>
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <span aria-hidden className="w-4 border-t-2 border-dashed border-foreground/45" />
+              Goal {litres1(data.goalMl)} ·
+            </span>
+            reached on {data.waterGoalDays} of {data.days.length} {data.days.length === 1 ? 'day' : 'days'}
+          </p>
+        </>
+      )}
     </ChartCard>
   )
 }

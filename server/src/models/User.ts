@@ -34,6 +34,8 @@ export const GOAL_LIMITS = {
   learningMinutesGoal: { min: 5, max: 600, default: 30 },
   journeyLengthDays: { min: 7, max: 1000, default: 100 },
   fiberGoalG: { min: 5, max: 100, default: 30 },
+  waterGoalMl: { min: 500, max: 6000, default: 2000 },
+  glassSizeMl: { min: 50, max: 1000, default: 250 },
 } as const;
 
 export const NUMBER_GOAL_FIELDS = Object.keys(GOAL_LIMITS) as (keyof typeof GOAL_LIMITS)[];
@@ -89,6 +91,8 @@ const userSchema = new Schema(
     learningMinutesGoal: goal("learningMinutesGoal"),
     journeyLengthDays: goal("journeyLengthDays"),
     fiberGoalG: goal("fiberGoalG"),
+    waterGoalMl: goal("waterGoalMl"),
+    glassSizeMl: goal("glassSizeMl"),
     // "YYYY-MM-DD". When not set, the journey starts on the first logged day (or today).
     journeyStartDate: { type: String, match: /^\d{4}-\d{2}-\d{2}$/ },
 

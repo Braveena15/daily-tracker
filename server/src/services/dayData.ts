@@ -10,8 +10,9 @@ import { clampFrom } from "../utils/journey";
 import { journeyStart } from "./journey";
 import { dayTotals, type MealItemLike } from "../utils/meals";
 import { dayScores, type DayScores, type ScoreEntry, type ScoreGoals } from "../utils/scores";
+import { waterTotal } from "../utils/water";
 
-export type Goals = ScoreGoals & { journeyLengthDays: number; fiberGoalG: number };
+export type Goals = ScoreGoals & { journeyLengthDays: number; fiberGoalG: number; waterGoalMl: number; glassSizeMl: number };
 
 /** The user's goals, with defaults filled in for accounts created before goals existed. */
 export function goalNumbers(user: Partial<Pick<User, keyof typeof GOAL_LIMITS>>): Goals {
@@ -23,6 +24,8 @@ export function goalNumbers(user: Partial<Pick<User, keyof typeof GOAL_LIMITS>>)
     learningMinutesGoal: pick("learningMinutesGoal"),
     journeyLengthDays: pick("journeyLengthDays"),
     fiberGoalG: pick("fiberGoalG"),
+    waterGoalMl: pick("waterGoalMl"),
+    glassSizeMl: pick("glassSizeMl"),
   };
 }
 
@@ -96,4 +99,15 @@ export function scoresFor(ctx: UserContext, entry: LeanEntry | undefined, eatenK
     targetKcal: ctx.summary?.calorieTarget ?? null,
     minimumKcal: ctx.minimumKcal,
   });
+}
+
+/**
+ * Each day's water total (ml) from `from` to `to`, including days with nothing else logged.
+ * Only days with water are in the map.
+ */
+export async function loadWater(userId: string | undefined, from: string, to: string): Promise<Map<string, number>> {
+  const rows = await DailyEntryModel.find({ userId, date: { $gte: from, $lte: to }, "waterLogs.0": { $exists: true } })
+    .select("date waterLogs.amountMl -_id")
+    .lean();
+  return new Map(rows.map((r) => [r.date, waterTotal(r.waterLogs)]));
 }

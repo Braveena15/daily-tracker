@@ -81,6 +81,10 @@ export type WeekSummary = {
   avgKcal: number | null
   avgFiberG: number | null
   mealDays: number
+  /** Average over days with water (ml), null without any */
+  avgWaterMl: number | null
+  waterDays: number
+  waterGoalDays: number
   bestDay: { date: string; overall: number } | null
 }
 
@@ -107,11 +111,14 @@ export type ReviewDay = {
   learningMinutes: number
   kcal: number | null
   fiberG: number | null
+  /** ml, 0 without water */
+  waterMl: number
 }
 
 export type WeeklyReviewResponse = {
   weekEnding: string
   calorieTarget: number | null
+  waterGoalMl: number
   thisWeek: WeekSummary
   lastWeek: WeekSummary
   differences: Record<
@@ -127,7 +134,9 @@ export type WeeklyReviewResponse = {
     | 'workoutMinutes'
     | 'learningMinutes'
     | 'avgKcal'
-    | 'avgFiberG',
+    | 'avgFiberG'
+    | 'avgWaterMl'
+    | 'waterGoalDays',
     number | null
   >
   message: string

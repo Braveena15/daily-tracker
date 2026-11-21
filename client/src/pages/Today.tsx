@@ -35,6 +35,7 @@ import type { Tone } from '@/lib/tones'
 import { EnergyLabel, MoodBadge } from '@/components/MoodFace'
 import { SupportButton } from '@/components/mind/Support'
 import { WeeklyGoalReminder } from '@/components/day/WeeklyGoalReminder'
+import { WaterCard } from '@/components/day/WaterCard'
 
 export function Today() {
   // ?date=YYYY-MM-DD picks a past day; anything missing, invalid or in the future means today
@@ -139,6 +140,8 @@ function DayEditor({ date, today }: { date: string; today: string }) {
           onDelete={(m) => actions.remove('moods', m.id)}
         />
       </Section>
+
+      <WaterCard logs={entry?.waterLogs ?? []} isToday={isToday} actions={actions} />
 
       <Section title="Sleep" icon={Moon} tone="mental">
         {entry?.sleep ? (

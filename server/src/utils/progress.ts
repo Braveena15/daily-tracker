@@ -1,6 +1,7 @@
 // Pure functions for the progress pages: weight trend, journey progress and the weekly review.
 import { KCAL_PER_KG, movingAverage } from "./calories";
 import { addDays, daysBetween, listDates } from "./dates";
+import { waterWeek, type WaterWeek } from "./water";
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -119,6 +120,8 @@ export type ReviewDay = {
   kcal: number | null;
   /** Null when no food that day had fibre */
   fiberG: number | null;
+  /** The day's water in ml (0 without any); not part of the scores */
+  waterMl: number;
 };
 
 export type WeekSummary = {
@@ -142,7 +145,7 @@ export type WeekSummary = {
   avgFiberG: number | null;
   mealDays: number;
   bestDay: { date: string; overall: number } | null;
-};
+} & WaterWeek;
 
 function avg(values: (number | null)[], round: (n: number) => number = Math.round): number | null {
   const present = values.filter((v): v is number => v !== null);
@@ -150,7 +153,7 @@ function avg(values: (number | null)[], round: (n: number) => number = Math.roun
 }
 
 /** Averages only count days that were logged, so a missed day doesn't look like a bad day. */
-export function summariseWeek(days: ReviewDay[], from: string, to: string): WeekSummary {
+export function summariseWeek(days: ReviewDay[], from: string, to: string, waterGoalMl = 2000): WeekSummary {
   const best = days
     .filter((d): d is ReviewDay & { overall: number } => d.overall !== null)
     .sort((a, b) => b.overall - a.overall || a.date.localeCompare(b.date))[0];
@@ -173,6 +176,7 @@ export function summariseWeek(days: ReviewDay[], from: string, to: string): Week
     avgKcal: avg(days.map((d) => d.kcal)),
     avgFiberG: avg(days.map((d) => d.fiberG), round1),
     mealDays: days.filter((d) => d.kcal !== null).length,
+    ...waterWeek(days.map((d) => d.waterMl), waterGoalMl),
     bestDay: best ? { date: best.date, overall: best.overall } : null,
   };
 }
@@ -191,6 +195,8 @@ const COMPARED = [
   "learningMinutes",
   "avgKcal",
   "avgFiberG",
+  "avgWaterMl",
+  "waterGoalDays",
 ] as const;
 export type Compared = (typeof COMPARED)[number];
 

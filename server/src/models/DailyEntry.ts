@@ -24,6 +24,7 @@ export const ENTRY_LIMITS = {
   intentions: 5,
   reflectionNote: 1000,
   listItems: 50,
+  waterMl: { min: 50, max: 2000 },
 } as const;
 
 const L = ENTRY_LIMITS;
@@ -113,6 +114,8 @@ const learningSchema = new Schema({
   minutes,
 });
 
+// One drink of water. Not part of the scores, and doesn't make a day "logged" (see USER_LISTS).
+const waterLogSchema = new Schema({ loggedAt, amountMl: { type: Number, required: true, min: L.waterMl.min, max: L.waterMl.max } });
 const goodThingSchema = new Schema({ loggedAt, text: { type: String, required: true, trim: true, maxlength: L.goodThing } });
 
 const presentMomentSchema = new Schema({
@@ -198,6 +201,7 @@ const dailyEntrySchema = new Schema(
     goodThings: { type: [goodThingSchema], default: [] },
     learnings: { type: [learningSchema], default: [] },
     presentMoments: { type: [presentMomentSchema], default: [] },
+    waterLogs: { type: [waterLogSchema], default: [] },
 
     // "What do I want today to be about?" (see controllers/dailyPurposeController.ts)
     dailyPurpose: { type: dailyPurposeSchema, default: undefined },

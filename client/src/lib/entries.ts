@@ -3,7 +3,7 @@
 // A day holds a few single values (weight, steps, active calories, sleep) and many timestamped
 // entries added through the day: mood check-ins, workouts, good things, learnings…
 import type { LucideIcon } from 'lucide-react'
-import { BookOpen, Brain, Dumbbell, Feather, Moon, Smile, Sparkles, Sun, Watch } from 'lucide-react'
+import { BookOpen, Brain, Dumbbell, Feather, GlassWater, Moon, Smile, Sparkles, Sun, Watch } from 'lucide-react'
 import type { Tone } from '@/lib/tones'
 import type { DailyPurpose } from '@/lib/purpose'
 
@@ -19,6 +19,8 @@ export type Activity = Stamped & { type: string; durationMin?: number; notes?: s
 export type GoodThing = Stamped & { text: string }
 export type Learning = Stamped & { topic: string; details?: string; minutes?: number }
 export type PresentMoment = Stamped & { text: string }
+/** One drink: 50–2000 ml. Not part of the scores. */
+export type WaterLog = Stamped & { amountMl: number }
 
 export type HealthSyncField =
   | 'activeCalories'
@@ -72,6 +74,8 @@ export type DailyEntry = {
   goodThings: GoodThing[]
   learnings: Learning[]
   presentMoments: PresentMoment[]
+  /** Older days may not have it */
+  waterLogs?: WaterLog[]
   /** Today's purpose, decrypted (null when none was set) */
   dailyPurpose?: DailyPurpose | null
   createdAt: string
@@ -81,7 +85,7 @@ export type DailyEntry = {
 // ---------- Kinds of timestamped entries ----------
 
 /** The URL name of each kind: POST /api/entries/:date/:kind */
-export type EntryKind = 'moods' | 'workouts' | 'mental' | 'outdoor' | 'goodThings' | 'learnings' | 'presentMoments'
+export type EntryKind = 'moods' | 'workouts' | 'mental' | 'outdoor' | 'goodThings' | 'learnings' | 'presentMoments' | 'water'
 
 export const KIND_FIELD = {
   moods: 'moodLogs',
@@ -91,6 +95,7 @@ export const KIND_FIELD = {
   goodThings: 'goodThings',
   learnings: 'learnings',
   presentMoments: 'presentMoments',
+  water: 'waterLogs',
 } as const satisfies Record<EntryKind, keyof DailyEntry>
 
 export type TimelineKind = EntryKind | 'sync' | 'sleep'
@@ -104,6 +109,7 @@ export const TIMELINE_STYLE: Record<TimelineKind, { label: string; icon: LucideI
   goodThings: { label: 'Good thing', icon: Sparkles, tone: 'primary' },
   learnings: { label: 'Learning', icon: BookOpen, tone: 'learning' },
   presentMoments: { label: 'Present moment', icon: Feather, tone: 'primary' },
+  water: { label: 'Water', icon: GlassWater, tone: 'outdoor' },
   sync: { label: 'Apple Watch sync', icon: Watch, tone: 'physical' },
   sleep: { label: 'Sleep', icon: Moon, tone: 'mental' },
 }
@@ -118,6 +124,8 @@ export type DayResponse = {
   logged: boolean
   timeline: TimelineItem[]
   healthSnapshots: HealthSnapshot[]
+  /** The day's water in ml */
+  waterTotalMl?: number
   profileWeightUpdated?: boolean
 }
 

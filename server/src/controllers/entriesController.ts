@@ -20,6 +20,7 @@ import {
   type TimelineSource,
 } from "../utils/timeline";
 import { CLEARABLE, DAILY_FIELDS, dailySchema, entryPatchSchemas, entrySchemas } from "../validation/entrySchema";
+import { waterTotal } from "../utils/water";
 
 const MAX_RANGE_DAYS = 366;
 const LISTS = Object.values(KIND_FIELDS);
@@ -105,6 +106,8 @@ export function dayResponse(date: string, doc: LeanDay | null) {
     entry: doc ? serializeEntry(doc) : null,
     logged: doc ? isCheckedIn(doc) : false,
     timeline: doc ? buildTimeline(doc) : [],
+    // Water is shown on its own; it isn't part of the scores
+    waterTotalMl: waterTotal(doc?.waterLogs),
     healthSnapshots: doc?.healthSnapshots ?? [],
   };
 }

@@ -18,6 +18,7 @@ export const KIND_FIELDS = {
   goodThings: "goodThings",
   learnings: "learnings",
   presentMoments: "presentMoments",
+  water: "waterLogs",
 } as const;
 export type EntryKind = keyof typeof KIND_FIELDS;
 export type EntryField = (typeof KIND_FIELDS)[EntryKind];
@@ -114,6 +115,7 @@ export type TimelineSource = {
   goodThings?: (Stamped & { text: string })[];
   learnings?: (Stamped & { topic: string; minutes?: number | null })[];
   presentMoments?: (Stamped & { text: string })[];
+  waterLogs?: (Stamped & { amountMl: number })[];
   healthSnapshots?: { time: Date | string; steps?: number | null; activeCalories?: number | null }[];
   sleep?: { wakeTime: string; totalSleepMin: number } | null;
 };
@@ -153,6 +155,7 @@ export function buildTimeline(day: TimelineSource): TimelineItem[] {
   add("goodThings", day.goodThings, (g: { text: string }) => clip(g.text));
   add("learnings", day.learnings, (l: { topic: string; minutes?: number | null }) => `${l.topic}${minutesText(l.minutes)}`);
   add("presentMoments", day.presentMoments, (p: { text: string }) => clip(p.text));
+  add("water", day.waterLogs, (w: { amountMl: number }) => `${fmt(w.amountMl)} ml`);
 
   for (const s of day.healthSnapshots ?? []) {
     const parts = [s.steps != null && `${fmt(s.steps)} steps`, s.activeCalories != null && `${fmt(s.activeCalories)} active kcal`].filter(Boolean);

@@ -99,3 +99,16 @@ describe("entryPatchSchemas (PATCH /:date/:kind/:id)", () => {
     expect(errorOf(entryPatchSchemas.moods, {})).toBe("Nothing to change");
   });
 });
+
+describe("water entries", () => {
+  it("accepts 50–2000 whole ml, with an optional earlier time", () => {
+    expect(entrySchemas.water.parse({ amountMl: 250 })).toEqual({ amountMl: 250 });
+    expect(entrySchemas.water.parse({ amountMl: 2000, time: "07:30" })).toEqual({ amountMl: 2000, time: "07:30" });
+    expect(entrySchemas.water.parse({ amountMl: 50 })).toEqual({ amountMl: 50 });
+  });
+  it("refuses amounts outside 50–2000 ml, fractions, text and extra fields", () => {
+    for (const body of [{ amountMl: 49 }, { amountMl: 2001 }, { amountMl: 0 }, { amountMl: -250 }, { amountMl: 250.5 }, { amountMl: "250" }, {}, { amountMl: 250, note: "x" }]) {
+      expect(entrySchemas.water.safeParse(body).success).toBe(false);
+    }
+  });
+});

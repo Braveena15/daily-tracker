@@ -1,6 +1,6 @@
 import { Suspense, useState, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ArrowDown, ArrowUp, BookOpen, Brain, CalendarCheck, ChevronLeft, ChevronRight, Dumbbell, Flag, Gauge, LineChart as LineChartIcon, Moon, Smile, Sparkles, Target, Trophy, UtensilsCrossed, Wheat, type LucideIcon } from 'lucide-react'
+import { ArrowDown, ArrowUp, BookOpen, Brain, CalendarCheck, ChevronLeft, ChevronRight, Dumbbell, Flag, Gauge, GlassWater, LineChart as LineChartIcon, Moon, Smile, Sparkles, Target, Trophy, UtensilsCrossed, Wheat, type LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/InfoTip'
 import { WeeklyGoalsCard, type GoalSuggestion } from '@/components/progress/WeeklyGoals'
@@ -25,6 +25,7 @@ import type { Tone } from '@/lib/tones'
 import { cn } from '@/lib/utils'
 import { lazyPage } from '@/lib/lazyPage'
 import { CardChevron } from '@/components/CardChevron'
+import { litres } from '@/lib/water'
 
 // Recharts loads only when the charts are shown
 const DailyScoresChart = lazyPage(() => import('@/components/progress/WeekScoreCharts').then((m) => m.DailyScoresChart))
@@ -326,6 +327,24 @@ function ReviewBody({ data, today }: { data: WeeklyReviewResponse; today: string
             emptyHint="Shows once your meals have fibre info"
             previous={before(p.avgFiberG, hasLastWeek, ' g')}
             delta={<Delta diff={d.avgFiberG} unit=" g" digits={1} />}
+          />
+          <StatCard
+            icon={GlassWater}
+            tone="outdoor"
+            label="Average water"
+            value={w.avgWaterMl === null ? null : `${litres(w.avgWaterMl)} / day`}
+            emptyHint="Tap “+1 glass” on Today"
+            previous={p.daysTracked > 0 && p.avgWaterMl !== null ? litres(p.avgWaterMl) : null}
+            delta={<Delta diff={d.avgWaterMl === null ? null : d.avgWaterMl / 1000} unit=" L" digits={2} />}
+          />
+          <StatCard
+            icon={GlassWater}
+            tone="outdoor"
+            label={`Water goal (${litres(data.waterGoalMl)})`}
+            value={w.waterDays === 0 ? null : `${w.waterGoalDays} of ${w.daysTracked} ${w.daysTracked === 1 ? 'day' : 'days'}`}
+            emptyHint="Reached days show here"
+            previous={p.daysTracked > 0 && p.waterDays > 0 ? `${p.waterGoalDays} of ${p.daysTracked}` : null}
+            delta={<Delta diff={d.waterGoalDays} unit={Math.abs(d.waterGoalDays ?? 0) === 1 ? ' day' : ' days'} />}
           />
           <StatCard
             icon={CalendarCheck}

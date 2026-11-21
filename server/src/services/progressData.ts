@@ -1,6 +1,6 @@
 // The weekly review and insights, shared by the progress routes and the AI weekly reflection.
 import { CHECKED_IN, DailyEntryModel } from "../models/DailyEntry";
-import { journeyStart, loadDays, loadUserContext, scoresFor, toScoreEntry } from "./dayData";
+import { journeyStart, loadDays, loadUserContext, loadWater, scoresFor, toScoreEntry } from "./dayData";
 import { clampFrom } from "../utils/journey";
 import { addDays, listDates, todayInTimezone } from "../utils/dates";
 import { findInsights, type InsightDay } from "../utils/insights";
@@ -17,9 +17,11 @@ const minutes = (items: { durationMin?: number | null; minutes?: number | null }
 export async function computeWeeklyReview(userId: string | undefined, weekEnding: string) {
   const { current, previous } = weekRanges(weekEnding);
   const start = await journeyStart(userId);
-  const [ctx, { entries, mealKcal, mealFiber }] = await Promise.all([
+  const [ctx, { entries, mealKcal, mealFiber }, water] = await Promise.all([
     loadUserContext(userId),
     loadDays(userId, previous.from, current.to, start),
+    // Water counts on any day (even one with nothing else logged)
+    loadWater(userId, clampFrom(previous.from, start), current.to),
   ]);
 
   // Only days from the journey start count; earlier days are neither logged nor "missed"
@@ -46,17 +48,20 @@ export async function computeWeeklyReview(userId: string | undefined, weekEnding
         learningMinutes: entry ? minutes(entry.learnings) : 0,
         kcal: mealKcal.get(date) ?? null,
         fiberG: mealFiber.get(date) ?? null,
+        waterMl: water.get(date) ?? 0,
       };
     });
 
   const days = reviewDays(current.from, current.to);
-  const thisWeek = summariseWeek(days, current.from, current.to);
-  const lastWeek = summariseWeek(reviewDays(previous.from, previous.to), previous.from, previous.to);
+  const waterGoalMl = ctx.goals.waterGoalMl;
+  const thisWeek = summariseWeek(days, current.from, current.to, waterGoalMl);
+  const lastWeek = summariseWeek(reviewDays(previous.from, previous.to), previous.from, previous.to, waterGoalMl);
   const differences = weekDifferences(thisWeek, lastWeek);
 
   return {
     weekEnding,
     calorieTarget: ctx.summary?.calorieTarget ?? null,
+    waterGoalMl,
     thisWeek,
     lastWeek,
     differences,

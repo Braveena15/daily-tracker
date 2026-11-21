@@ -1,6 +1,6 @@
 // A read-only view of one day (opened from History): the summary, timeline and graphs.
 import { Link, Navigate, useParams } from 'react-router-dom'
-import { Footprints, Flame, ListOrdered, Moon, Scale, SquarePen, Smile, Target, type LucideIcon } from 'lucide-react'
+import { Footprints, Flame, GlassWater, ListOrdered, Moon, Scale, SquarePen, Smile, Target, type LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -20,6 +20,7 @@ import { intentionsDone } from '@/lib/purpose'
 import { EditableUntilLabel, LockedLabel, PurposeDayView } from '@/components/purpose/PurposeDayView'
 import type { Tone } from '@/lib/tones'
 import type { ReactNode } from 'react'
+import { litres } from '@/lib/water'
 
 export function DayDetail() {
   const { date } = useParams()
@@ -72,7 +73,7 @@ function DayBody({ day }: { day: DayResponse }) {
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <Stat
           icon={Smile}
           tone="mental"
@@ -95,6 +96,7 @@ function DayBody({ day }: { day: DayResponse }) {
         <Stat icon={Footprints} tone="physical" label="Steps" value={entry?.steps != null ? entry.steps.toLocaleString() : '—'} />
         <Stat icon={Flame} tone="physical" label="Active calories" value={entry?.activeCalories != null ? `${entry.activeCalories.toLocaleString()} kcal` : '—'} />
         <Stat icon={Scale} tone="primary" label="Weight" value={entry?.weightKg != null ? `${entry.weightKg} kg` : '—'} />
+        <Stat icon={GlassWater} tone="outdoor" label="Water" value={day.waterTotalMl ? litres(day.waterTotalMl) : '—'} />
       </div>
 
       {entry?.dailyPurpose && (
