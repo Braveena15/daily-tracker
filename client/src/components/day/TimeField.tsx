@@ -27,7 +27,7 @@ export function TimeField({ input }: { input: TimeInput }) {
         <Input
           id={id}
           type="time"
-          className="w-32"
+          className="w-36"
           required={!input.isToday}
           max={input.isToday ? nowHHmm() : undefined}
           value={input.value}

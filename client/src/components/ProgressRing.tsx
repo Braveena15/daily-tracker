@@ -26,7 +26,7 @@ export function ProgressRing({
   const fraction = max > 0 ? Math.min(Math.max(value / max, 0), 1) : 0
 
   return (
-    <div className="relative grid shrink-0 place-items-center" style={{ width: size, height: size }} role="img" aria-label={label}>
+    <div className="relative grid shrink-0 place-items-center" style={{ width: size, height: size }} {...(label ? { role: 'img', 'aria-label': label } : { 'aria-hidden': true })}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90" aria-hidden>
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke} className="stroke-muted" />
         <circle

@@ -205,6 +205,7 @@ function Editor({ id }: { id: string | undefined }) {
         </ErrorNotice>
       ) : (
         <article className="space-y-4">
+          <h1 className="sr-only">{id ? 'Diary entry' : 'New diary entry'}</h1>
           <label className="block text-sm text-muted-foreground">
             <span className="sr-only">Date</span>
             <input

@@ -16,7 +16,7 @@ import {
   YAxis,
 } from 'recharts'
 import { Button } from '@/components/ui/button'
-import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   ChartContainer,
   ChartLegend,
@@ -67,15 +67,16 @@ function ChartCard({
 }) {
   return (
     <Card>
-      <CardHeader>
-        <div className="flex min-w-0 items-center gap-3">
+      {/* The action (e.g. the range picker) wraps under the title on narrow phones instead of squeezing it */}
+      <CardHeader className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-1 basis-52 items-center gap-3">
           <IconBubble icon={icon} />
           <div className="min-w-0">
             <CardTitle className="text-lg font-semibold">{title}</CardTitle>
             {description && <CardDescription>{description}</CardDescription>}
           </div>
         </div>
-        {action && <CardAction>{action}</CardAction>}
+        {action && <div className="shrink-0">{action}</div>}
       </CardHeader>
       <CardContent className="space-y-3">{children}</CardContent>
     </Card>
@@ -109,7 +110,7 @@ export function ScoreTrendCard() {
         <Tabs value={String(range)} onValueChange={(v) => setRange(Number(v) as Range)}>
           <TabsList className="h-9 rounded-xl bg-muted p-1" aria-label="Time range">
             {RANGES.map((r) => (
-              <TabsTrigger key={r} value={String(r)} className="rounded-lg px-2.5">
+              <TabsTrigger key={r} value={String(r)} className="rounded-lg px-2.5" aria-controls={undefined}>
                 {r}d
               </TabsTrigger>
             ))}

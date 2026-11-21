@@ -24,7 +24,7 @@ export function DateBar({ date, today, onChange }: { date: string; today: string
             type="button"
             variant="ghost"
             className="h-auto min-w-0 flex-col gap-0 rounded-xl px-4 py-1.5"
-            aria-label={`Choose a date, showing ${subtitle}`}
+            aria-label={`${title}${title === subtitle ? '' : `, ${subtitle}`}. Choose a date`}
           >
             <span className="font-heading text-lg font-semibold">{title}</span>
             <span className="flex items-center gap-1 text-xs font-normal text-muted-foreground">

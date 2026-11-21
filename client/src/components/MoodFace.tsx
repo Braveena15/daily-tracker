@@ -25,7 +25,7 @@ export function EnergyLabel({ energy, className }: { energy: number; className?:
   const band = energyBand(energy)
   const Icon = band.icon
   return (
-    <span className={cn('inline-flex items-center gap-1.5', className)}>
+    <span className={cn('inline-flex items-center gap-1.5 whitespace-nowrap', className)}>
       <Icon className="size-4 shrink-0 text-learning-foreground" aria-hidden />
       {band.word} <span className="text-muted-foreground tabular-nums">{energy}/10</span>
     </span>

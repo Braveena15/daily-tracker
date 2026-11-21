@@ -55,9 +55,12 @@ function CopyBox({ label, value, multiline = false }: { label: string; value: st
       <div className="flex items-start gap-2 rounded-xl border bg-muted/60 p-2 pl-3">
         <pre
           ref={ref}
+          tabIndex={0}
+          role="region"
+          aria-label={label}
           className={
             multiline
-              ? 'min-w-0 flex-1 overflow-x-auto py-1 font-mono text-xs leading-relaxed'
+              ? 'min-w-0 flex-1 overflow-x-auto rounded-md py-1 font-mono text-xs leading-relaxed outline-none focus-visible:ring-3 focus-visible:ring-ring/50'
               : 'min-w-0 flex-1 overflow-x-auto py-1.5 font-mono text-sm break-all whitespace-pre-wrap'
           }
         >

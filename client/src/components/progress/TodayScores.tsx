@@ -86,12 +86,14 @@ export function TodayScores() {
                         setOpen(area.key)
                       }}
                       className="flex flex-col items-center gap-1.5 rounded-2xl p-1.5 transition-all outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-95"
-                      aria-label={`${area.label} score ${score} out of 100. Show breakdown`}
                     >
+                      <span className="sr-only">
+                        {area.label} score {score} out of 100. Show breakdown
+                      </span>
                       <ProgressRing value={score} max={100} size={84} stroke={9} className={area.ringClass} label="">
                         <span className="font-heading text-xl font-semibold tabular-nums">{score}</span>
                       </ProgressRing>
-                      <span className="flex items-center gap-1 text-xs font-medium">
+                      <span className="flex items-center gap-1 text-xs font-medium" aria-hidden>
                         <area.icon className={cn('size-3.5', ICON_CLASS[area.key])} aria-hidden />
                         {area.label}
                       </span>
