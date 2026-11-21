@@ -75,29 +75,82 @@ export const MAX_INTENTIONS = 5;
 /** A day holds up to 5 intentions. */
 export const canAddIntention = (count: number) => count < MAX_INTENTIONS;
 
-// ---------- Purpose statement history ----------
+// ---------- Purpose versions ----------
 
-export type PurposeVersion = { statement: string; coreValues: string[]; savedAt: Date };
+export type Goal = { title: string; why: string };
+export type PurposeContent = { purposeStatement: string; coreValues: string[]; longTermGoals: Goal[] };
+export type StoredPurpose = {
+  purposeStatement?: string | null;
+  coreValues?: string[] | null;
+  longTermGoals?: { title: string; why?: string | null }[] | null;
+  updatedAt?: Date | string | null;
+} | null;
 
-/**
- * When the purpose statement changes, the previous version to keep (encrypted); otherwise null.
- * An empty previous statement isn't worth keeping.
- */
-export function previousVersion(
-  crypto: FieldCrypto,
-  previous: { purposeStatement?: string | null; coreValues?: string[] | null } | null,
-  nextStatement: string,
-  now: Date,
-): PurposeVersion | null {
-  const before = (previous?.purposeStatement ?? "").trim();
-  if (!before || before === nextStatement.trim()) return null;
-  return { statement: crypto.encrypt(before), coreValues: [...(previous?.coreValues ?? [])], savedAt: now };
+/** The purpose as the API returns it (with defaults for anything missing). */
+export function toPurposeContent(doc: StoredPurpose): PurposeContent {
+  return {
+    purposeStatement: doc?.purposeStatement ?? "",
+    coreValues: [...(doc?.coreValues ?? [])],
+    longTermGoals: (doc?.longTermGoals ?? []).map((g) => ({ title: g.title, why: g.why ?? "" })),
+  };
 }
 
-/** The history for the API: decrypted, newest first. */
-export function openHistory(crypto: FieldCrypto, history: { statement: string; coreValues?: string[] | null; savedAt: Date | string }[]) {
+/** True when nothing has been written yet. */
+export const isEmptyPurpose = (p: PurposeContent) =>
+  p.purposeStatement.trim() === "" && p.coreValues.length === 0 && p.longTermGoals.length === 0;
+
+/** True when the statement, values or goals differ (ignoring surrounding spaces). */
+export function purposeChanged(a: PurposeContent, b: PurposeContent): boolean {
+  const norm = (p: PurposeContent) =>
+    JSON.stringify([p.purposeStatement.trim(), p.coreValues, p.longTermGoals.map((g) => [g.title.trim(), g.why.trim()])]);
+  return norm(a) !== norm(b);
+}
+
+export type PurposeVersion = { statement: string; coreValues: string[]; goals: string; savedAt: Date; replacedAt: Date };
+
+/**
+ * When a save changes the purpose, the version it replaces (statement and goals encrypted), dated
+ * when that version was saved. Null when nothing changed or nothing had been saved before.
+ */
+export function previousVersion(crypto: FieldCrypto, previous: StoredPurpose, next: PurposeContent, now: Date): PurposeVersion | null {
+  const before = toPurposeContent(previous);
+  if (isEmptyPurpose(before) || !purposeChanged(before, next)) return null;
+  return {
+    statement: crypto.encrypt(before.purposeStatement.trim()),
+    coreValues: before.coreValues,
+    goals: crypto.encrypt(JSON.stringify(before.longTermGoals)),
+    savedAt: previous?.updatedAt ? new Date(previous.updatedAt) : now,
+    replacedAt: now,
+  };
+}
+
+export type OpenedVersion = { statement: string; coreValues: string[]; goals: Goal[]; savedAt: string };
+
+function openGoals(crypto: FieldCrypto, stored: string | null | undefined): Goal[] {
+  const json = crypto.tryDecrypt(stored);
+  if (!json) return [];
+  try {
+    const goals = JSON.parse(json) as unknown;
+    return Array.isArray(goals)
+      ? goals.map((g: { title?: unknown; why?: unknown }) => ({ title: String(g.title ?? ""), why: String(g.why ?? "") }))
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Earlier versions for the API: decrypted, newest first. Older entries have no goals. */
+export function openHistory(
+  crypto: FieldCrypto,
+  history: { statement: string; coreValues?: string[] | null; goals?: string | null; savedAt: Date | string }[],
+): OpenedVersion[] {
   return [...history]
-    .map((h) => ({ statement: crypto.tryDecrypt(h.statement) ?? "", coreValues: [...(h.coreValues ?? [])], savedAt: new Date(h.savedAt).toISOString() }))
+    .map((h) => ({
+      statement: crypto.tryDecrypt(h.statement) ?? "",
+      coreValues: [...(h.coreValues ?? [])],
+      goals: openGoals(crypto, h.goals),
+      savedAt: new Date(h.savedAt).toISOString(),
+    }))
     .sort((a, b) => b.savedAt.localeCompare(a.savedAt));
 }
 

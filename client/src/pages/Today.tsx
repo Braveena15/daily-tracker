@@ -1,7 +1,7 @@
 // The day as a timeline: quick mood check-ins and small add forms for each kind of entry.
 // Each form saves on its own and clears for the next entry; nothing is overwritten.
-import type { ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, type ReactNode } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { BookOpen, Brain, Dumbbell, Feather, ListOrdered, Moon, Smile, Sparkles, Sun, type LucideIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card, CardContent } from '@/components/ui/card'
@@ -74,6 +74,15 @@ const minutesText = (min?: number) => (min ? ` · ${min} min` : '')
 
 function DayEditor({ date, today }: { date: string; today: string }) {
   const { day, error, ...actions } = useDay(date)
+  const { hash } = useLocation()
+  const loaded = day !== null
+
+  // /today#purpose (e.g. from the Purpose page) scrolls to the purpose card once the day has loaded
+  useEffect(() => {
+    if (!loaded || hash !== '#purpose') return
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    document.getElementById('purpose')?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' })
+  }, [loaded, hash])
 
   if (error) return <ErrorNotice>{error}</ErrorNotice>
   if (!day) return <EditorSkeleton />
@@ -86,7 +95,9 @@ function DayEditor({ date, today }: { date: string; today: string }) {
   return (
     <div className="space-y-4 md:space-y-6">
       {/* key: start fresh when the saved purpose changes from another tab or device */}
-      <PurposeCard key={entry?.dailyPurpose?.setAt ?? 'none'} purpose={entry?.dailyPurpose ?? null} isToday={isToday} actions={actions} />
+      <div id="purpose" className="scroll-mt-4">
+        <PurposeCard key={entry?.dailyPurpose?.setAt ?? 'none'} purpose={entry?.dailyPurpose ?? null} isToday={isToday} actions={actions} />
+      </div>
 
       <Section
         title="Quick mood check-in"

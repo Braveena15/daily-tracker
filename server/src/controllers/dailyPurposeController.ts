@@ -8,7 +8,7 @@ import { PurposeModel } from "../models/Mind";
 import { journeyStart } from "../services/journey";
 import { AppError } from "../utils/AppError";
 import { addDays, daysBetween, isValidDateString, todayInTimezone } from "../utils/dates";
-import { canAddIntention, hasDailyPurpose, openDailyPurpose, openHistory, pickFocusValues, purposeStats, sealText, type StoredDailyPurpose } from "../utils/dailyPurpose";
+import { canAddIntention, hasDailyPurpose, isEmptyPurpose, openDailyPurpose, toPurposeContent, openHistory, pickFocusValues, purposeStats, sealText, type StoredDailyPurpose } from "../utils/dailyPurpose";
 import { clampFrom } from "../utils/journey";
 import { dayResponse, writableDate, type LeanDay } from "./entriesController";
 import { dailyPurposeSchema, intentionPatchSchema, intentionSchema, reflectionSchema } from "../validation/purposeSchema";
@@ -149,8 +149,21 @@ export async function listPurposeDays(req: Request, res: Response): Promise<void
   res.json({ from, to, journeyStartDate: start, days, stats: purposeStats(days) });
 }
 
-/** GET /api/purpose/history — earlier versions of the purpose statement, newest first. */
+/** GET /api/purpose/history — the current version, then earlier versions newest first. */
 export async function getPurposeHistory(req: Request, res: Response): Promise<void> {
-  const purpose = await PurposeModel.findOne({ userId: req.userId }).select("purposeHistory").lean();
-  res.json({ history: openHistory(fieldCrypto, purpose?.purposeHistory ?? []) });
+  const purpose = await PurposeModel.findOne({ userId: req.userId }).lean();
+  const content = toPurposeContent(purpose);
+  res.json({
+    // null until something has been saved
+    current:
+      purpose && !isEmptyPurpose(content)
+        ? {
+            statement: content.purposeStatement,
+            coreValues: content.coreValues,
+            goals: content.longTermGoals,
+            savedAt: new Date(purpose.updatedAt).toISOString(),
+          }
+        : null,
+    history: openHistory(fieldCrypto, purpose?.purposeHistory ?? []),
+  });
 }

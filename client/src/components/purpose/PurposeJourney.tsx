@@ -1,14 +1,24 @@
 // The Purpose page's look back: stats, a timeline of daily purposes and how the purpose statement evolved.
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { ArrowRight, History as HistoryIcon, Target } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState, ErrorNotice } from '@/components/StatusViews'
 import { PurposeDayView } from '@/components/purpose/PurposeDayView'
 import { useFetch } from '@/hooks/useFetch'
 import { addDays, formatDate, relativeDay, todayInTimezone } from '@/lib/dates'
-import { intentionsDone, type PurposeDaysResponse, type PurposeHistoryResponse, type PurposeStats } from '@/lib/purpose'
+import {
+  intentionsDone,
+  savedAtLabel,
+  type PurposeDaysResponse,
+  type PurposeHistoryResponse,
+  type PurposeStats,
+  type PurposeVersion,
+} from '@/lib/purpose'
+import { cn } from '@/lib/utils'
+
 
 // The server starts the list at the journey start
 const DAYS = 365
@@ -44,6 +54,7 @@ export function PurposeStatsRow({ stats }: { stats: PurposeStats }) {
 }
 
 export function DailyPurposes() {
+  const navigate = useNavigate()
   const today = todayInTimezone()
   const { data, error } = useFetch<PurposeDaysResponse>(`/purpose/days?from=${addDays(today, -(DAYS - 1))}&to=${today}`)
 
@@ -59,8 +70,19 @@ export function DailyPurposes() {
         ) : !data ? (
           <Skeleton className="h-32 w-full rounded-xl" />
         ) : data.days.length === 0 ? (
-          <EmptyState icon={Target} tone="mental" title="No daily purposes yet" className="py-6">
-            Set today's purpose at the top of the Today page and it will appear here.
+          <EmptyState
+            icon={Target}
+            tone="mental"
+            title="No daily purposes yet"
+            className="py-6"
+            action={
+              // #purpose: the Today page scrolls to its purpose card
+              <Button onClick={() => navigate('/today#purpose')}>
+                <Target aria-hidden /> Set today's purpose
+              </Button>
+            }
+          >
+            Set a purpose for today at the top of the Today page
           </EmptyState>
         ) : (
           <>
@@ -101,29 +123,58 @@ export function PurposeEvolution() {
     <Card>
       <CardHeader>
         <CardTitle className="text-lg font-semibold">How my purpose evolved</CardTitle>
-        <CardDescription>Earlier versions of your purpose statement, kept each time you change it.</CardDescription>
+        <CardDescription>Your purpose now, and the versions it replaced.</CardDescription>
       </CardHeader>
       <CardContent>
         {error ? (
           <ErrorNotice>{error}</ErrorNotice>
         ) : !data ? (
           <Skeleton className="h-20 w-full rounded-xl" />
-        ) : data.history.length === 0 ? (
-          <EmptyState icon={HistoryIcon} title="Just one version so far" className="py-6">
-            When you change your purpose statement, the earlier one is saved here.
+        ) : !data.current && data.history.length === 0 ? (
+          <EmptyState icon={HistoryIcon} title="Nothing saved yet" className="py-6">
+            Each time you save your purpose, the version it replaces is kept here.
           </EmptyState>
         ) : (
-          <ol className="space-y-3">
+          <ol className="space-y-4">
+            {data.current && <VersionItem version={data.current} label={`Current · saved ${savedAtLabel(data.current.savedAt)}`} current />}
             {data.history.map((h) => (
-              <li key={h.savedAt} className="border-l-2 border-mental/40 pl-3">
-                <p className="text-xs text-muted-foreground">Until {formatDate(h.savedAt.slice(0, 10))}</p>
-                <p className="font-serif text-base leading-snug">{h.statement}</p>
-                {h.coreValues.length > 0 && <p className="mt-0.5 text-xs text-muted-foreground">{h.coreValues.join(' · ')}</p>}
-              </li>
+              <VersionItem key={h.savedAt} version={h} label={`Saved ${savedAtLabel(h.savedAt)}`} />
             ))}
+            {data.history.length === 0 && (
+              <li className="text-sm text-muted-foreground">When you change your purpose, this version moves down here.</li>
+            )}
           </ol>
         )}
       </CardContent>
     </Card>
+  )
+}
+
+/** One version: date, statement, values and goals. The current one stands out. */
+function VersionItem({ version, label, current = false }: { version: PurposeVersion; label: string; current?: boolean }) {
+  return (
+    <li className={cn('space-y-1.5 border-l-2 pl-3', current ? 'border-primary' : 'border-mental/40')}>
+      <p className={cn('text-xs', current ? 'font-semibold text-primary' : 'text-muted-foreground')}>{label}</p>
+      {version.statement && <p className={cn('font-serif leading-snug', current ? 'text-lg' : 'text-base')}>{version.statement}</p>}
+      {version.coreValues.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {version.coreValues.map((v) => (
+            <Badge key={v} variant="secondary" className="bg-mental-soft text-mental-foreground">
+              {v}
+            </Badge>
+          ))}
+        </div>
+      )}
+      {version.goals.length > 0 && (
+        <ul className="space-y-0.5 text-sm">
+          {version.goals.map((g, i) => (
+            <li key={`${g.title}-${i}`}>
+              <span className="font-medium">{g.title}</span>
+              {g.why && <span className="text-muted-foreground"> · {g.why}</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </li>
   )
 }

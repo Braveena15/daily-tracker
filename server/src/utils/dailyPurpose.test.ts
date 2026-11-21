@@ -6,8 +6,11 @@ import {
   hasDailyPurpose,
   openDailyPurpose,
   openHistory,
+  isEmptyPurpose,
   pickFocusValues,
   previousVersion,
+  purposeChanged,
+  toPurposeContent,
   purposeFacts,
   purposeStats,
   purposeText,
@@ -17,6 +20,7 @@ import {
 import { clampFrom } from "./journey";
 import { safeValueWord } from "../ai/buildContext";
 import { ENTRY_LIMITS } from "../models/DailyEntry";
+import { purposeSchema } from "../validation/mindSchema";
 import { dailyPurposeSchema, intentionPatchSchema, intentionSchema, reflectionSchema } from "../validation/purposeSchema";
 
 const crypto = createFieldCrypto("a".repeat(64));
@@ -108,23 +112,63 @@ describe("limits", () => {
   });
 });
 
+describe("saving the main purpose", () => {
+  it("keeps the statement, core values and long-term goals through a save and reload", () => {
+    const body = purposeSchema.parse({
+      purposeStatement: "  Be healthy and present for my family  ",
+      coreValues: ["Family", "Health", "Family"],
+      longTermGoals: [{ title: "Run a 10k", why: "To feel strong" }, { title: "Learn Tamil" }],
+    });
+    // What PUT stores ($set body) is what GET returns
+    const stored = { ...body, updatedAt: at };
+    expect(toPurposeContent(stored)).toEqual({
+      purposeStatement: "Be healthy and present for my family",
+      coreValues: ["Family", "Health"],
+      longTermGoals: [
+        { title: "Run a 10k", why: "To feel strong" },
+        { title: "Learn Tamil", why: "" },
+      ],
+    });
+  });
+
+  it("returns an empty purpose before anything is saved", () => {
+    expect(toPurposeContent(null)).toEqual({ purposeStatement: "", coreValues: [], longTermGoals: [] });
+    expect(isEmptyPurpose(toPurposeContent(null))).toBe(true);
+  });
+});
+
 describe("purpose history", () => {
-  it("keeps the previous statement when it changes", () => {
-    const version = previousVersion(crypto, { purposeStatement: "Old purpose", coreValues: ["Growth"] }, "New purpose", at)!;
-    expect(version.statement).not.toContain("Old purpose");
-    expect(openHistory(crypto, [version])).toEqual([{ statement: "Old purpose", coreValues: ["Growth"], savedAt: at.toISOString() }]);
+  const v1 = { purposeStatement: "Old purpose", coreValues: ["Growth"], longTermGoals: [{ title: "Run 10k", why: "Health" }], updatedAt: new Date("2026-10-01T05:00:00Z") };
+  const next = (changes: Partial<typeof v1> = {}) => ({ ...toPurposeContent(v1), ...changes });
+
+  it("keeps the replaced version, encrypted, dated when it was saved", () => {
+    const version = previousVersion(crypto, v1, next({ purposeStatement: "New purpose" }), at)!;
+    expect(JSON.stringify(version)).not.toMatch(/Old purpose|Run 10k|Health/);
+    expect(version.savedAt).toEqual(v1.updatedAt);
+    expect(version.replacedAt).toEqual(at);
+    expect(openHistory(crypto, [version])).toEqual([
+      { statement: "Old purpose", coreValues: ["Growth"], goals: [{ title: "Run 10k", why: "Health" }], savedAt: v1.updatedAt.toISOString() },
+    ]);
   });
 
-  it("keeps nothing when the statement is unchanged or was empty", () => {
-    expect(previousVersion(crypto, { purposeStatement: "Same " }, "Same", at)).toBeNull();
-    expect(previousVersion(crypto, { purposeStatement: "" }, "First purpose", at)).toBeNull();
-    expect(previousVersion(crypto, null, "First purpose", at)).toBeNull();
+  it("makes a new version when only the values or goals change", () => {
+    expect(previousVersion(crypto, v1, next({ coreValues: ["Growth", "Calm"] }), at)).not.toBeNull();
+    expect(previousVersion(crypto, v1, next({ longTermGoals: [] }), at)).not.toBeNull();
   });
 
-  it("lists versions newest first", () => {
-    const older = previousVersion(crypto, { purposeStatement: "v1" }, "v2", new Date("2026-10-01T00:00:00Z"))!;
-    const newer = previousVersion(crypto, { purposeStatement: "v2" }, "v3", new Date("2026-11-01T00:00:00Z"))!;
-    expect(openHistory(crypto, [older, newer]).map((h) => h.statement)).toEqual(["v2", "v1"]);
+  it("keeps nothing when nothing changed, or nothing was saved before", () => {
+    expect(previousVersion(crypto, v1, next({ purposeStatement: " Old purpose " }), at)).toBeNull();
+    expect(purposeChanged(toPurposeContent(v1), next())).toBe(false);
+    expect(previousVersion(crypto, null, next({ purposeStatement: "First" }), at)).toBeNull();
+    expect(previousVersion(crypto, { purposeStatement: "", coreValues: [], longTermGoals: [] }, next(), at)).toBeNull();
+  });
+
+  it("lists versions newest first, and reads older entries without goals", () => {
+    const older = { statement: crypto.encrypt("v1"), coreValues: [], savedAt: new Date("2026-10-01T00:00:00Z") };
+    const newer = previousVersion(crypto, { ...v1, purposeStatement: "v2", updatedAt: new Date("2026-11-01T00:00:00Z") }, next({ purposeStatement: "v3" }), at)!;
+    const opened = openHistory(crypto, [older, newer]);
+    expect(opened.map((h) => h.statement)).toEqual(["v2", "v1"]);
+    expect(opened[1]!.goals).toEqual([]);
   });
 });
 

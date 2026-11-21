@@ -110,11 +110,18 @@ const purposeSchema = new Schema(
       ],
       default: [],
     },
-    // Earlier versions of the purpose statement, oldest first (statement encrypted)
+    // Earlier versions of the purpose, oldest first. The statement and goals (as JSON) are encrypted.
+    // savedAt: when that version was saved; replacedAt: when a newer one replaced it.
     purposeHistory: {
       type: [
         new Schema(
-          { statement: { type: String, required: true }, coreValues: { type: [String], default: [] }, savedAt: { type: Date, required: true } },
+          {
+            statement: { type: String, required: true },
+            coreValues: { type: [String], default: [] },
+            goals: String,
+            savedAt: { type: Date, required: true },
+            replacedAt: Date,
+          },
           { _id: false },
         ),
       ],

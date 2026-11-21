@@ -5,7 +5,15 @@ import { fieldCrypto } from "../config/encryption";
 import { DailyEntryModel } from "../models/DailyEntry";
 import { dayMood } from "../utils/timeline";
 import { todayInTimezone } from "../utils/dates";
-import { hasDailyPurpose, openDailyPurpose, previousVersion, type StoredDailyPurpose } from "../utils/dailyPurpose";
+import {
+  hasDailyPurpose,
+  openDailyPurpose,
+  previousVersion,
+  purposeChanged,
+  toPurposeContent,
+  type StoredDailyPurpose,
+  type StoredPurpose,
+} from "../utils/dailyPurpose";
 import { PurposeModel, QuoteModel, ThoughtLogModel, VideoModel } from "../models/Mind";
 import { AppError } from "../utils/AppError";
 import { BUILT_IN_QUOTES } from "../utils/builtInQuotes";
@@ -16,27 +24,27 @@ import { purposeSchema, quoteSchema, videoSchema } from "../validation/mindSchem
 
 // ---------- Purpose ----------
 
-const EMPTY_PURPOSE = { purposeStatement: "", coreValues: [] as string[], longTermGoals: [] as { title: string; why: string }[] };
-
-function toPurpose(doc: { purposeStatement?: string | null; coreValues: string[]; longTermGoals: { title: string; why?: string | null }[]; updatedAt?: Date } | null) {
-  if (!doc) return { ...EMPTY_PURPOSE, updatedAt: null };
-  return {
-    purposeStatement: doc.purposeStatement ?? "",
-    coreValues: doc.coreValues,
-    longTermGoals: doc.longTermGoals.map((g) => ({ title: g.title, why: g.why ?? "" })),
-    updatedAt: doc.updatedAt ?? null,
-  };
+function toPurpose(doc: StoredPurpose) {
+  return { ...toPurposeContent(doc), updatedAt: doc?.updatedAt ?? null };
 }
 
 export async function getPurpose(req: Request, res: Response): Promise<void> {
   res.json({ purpose: toPurpose(await PurposeModel.findOne({ userId: req.userId }).lean()) });
 }
 
-/** PUT /api/purpose — when the statement changes, the previous one is kept in purposeHistory (encrypted). */
+/**
+ * PUT /api/purpose — saves the statement, core values and long-term goals. When any of them change,
+ * the version being replaced is kept in purposeHistory (statement and goals encrypted).
+ */
 export async function savePurpose(req: Request, res: Response): Promise<void> {
   const body = purposeSchema.parse(req.body ?? {});
-  const before = await PurposeModel.findOne({ userId: req.userId }).select("purposeStatement coreValues").lean();
-  const version = previousVersion(fieldCrypto, before, body.purposeStatement, new Date());
+  const before = await PurposeModel.findOne({ userId: req.userId }).select("purposeStatement coreValues longTermGoals updatedAt").lean();
+  // Saving the same purpose again changes nothing (not even "last updated")
+  if (before && !purposeChanged(toPurposeContent(before), body)) {
+    res.json({ purpose: toPurpose(await PurposeModel.findOne({ userId: req.userId }).lean()) });
+    return;
+  }
+  const version = previousVersion(fieldCrypto, before, body, new Date());
   const doc = await PurposeModel.findOneAndUpdate(
     { userId: req.userId },
     version ? { $set: body, $push: { purposeHistory: version } } : { $set: body },

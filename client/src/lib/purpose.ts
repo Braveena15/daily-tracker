@@ -1,4 +1,6 @@
 // Today's purpose types, matching the server's /api/entries/:date/purpose and /api/purpose/days routes.
+import { dayOf, timeOf } from '@/lib/healthSync'
+import { journeyDate } from '@/lib/journey'
 
 export type Intention = { id: string; text: string; done: boolean; doneAt: string | null }
 
@@ -26,7 +28,9 @@ export type PurposeStats = {
 }
 
 export type PurposeDaysResponse = { from: string; to: string; journeyStartDate: string; days: PurposeDay[]; stats: PurposeStats }
-export type PurposeHistoryResponse = { history: { statement: string; coreValues: string[]; savedAt: string }[] }
+export type PurposeVersion = { statement: string; coreValues: string[]; goals: { title: string; why: string }[]; savedAt: string }
+/** current: the saved purpose (null until something is saved); history: earlier versions, newest first */
+export type PurposeHistoryResponse = { current: PurposeVersion | null; history: PurposeVersion[] }
 
 export const MAX_INTENTIONS = 5
 export const MAX_FOCUS_VALUES = 3
@@ -42,3 +46,6 @@ export const firstLine = (text: string) => text.split('\n')[0]?.trim() ?? ''
 
 /** "★★★★☆" */
 export const stars = (rating: number) => '★'.repeat(rating) + '☆'.repeat(5 - rating)
+
+/** "Sat, Nov 21 · 11:55" in the app's timezone. */
+export const savedAtLabel = (iso: string) => `${journeyDate(dayOf(iso))} · ${timeOf(iso)}`
