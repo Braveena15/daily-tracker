@@ -1,6 +1,6 @@
 // The Purpose page's look back: stats, a timeline of daily purposes and how the purpose statement evolved.
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowRight, History as HistoryIcon, Target } from 'lucide-react'
+import { ArrowRight, History as HistoryIcon, Pencil, Target } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -57,7 +57,14 @@ export function PurposeStatsRow({ stats }: { stats: PurposeStats }) {
 export function DailyPurposes({ onSetToday }: { onSetToday?: () => void } = {}) {
   const navigate = useNavigate()
   const today = todayInTimezone()
-  const { data, error } = useFetch<PurposeDaysResponse>(`/purpose/days?from=${addDays(today, -(DAYS - 1))}&to=${today}`)
+  // The server decides what "today" is (Asia/Colombo) and always includes it
+  const { data, error } = useFetch<PurposeDaysResponse>(`/purpose/days?from=${addDays(today, -(DAYS - 1))}`)
+  const setToday = () => (onSetToday ? onSetToday() : navigate('/today#purpose'))
+  const setTodayButton = (
+    <Button onClick={setToday}>
+      <Target aria-hidden /> Set today's purpose
+    </Button>
+  )
 
   return (
     <Card>
@@ -70,26 +77,40 @@ export function DailyPurposes({ onSetToday }: { onSetToday?: () => void } = {}) 
           <ErrorNotice>{error}</ErrorNotice>
         ) : !data ? (
           <Skeleton className="h-32 w-full rounded-xl" />
-        ) : data.days.length === 0 ? (
-          <EmptyState
-            icon={Target}
-            tone="mental"
-            title="No daily purposes yet"
-            className="py-6"
-            action={
-              // #purpose: the Today page scrolls to its purpose card
-              <Button onClick={() => (onSetToday ? onSetToday() : navigate('/today#purpose'))}>
-                <Target aria-hidden /> Set today's purpose
-              </Button>
-            }
-          >
+        ) : data.isEmpty ? (
+          // Only when there are no daily purposes at all
+          <EmptyState icon={Target} tone="mental" title="No daily purposes yet" className="py-6" action={setTodayButton}>
             {onSetToday ? 'Set a purpose for today above, or at the top of the Today page' : 'Set a purpose for today at the top of the Today page'}
           </EmptyState>
         ) : (
           <>
             <PurposeStatsRow stats={data.stats} />
             <ol className="space-y-3">
-              {data.days.map((day) => (
+              {data.today ? (
+                // Today first: editable until midnight
+                <li className="space-y-2 rounded-2xl bg-mental-soft/50 p-4 ring-1 ring-mental/20">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                      <span className="font-heading font-semibold">Today</span>
+                      <EditableUntilLabel />
+                    </p>
+                    <Button asChild variant="outline" size="sm">
+                      <Link to="/today#purpose">
+                        <Pencil aria-hidden /> Edit
+                      </Link>
+                    </Button>
+                  </div>
+                  {intentionsDone(data.today) && <p className="text-xs text-muted-foreground">{intentionsDone(data.today)} intentions done</p>}
+                  <PurposeDayView purpose={data.today} />
+                </li>
+              ) : (
+                // Past days exist but today has no purpose yet
+                <li className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed p-4">
+                  <p className="text-sm text-muted-foreground">No purpose set for today yet.</p>
+                  {setTodayButton}
+                </li>
+              )}
+              {data.past.map((day) => (
                 <li key={day.date}>
                   <Link
                     to={`/history/${day.date}`}
@@ -97,16 +118,16 @@ export function DailyPurposes({ onSetToday }: { onSetToday?: () => void } = {}) 
                   >
                     <div className="flex items-baseline justify-between gap-2">
                       <p className="font-heading font-semibold">
-                        {relativeDay(day.date, today)}
-                        <span className="ml-2 text-xs font-normal text-muted-foreground">{formatDate(day.date, today)}</span>
+                        {relativeDay(day.date, data.todayDate)}
+                        <span className="ml-2 text-xs font-normal text-muted-foreground">{formatDate(day.date, data.todayDate)}</span>
                       </p>
                       <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                        {intentionsDone(day) && `🎯 ${intentionsDone(day)}`}
+                        {intentionsDone(day) && `${intentionsDone(day)} done`}
                         <ArrowRight className="size-3.5" aria-hidden />
                       </span>
                     </div>
                     <PurposeDayView purpose={day} />
-                    {day.date === today ? <EditableUntilLabel /> : <LockedLabel />}
+                    <LockedLabel />
                   </Link>
                 </li>
               ))}

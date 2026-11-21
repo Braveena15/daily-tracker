@@ -4,6 +4,7 @@
 // Stored: the purpose text, each intention's text and the reflection note are encrypted.
 // focusValues (words from the user's core values), done flags, times and the rating are not.
 import type { FieldCrypto } from "./crypto";
+import { addDays } from "./dates";
 
 export type StoredDailyPurpose = {
   text?: string | null;
@@ -152,6 +153,41 @@ export function openHistory(
       savedAt: new Date(h.savedAt).toISOString(),
     }))
     .sort((a, b) => b.savedAt.localeCompare(a.savedAt));
+}
+
+// ---------- The "Daily purposes" list ----------
+
+/**
+ * The dates GET /api/purpose/days covers: from the journey start (or `from`, if later) up to and
+ * including today, all as Asia/Colombo "YYYY-MM-DD" strings. `to` can't go past today.
+ * Without `from`, the last 30 days.
+ */
+export function purposeDaysRange(
+  query: { from?: string; to?: string },
+  start: string,
+  today: string,
+): { from: string; to: string } {
+  const to = query.to && query.to < today ? query.to : today;
+  const wanted = query.from ?? addDays(to, -29);
+  return { from: wanted < start ? start : wanted, to };
+}
+
+export type PurposeList<T> = {
+  /** Today's purpose, shown first (editable until midnight); null when today has none */
+  today: T | null;
+  /** Earlier days, newest first (locked) */
+  past: T[];
+  /** Only when there are no daily purposes at all */
+  isEmpty: boolean;
+  /** "Set today's purpose" is offered only while today has none */
+  canSetToday: boolean;
+};
+
+/** Splits the list into today and past days. Days after today are ignored. */
+export function splitPurposeDays<T extends { date: string }>(days: T[], today: string): PurposeList<T> {
+  const todays = days.find((d) => d.date === today) ?? null;
+  const past = days.filter((d) => d.date < today).sort((a, b) => b.date.localeCompare(a.date));
+  return { today: todays, past, isEmpty: todays === null && past.length === 0, canSetToday: todays === null };
 }
 
 // ---------- Stats ----------

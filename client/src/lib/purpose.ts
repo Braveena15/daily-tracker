@@ -27,7 +27,24 @@ export type PurposeStats = {
   topValues: { value: string; days: number }[]
 }
 
-export type PurposeDaysResponse = { from: string; to: string; journeyStartDate: string; days: PurposeDay[]; stats: PurposeStats }
+export type PurposeDaysResponse = {
+  from: string
+  to: string
+  /** Today in Asia/Colombo, as the server sees it */
+  todayDate: string
+  journeyStartDate: string
+  /** Every day with a purpose, newest first */
+  days: PurposeDay[]
+  /** Today's purpose (editable until midnight), or null */
+  today: PurposeDay | null
+  /** Earlier days, newest first (locked) */
+  past: PurposeDay[]
+  /** No daily purposes at all */
+  isEmpty: boolean
+  /** Today has no purpose yet */
+  canSetToday: boolean
+  stats: PurposeStats
+}
 export type PurposeVersion = { statement: string; coreValues: string[]; goals: { title: string; why: string }[]; savedAt: string }
 /** current: the saved purpose (null until something is saved); history: earlier versions, newest first */
 export type PurposeHistoryResponse = { current: PurposeVersion | null; history: PurposeVersion[] }

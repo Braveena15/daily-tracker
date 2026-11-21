@@ -8,6 +8,7 @@ import { PurposeModel } from "../models/Mind";
 import { journeyStart } from "../services/journey";
 import { AppError } from "../utils/AppError";
 import { addDays, daysBetween, isValidDateString, todayInTimezone } from "../utils/dates";
+import { purposeDaysRange, splitPurposeDays } from "../utils/dailyPurpose";
 import { canAddIntention, hasDailyPurpose, isEmptyPurpose, openDailyPurpose, toPurposeContent, openHistory, pickFocusValues, purposeStats, sealText, type StoredDailyPurpose } from "../utils/dailyPurpose";
 import { clampFrom } from "../utils/journey";
 import { dateParam, dayResponse, type LeanDay } from "./entriesController";
@@ -145,10 +146,14 @@ export async function listPurposeDays(req: Request, res: Response): Promise<void
     if (!isValidDateString(value)) throw new AppError(400, `"${name}" must be a real date in YYYY-MM-DD format`);
     return value;
   };
-  const to = date(req.query.to, "to", today);
   const start = await journeyStart(req.userId);
-  const from = clampFrom(date(req.query.from, "from", addDays(to, -29)), start);
-  if (daysBetween(from, to) + 1 > MAX_RANGE_DAYS) throw new AppError(400, `You can load at most ${MAX_RANGE_DAYS} days at a time`);
+  // Inclusive of the journey start and of today (Asia/Colombo)
+  const { from, to } = purposeDaysRange(
+    { from: date(req.query.from, "from", "") || undefined, to: date(req.query.to, "to", "") || undefined },
+    start,
+    today,
+  );
+  if (from <= to && daysBetween(from, to) + 1 > MAX_RANGE_DAYS) throw new AppError(400, `You can load at most ${MAX_RANGE_DAYS} days at a time`);
 
   const rows = from > to
     ? []
@@ -160,7 +165,8 @@ export async function listPurposeDays(req: Request, res: Response): Promise<void
     const purpose = openDailyPurpose(fieldCrypto, r.dailyPurpose as StoredDailyPurpose);
     return hasDailyPurpose(purpose) ? [{ date: r.date, ...purpose }] : [];
   });
-  res.json({ from, to, journeyStartDate: start, days, stats: purposeStats(days) });
+  // days: every day, newest first; today/past/isEmpty/canSetToday: what the list shows (see splitPurposeDays)
+  res.json({ from, to, todayDate: today, journeyStartDate: start, days, ...splitPurposeDays(days, today), stats: purposeStats(days) });
 }
 
 /** GET /api/purpose/history — the current version, then earlier versions newest first. */

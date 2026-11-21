@@ -135,11 +135,16 @@ function PurposeText({ purpose, statement, onSave }: { purpose: DailyPurpose | n
   const [busy, setBusy] = useState(false)
   const dirty = text.trim() !== saved
 
-  async function submit(e: FormEvent) {
-    e.preventDefault()
+  async function save(value: string) {
+    if (busy || value.trim() === saved) return
     setBusy(true)
-    if (await attempt(() => onSave(text.trim()))) toast.success("Today's purpose saved ✓")
+    if (await attempt(() => onSave(value.trim()))) toast.success("Today's purpose saved ✓")
     setBusy(false)
+  }
+
+  function submit(e: FormEvent) {
+    e.preventDefault()
+    void save(text)
   }
 
   return (
@@ -155,12 +160,27 @@ function PurposeText({ purpose, statement, onSave }: { purpose: DailyPurpose | n
         placeholder={statement ? `Inspired by your purpose: “${statement}”` : 'What do I want today to be about?'}
         value={text}
         onChange={(e) => setText(e.target.value)}
+        // Saved when you leave the box too, so it can't be lost by tapping elsewhere
+        onBlur={() => void save(text)}
+        aria-describedby="daily-purpose-hint"
       />
+      <p id="daily-purpose-hint" className="sr-only">
+        Saved when you leave the box
+      </p>
       {(dirty || (statement && !text.trim())) && (
         <div className="flex flex-wrap items-center justify-end gap-2">
           {statement && !text.trim() && (
             // Your main purpose statement as today's purpose, ready to save or adjust
-            <Button type="button" variant="ghost" size="sm" onClick={() => setText(statement)}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={busy}
+              onClick={() => {
+                setText(statement)
+                void save(statement)
+              }}
+            >
               <Copy aria-hidden /> Use my purpose statement
             </Button>
           )}
