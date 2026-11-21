@@ -19,8 +19,13 @@ const TASKS: Record<AiTask, string> = {
     "Write a short \"note for tomorrow\" after today's check-in. Notice one specific thing that went well (from the " +
     "scores or activities), then offer one small, doable idea for tomorrow.",
   weekly:
-    "Write a short weekly reflection comparing this week with last week. Mention one or two wins, one pattern noticed " +
-    "(as an observation from their data, never as a cause or a promise), and one gentle focus for next week.",
+    "Write a short, personal weekly reflection (60–110 words) comparing this week with last week, using the daily " +
+    "scores and activity counts. Mention one or two specific wins, and one pattern noticed (as an observation from " +
+    "their data, never as a cause or a promise). If dataNote says the data is thin, say plainly and kindly that " +
+    "there's only a little to go on this week, don't guess at patterns, and keep the focus very small. If there's no " +
+    "data from last week, don't compare. Then suggest ONE gentle, doable focus for next week.\n" +
+    'Reply with JSON only: {"reflection": "...", "focus": "..."}. "focus" is a single short goal (at most 12 words), ' +
+    "starting with a verb, specific and doable, with no names and no full stop.",
   boost:
     "Write a short pick-me-up for someone who opened the \"Lift me up\" page. Draw on their recent scores, streak and " +
     "the values they chose. Be uplifting but genuine, not over the top.",

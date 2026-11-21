@@ -234,6 +234,22 @@ function insightLabel(key: string): string {
   return "a pattern in their days";
 }
 
+/** Fewer logged days than this and the reflection is told the data is thin (and to say so). */
+export const THIN_WEEK_DAYS = 3;
+
+type WeekDayScores = { date: string; physical: number | null; mental: number | null; learning: number | null; overall: number | null };
+type WeekActivities = { workouts: { type: string }[]; mentalActivities: { type: string }[]; outdoorActivities: { type: string }[] };
+
+/** "{ cycling: 2, other: 1 }" — built-in activity names only; anything typed by the person is "other". */
+function activityCounts(items: { type: string }[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const item of items) {
+    const name = safeName(item.type, KNOWN_ACTIVITIES, "other");
+    counts[name] = (counts[name] ?? 0) + 1;
+  }
+  return counts;
+}
+
 export function buildWeeklyContext(input: {
   thisWeek: WeekNumbers;
   lastWeek: WeekNumbers;
@@ -242,6 +258,10 @@ export function buildWeeklyContext(input: {
   today: string;
   /** Only counts, the average rating and value words are sent */
   purpose?: PurposeStats | null;
+  /** This week's daily scores (days are sent as relative words, never dates) */
+  days?: WeekDayScores[];
+  /** This week's check-ins: only activity types are read (and only built-in names are sent) */
+  activities?: WeekActivities[];
 }): AiContext {
   const week = ({ bestDay, ...rest }: WeekNumbers) => ({
     ...rest,
@@ -263,6 +283,23 @@ export function buildWeeklyContext(input: {
             focusValues: [...new Set(input.purpose.topValues.map((v) => safeValueWord(v.value)))],
           }
         : null,
+      dailyScores: (input.days ?? [])
+        .filter((d) => d.overall !== null)
+        .map((d) => ({ day: relativeDay(d.date, input.today), physical: d.physical, mental: d.mental, learning: d.learning, overall: d.overall })),
+      activityCounts: input.activities
+        ? {
+            workouts: activityCounts(input.activities.flatMap((a) => a.workouts)),
+            mentalStrength: activityCounts(input.activities.flatMap((a) => a.mentalActivities)),
+            outdoor: activityCounts(input.activities.flatMap((a) => a.outdoorActivities)),
+          }
+        : null,
+      // Tells the AI how much to go on, so it says so instead of guessing
+      dataNote:
+        input.thisWeek.daysLogged < THIN_WEEK_DAYS
+          ? `Thin data: only ${input.thisWeek.daysLogged} logged day(s) this week.`
+          : input.lastWeek.daysLogged === 0
+            ? "No data from last week, so there is nothing to compare with."
+            : null,
       patterns: input.insights.map((i) => ({
         observation: insightLabel(i.key),
         moodOnThoseDays: i.moodWith,

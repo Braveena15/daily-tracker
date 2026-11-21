@@ -3,6 +3,7 @@ import type { AiContext } from "./buildContext";
 import { ALL_FALLBACKS } from "./fallbacks";
 import { LOW_MOOD_REMINDER } from "./prompts";
 import { getEncouragement, type AiDeps, type AiRequest, type AiStore, type StoredMessage } from "./service";
+import { FALLBACK_FOCUS, decodeWeekly, parseWeeklyReply, weeklyFallbackContent } from "./weekly";
 
 function memoryStore(): AiStore & { messages: Map<string, StoredMessage>; used: Map<string, number> } {
   const messages = new Map<string, StoredMessage>();
@@ -144,5 +145,33 @@ describe("getEncouragement", () => {
 describe("fallbacks", () => {
   it("has at least 15 different messages", () => {
     expect(new Set(ALL_FALLBACKS).size).toBeGreaterThanOrEqual(15);
+  });
+});
+
+describe("structured replies (weekly reflection)", () => {
+  const structured = { fromReply: parseWeeklyReply, fromFallback: (text: string) => weeklyFallbackContent(text, () => 0) };
+
+  it("asks for JSON and stores the reflection with its focus", async () => {
+    const { deps, request } = setup({
+      generate: vi.fn(async () => JSON.stringify({ reflection: "A steady week with three workouts and calmer evenings.", focus: "Walk after lunch on three days." })),
+    });
+    const res = await getEncouragement(deps, request({ task: "weekly", structured }));
+    expect(deps.generate).toHaveBeenCalledWith(expect.any(String), { json: true });
+    expect(decodeWeekly(res.message!.content)).toEqual({ text: "A steady week with three workouts and calmer evenings.", focus: "Walk after lunch on three days" });
+    expect(res.message!.source).toBe("ai");
+  });
+
+  it("uses a fallback (with a fallback focus) when the reply isn't usable JSON", async () => {
+    const { deps, request } = setup({ generate: vi.fn(async () => "Sorry, here is some plain text") });
+    const res = await getEncouragement(deps, request({ task: "weekly", structured }));
+    expect(res.message!.source).toBe("fallback");
+    expect(FALLBACK_FOCUS).toContain(decodeWeekly(res.message!.content).focus);
+  });
+
+  it("gives a fallback focus when the AI is turned off", async () => {
+    const { deps, request, generate } = setup();
+    const res = await getEncouragement(deps, request({ task: "weekly", structured, userEnabled: false }));
+    expect(generate).not.toHaveBeenCalled();
+    expect(FALLBACK_FOCUS).toContain(decodeWeekly(res.message!.content).focus);
   });
 });

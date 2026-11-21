@@ -48,6 +48,14 @@ export type AiRequest = {
   lowMood: boolean;
   /** Builds the AI payload — only called if the AI will actually be used */
   buildContext: () => AiContext;
+  /**
+   * Optional: ask the AI for JSON and store it in the task's own format (the weekly reflection's
+   * text + focus). `fromReply` returns null for an unusable reply, which then gets a fallback.
+   */
+  structured?: {
+    fromReply: (raw: string, withReminder: (text: string) => string) => string | null;
+    fromFallback: (text: string) => string;
+  };
 };
 
 export type AiResult = {
@@ -58,6 +66,13 @@ export type AiResult = {
 };
 
 const withReminder = (text: string, lowMood: boolean) => (lowMood ? `${text}\n\n${LOW_MOOD_REMINDER}` : text);
+
+class UnusableReply extends Error {
+  constructor() {
+    super("The AI reply wasn't in the expected format");
+    this.name = "UnusableReply";
+  }
+}
 
 export async function getEncouragement(deps: AiDeps, req: AiRequest): Promise<AiResult> {
   const result = (message: StoredMessage | null, limitReached = false): AiResult => ({
@@ -82,7 +97,9 @@ export async function getEncouragement(deps: AiDeps, req: AiRequest): Promise<Ai
         type: req.task,
         refId: req.refId,
         date: req.date,
-        content: withReminder(pickFallback(req.task), req.lowMood),
+        content: req.structured
+          ? req.structured.fromFallback(withReminder(pickFallback(req.task), req.lowMood))
+          : withReminder(pickFallback(req.task), req.lowMood),
         source: "fallback",
       }),
       limitReached,
@@ -101,13 +118,16 @@ export async function getEncouragement(deps: AiDeps, req: AiRequest): Promise<Ai
 
   // 5. Ask the AI; any problem → a warm fallback
   try {
-    const text = await deps.generate!(buildPrompt(req.buildContext(), { lowMood: req.lowMood }));
+    const prompt = buildPrompt(req.buildContext(), { lowMood: req.lowMood });
+    const raw = await deps.generate!(prompt, req.structured ? { json: true } : undefined);
+    const content = req.structured ? req.structured.fromReply(raw, (t) => withReminder(t, req.lowMood)) : withReminder(raw, req.lowMood);
+    if (content === null) throw new UnusableReply();
     return result(
       await deps.store.save(key, {
         type: req.task,
         refId: req.refId,
         date: req.date,
-        content: withReminder(text, req.lowMood),
+        content,
         source: "ai",
       }),
     );

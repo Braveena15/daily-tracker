@@ -24,6 +24,7 @@ import { PurposeModel, ThoughtLogModel } from "../models/Mind";
 import { UserModel } from "../models/User";
 import { loadDays, loadUserContext, scoresFor, toScoreEntry } from "../services/dayData";
 import { computeInsights, computeWeeklyReview } from "../services/progressData";
+import { decodeWeekly, parseWeeklyReply, weeklyFallbackContent } from "../ai/weekly";
 import { AppError } from "../utils/AppError";
 import { addDays, isValidDateString, listDates, todayInTimezone } from "../utils/dates";
 import { journeyStart } from "../services/journey";
@@ -79,14 +80,25 @@ async function recentThoughtText(userId: string | undefined, from: string, to: s
   return docs.flatMap((d) => thoughtText(toThoughtInput(d as ThoughtDoc)));
 }
 
-async function send(req: Request, res: Response, request: Omit<AiRequest, "userId" | "today" | "regenerate">) {
+async function send(
+  req: Request,
+  res: Response,
+  request: Omit<AiRequest, "userId" | "today" | "regenerate">,
+  /** Reshapes the stored message for the app (the weekly reflection splits out its focus) */
+  present: (message: NonNullable<AiResult["message"]>) => Record<string, unknown> = (m) => m,
+) {
   const result: AiResult = await getEncouragement(aiDeps, {
     ...request,
     userId: req.userId!,
     today: today(),
     regenerate: wantsRegenerate(req),
   });
-  res.json({ ...result, usedToday: await usedToday(req.userId, today()), limit: aiDeps.limit });
+  res.json({
+    ...result,
+    message: result.message ? present(result.message) : null,
+    usedToday: await usedToday(req.userId, today()),
+    limit: aiDeps.limit,
+  });
 }
 
 function dateParam(value: unknown): string {
@@ -175,7 +187,14 @@ export async function weeklyReflection(req: Request, res: Response): Promise<voi
         calorieTarget: review.calorieTarget,
         insights,
         today: today(),
+        days: review.days,
+        activities: review.entriesThisWeek,
       }),
+    // JSON { reflection, focus }; the focus can become next week's goal
+    structured: { fromReply: parseWeeklyReply, fromFallback: (text) => weeklyFallbackContent(text) },
+  }, (message) => {
+    const { text, focus } = decodeWeekly(message.content);
+    return { ...message, content: text, focus };
   });
 }
 

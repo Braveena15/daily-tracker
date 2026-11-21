@@ -86,6 +86,9 @@ function allMinimalPayloads() {
       calorieTarget: 2000,
       insights: [{ key: "activity:secret_custom activity", daysWith: 6, daysWithout: 8, moodWith: 7.5, moodWithout: 6 }],
       today: TODAY,
+      // Daily scores and this week's check-ins (with a custom workout name typed by the person)
+      days: [{ date: TODAY, physical: 70, mental: 60, learning: 50, overall: 60 }],
+      activities: [entry],
     }),
     buildBoostContext({
       recentScores: [{ date: TODAY, physical: 70, mental: 60, learning: 50, overall: 60 }],
@@ -245,5 +248,32 @@ describe("helpers", () => {
   it("checks mood notes for crisis language, but never sends them", () => {
     expect(entryText(entry)).toContain("SECRET_MOOD_NOTE argued with Sarah");
     expect(entryText(entry)).toContain("SECRET_SECOND_MOMENT");
+  });
+});
+
+describe("weekly reflection context", () => {
+  const base = { thisWeek: weekNumbers, lastWeek: weekNumbers, calorieTarget: 2000, insights: [], today: TODAY };
+
+  it("sends daily scores by relative day and counts of built-in activity names only", () => {
+    const { data } = buildWeeklyContext({
+      ...base,
+      days: [
+        { date: "2026-11-18", physical: 70, mental: 60, learning: 50, overall: 60 },
+        { date: "2026-11-17", physical: null, mental: null, learning: null, overall: null },
+      ],
+      activities: [entry],
+    });
+    expect(data.dailyScores).toEqual([{ day: "yesterday", physical: 70, mental: 60, learning: 50, overall: 60 }]);
+    expect(data.activityCounts).toMatchObject({ workouts: { cycling: 1, other: 1 } });
+    expect(json(data)).not.toContain("2026-11-18");
+  });
+
+  it("flags a thin week so the reflection says so instead of guessing", () => {
+    const thin = buildWeeklyContext({ ...base, thisWeek: { ...weekNumbers, daysLogged: 2 } });
+    expect(thin.data.dataNote).toMatch(/Thin data: only 2/);
+    const noLastWeek = buildWeeklyContext({ ...base, lastWeek: { ...weekNumbers, daysLogged: 0 } });
+    expect(noLastWeek.data.dataNote).toMatch(/No data from last week/);
+    expect(buildWeeklyContext(base).data.dataNote).toBeNull();
+    expect(buildPrompt(thin, { lowMood: false })).toMatch(/only a little to go on/);
   });
 });

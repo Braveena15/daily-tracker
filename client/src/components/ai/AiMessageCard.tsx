@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { HeartHandshake, RefreshCw, Sparkles } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { CircleAlert, HeartHandshake, RefreshCw, Sparkles, Target } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { SupportButton, SupportCard } from '@/components/mind/Support'
-import type { AiResponse } from '@/lib/ai'
+import type { AiMessage, AiResponse } from '@/lib/ai'
+import { IconBubble } from '@/components/IconBubble'
 import { cn } from '@/lib/utils'
 
 /**
@@ -18,6 +19,7 @@ export function AiMessageCard({
   autoLoad = true,
   startLabel = 'Show me',
   className,
+  footer,
 }: {
   title: string
   /** Fetches the message; `regenerate` asks for a fresh one */
@@ -26,6 +28,8 @@ export function AiMessageCard({
   autoLoad?: boolean
   startLabel?: string
   className?: string
+  /** Extra actions under the message (e.g. "Add as next week's goal") */
+  footer?: (message: AiMessage) => ReactNode
 }) {
   const [data, setData] = useState<AiResponse | null>(null)
   const [loading, setLoading] = useState(false)
@@ -61,23 +65,23 @@ export function AiMessageCard({
   return (
     <Card className={cn('bg-mental-soft/50 ring-mental/20', className)} aria-live="polite">
       <CardContent className="space-y-3">
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="flex items-center gap-2 text-lg font-semibold">
-            <Sparkles className="size-4 text-mental" aria-hidden />
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="flex min-w-0 items-center gap-3 text-lg font-semibold">
+            <IconBubble icon={Sparkles} tone="mental" className="size-9 bg-card [&_svg]:size-4" />
             {title}
           </h2>
           {message && !data.showSupport && (
-            <Button loading={loading}
-              variant="ghost"
+            <Button
+              loading={loading}
+              variant="outline"
               size="sm"
-              className="text-muted-foreground"
+              className="shrink-0 border-mental/30 bg-card/70 text-mental-foreground hover:bg-card"
               onClick={() => void load(true)}
-              disabled={loading || data.limitReached}
+              disabled={data.limitReached}
               title={data.limitReached ? "You've reached today's limit" : 'Get a different message'}
-              aria-label="Try another message"
             >
               <RefreshCw aria-hidden />
-              <span className="hidden sm:inline">Try another</span>
+              {loading ? 'Writing…' : 'Try another'}
             </Button>
           )}
         </div>
@@ -102,23 +106,33 @@ export function AiMessageCard({
                 <p key={i}>{paragraph}</p>
               ))}
             </div>
+            {message.focus && (
+              <div className="rounded-xl bg-card/80 p-3">
+                <p className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-mental-foreground uppercase">
+                  <Target className="size-4" aria-hidden /> A focus for next week
+                </p>
+                <p className="mt-1 font-medium">{message.focus}</p>
+              </div>
+            )}
+            {footer?.(message)}
             <div className="flex flex-wrap items-center justify-between gap-2">
-              {message.source === 'ai' ? (
-                <p className="text-xs text-muted-foreground">AI-generated · may be imperfect</p>
-              ) : (
-                <span />
-              )}
+              <p className="text-xs text-muted-foreground">
+                {message.source === 'ai' ? 'AI-generated · may be imperfect' : 'A message from us — the AI wasn’t used this time'}
+              </p>
               {data.limitReached && <p className="text-xs text-muted-foreground">That's all the fresh messages for today</p>}
             </div>
             {data.lowMood && <SupportButton className="bg-card" />}
           </>
         ) : failed ? (
-          <p className="text-sm text-muted-foreground">
-            Couldn't fetch a message right now — that's okay.{' '}
-            <button type="button" className="font-medium text-foreground underline-offset-4 hover:underline" onClick={() => void load(false)}>
-              Try again
-            </button>
-          </p>
+          <div className="flex flex-wrap items-center gap-3 rounded-xl bg-card/70 p-3" role="alert">
+            <p className="flex min-w-0 flex-1 items-start gap-2 text-sm text-muted-foreground">
+              <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+              Couldn't fetch a message right now — that's okay. Your data is safe.
+            </p>
+            <Button variant="outline" size="sm" className="bg-card" onClick={() => void load(false)}>
+              <RefreshCw aria-hidden /> Try again
+            </Button>
+          </div>
         ) : (
           <Button loading={loading} variant="outline" className="bg-card" onClick={() => void load(false)} disabled={loading}>
             <Sparkles className="text-mental" aria-hidden />

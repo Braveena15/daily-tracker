@@ -8,6 +8,8 @@ export type AiMessage = {
   content: string
   source: 'ai' | 'fallback'
   createdAt: string
+  /** Weekly reflection only: one short focus for next week (can be saved as next week's goal) */
+  focus?: string | null
 }
 
 export type AiResponse = {
