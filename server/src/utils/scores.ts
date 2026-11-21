@@ -5,6 +5,7 @@
 // and a short human-friendly reason, so the app can show exactly how a score was reached.
 // A day with no check-in has score null (not 0): we don't know how the day went, and
 // treating it as 0 would drag averages and charts down for days that simply weren't logged.
+import { dayMood } from "./timeline";
 
 export type ScoreLine = { label: string; points: number; max: number; reason: string };
 export type ScoreResult = { score: number | null; breakdown: ScoreLine[] };
@@ -17,12 +18,15 @@ export type ScoreGoals = {
   learningMinutesGoal: number;
 };
 
-type Activity = { type: string; durationMin?: number | null };
+type Stamp = { loggedAt?: Date | string | null };
+type Activity = Stamp & { type: string; durationMin?: number | null };
 
-/** The parts of a DailyEntry the scores use. */
+/**
+ * The parts of a DailyEntry the scores use. A day holds many timestamped entries:
+ * every mood check-in, workout, good thing… counts.
+ */
 export type ScoreEntry = {
-  mood: number;
-  energy: number;
+  moods: (Stamp & { mood: number; energy: number; note?: string | null })[];
   sleepHours?: number | null;
   /** Our calculated sleep score (0–100), when the watch synced sleep samples */
   sleepScore?: number | null;
@@ -32,8 +36,8 @@ export type ScoreEntry = {
   mentalActivities: Activity[];
   outdoorActivities: Activity[];
   goodThings: string[];
-  learnings: { topic: string; details?: string | null; minutes?: number | null }[];
-  presentMoment?: string | null;
+  learnings: (Stamp & { topic: string; details?: string | null; minutes?: number | null })[];
+  presentMoments: string[];
 };
 
 /**
@@ -138,7 +142,7 @@ function outdoorLine(entry: ScoreEntry): ScoreLine {
   return { ...line, points: 0, reason: "No outdoor time logged" };
 }
 
-/** Physical: workouts 20 + movement 15 + nutrition 30 + sleep 20 + outdoor 15 = 100. */
+/** Physical: workouts 20 (total minutes of every workout) + movement 15 + nutrition 30 + sleep 20 + outdoor 15 = 100. */
 export function physicalScore(entry: ScoreEntry | null, goals: ScoreGoals, food: NutritionInput): ScoreResult {
   if (!entry) return NOT_LOGGED;
   return total([workoutsLine(entry, goals), movementLine(entry, goals), nutritionLine(food), sleepLine(entry), outdoorLine(entry)]);
@@ -146,7 +150,11 @@ export function physicalScore(entry: ScoreEntry | null, goals: ScoreGoals, food:
 
 // ---------- Mental ----------
 
-/** Mental: activities 35 + good things 20 + reflection 15 + mood 20 + energy 10 = 100. */
+/**
+ * Mental: activities 35 + good things 20 + reflection 15 + mood 20 + energy 10 = 100.
+ * Mood and energy use the day's average over all check-ins; activities count distinct types;
+ * good things count entries; reflection counts when any present moment has 20+ characters.
+ */
 export function mentalScore(entry: ScoreEntry | null): ScoreResult {
   if (!entry) return NOT_LOGGED;
 
@@ -157,7 +165,9 @@ export function mentalScore(entry: ScoreEntry | null): ScoreResult {
   const goodThings = entry.goodThings.length;
   const goodPoints = goodThings >= 3 ? 20 : goodThings === 2 ? 15 : goodThings === 1 ? 10 : 0;
 
-  const reflection = (entry.presentMoment ?? "").trim().length;
+  const reflection = Math.max(0, ...entry.presentMoments.map((p) => p.trim().length));
+  const mood = dayMood(entry.moods);
+  const checkIns = mood ? ` (average of ${mood.count} check-in${mood.count === 1 ? "" : "s"})` : "";
 
   return total([
     {
@@ -182,14 +192,18 @@ export function mentalScore(entry: ScoreEntry | null): ScoreResult {
       reason:
         reflection >= 20 ? "Reflection written ✓" : reflection > 0 ? "Write 20+ characters for it to count" : "No reflection written",
     },
-    { label: "Mood", max: 20, points: entry.mood * 2, reason: `Mood ${entry.mood}/10` },
-    { label: "Energy", max: 10, points: entry.energy, reason: `Energy ${entry.energy}/10` },
+    mood
+      ? { label: "Mood", max: 20, points: Math.round(mood.avgMood * 2), reason: `Mood ${mood.avgMood}/10${checkIns}` }
+      : { label: "Mood", max: 20, points: 0, reason: "No mood check-in" },
+    mood
+      ? { label: "Energy", max: 10, points: Math.round(mood.avgEnergy), reason: `Energy ${mood.avgEnergy}/10${checkIns}` }
+      : { label: "Energy", max: 10, points: 0, reason: "No mood check-in" },
   ]);
 }
 
 // ---------- Learning ----------
 
-/** Learning: learnings logged 50 + minutes 30 + depth 20 = 100. */
+/** Learning: learnings logged 50 (number of entries) + minutes 30 (total of all entries) + depth 20 = 100. */
 export function learningScore(entry: ScoreEntry | null, goals: ScoreGoals): ScoreResult {
   if (!entry) return NOT_LOGGED;
 

@@ -64,6 +64,15 @@ const workoutSchema = z.object({
   // At least 1 minute after rounding: the app doesn't store 0-minute workouts
   durationMin: num("Workout durationMin", 1, L.minutes.max, 0, " minutes"),
   calories: optNum("Workout calories", L.workoutCalories.min, L.workoutCalories.max, 0, " kcal"),
+  // Optional: when the workout started (ISO date-time), so it lands at the right place on the timeline
+  startTime: z.preprocess(
+    (v) => (v === null || v === "" ? undefined : v),
+    z
+      .string({ error: "Workout startTime must be an ISO date-time" })
+      .refine((v) => !Number.isNaN(Date.parse(v)), "Workout startTime must be an ISO date-time, e.g. 2026-11-20T07:30:00+05:30")
+      .transform((v) => new Date(v))
+      .optional(),
+  ),
 });
 
 export const healthSyncSchema = z.object({

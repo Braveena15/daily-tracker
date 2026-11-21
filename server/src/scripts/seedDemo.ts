@@ -89,7 +89,7 @@ async function seedDemo(): Promise<void> {
   }
 
   console.log(`✅ Demo account ready: ${DEMO_EMAIL} / ${DEMO_PASSWORD}`);
-  console.log(`   ${entries.length} check-ins and ${mealDays.length} days of meals over the last ${DAYS} days.`);
+  console.log(`   ${entries.length} logged days and ${mealDays.length} days of meals over the last ${DAYS} days.`);
 }
 
 async function main(): Promise<void> {

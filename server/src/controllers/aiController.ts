@@ -61,11 +61,11 @@ function toThoughtInput(doc: ThoughtDoc): ThoughtInput {
   };
 }
 
-/** The user (for the AI on/off setting) and today's check-in (for the low-mood reminder). */
+/** The user (for the AI on/off setting) and today's mood check-ins (for the low-mood reminder). */
 async function basics(userId: string | undefined) {
   const [user, todayEntry] = await Promise.all([
     UserModel.findById(userId).select("aiEnabled").lean(),
-    DailyEntryModel.findOne({ userId, date: today() }).select("date mood").lean(),
+    DailyEntryModel.findOne({ userId, date: today() }).select("date moodLogs.mood").lean(),
   ]);
   if (!user) throw new AppError(401, "Please log in to continue");
   return { userEnabled: user.aiEnabled !== false, lowMood: isLowMoodToday(todayEntry, today()) };

@@ -15,7 +15,6 @@ import { ServingsStepper } from '@/components/ServingsStepper'
 import { ErrorNotice } from '@/components/StatusViews'
 import { useDateParam } from '@/hooks/useDateParam'
 import { api } from '@/lib/api'
-import { newKey } from '@/lib/checkinForm'
 import { addDays, timeInTimezone } from '@/lib/dates'
 import {
   MEALS,
@@ -29,7 +28,7 @@ import {
   type MealType,
   type Totals,
 } from '@/lib/meals'
-import { cn } from '@/lib/utils'
+import { cn, newKey } from '@/lib/utils'
 
 type Row = MealItem & { key: string }
 type SaveStatus = 'idle' | 'pending' | 'saving' | 'saved' | 'error'

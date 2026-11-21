@@ -96,6 +96,14 @@ const reviewDay = (date: string, overrides: Partial<ReviewDay> = {}): ReviewDay 
   learning: 50,
   overall: 60,
   mood: 7,
+  moodMin: 6,
+  moodMax: 8,
+  moodCount: 2,
+  goodThings: 1,
+  learnings: 1,
+  presentMoments: 1,
+  steps: 8000,
+  activeCalories: 400,
   sleepHours: 7.5,
   sleepScore: 80,
   workouts: 1,
@@ -105,7 +113,7 @@ const reviewDay = (date: string, overrides: Partial<ReviewDay> = {}): ReviewDay 
   ...overrides,
 });
 const unlogged = (date: string): ReviewDay =>
-  reviewDay(date, { physical: null, mental: null, learning: null, overall: null, mood: null, sleepHours: null, sleepScore: null, workouts: 0, workoutMinutes: 0, learningMinutes: 0, kcal: null });
+  reviewDay(date, { physical: null, mental: null, learning: null, overall: null, mood: null, moodMin: null, moodMax: null, moodCount: 0, goodThings: 0, learnings: 0, presentMoments: 0, steps: null, activeCalories: null, sleepHours: null, sleepScore: null, workouts: 0, workoutMinutes: 0, learningMinutes: 0, kcal: null });
 
 describe("summariseWeek", () => {
   it("averages only logged days and finds the best day", () => {

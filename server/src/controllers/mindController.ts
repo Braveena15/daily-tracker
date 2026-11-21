@@ -2,7 +2,8 @@
 import type { Request, Response } from "express";
 import { isValidObjectId, type Model } from "mongoose";
 import { fieldCrypto } from "../config/encryption";
-import { CHECKED_IN, DailyEntryModel, isCheckedIn } from "../models/DailyEntry";
+import { DailyEntryModel } from "../models/DailyEntry";
+import { dayMood } from "../utils/timeline";
 import { PurposeModel, QuoteModel, ThoughtLogModel, VideoModel } from "../models/Mind";
 import { AppError } from "../utils/AppError";
 import { BUILT_IN_QUOTES } from "../utils/builtInQuotes";
@@ -96,14 +97,18 @@ export async function deleteVideo(req: Request, res: Response): Promise<void> {
 
 // ---------- Wellbeing ----------
 
-/** GET /api/wellbeing/check — lowMoodStreak: mood ≤ 3 on at least 5 of the last 7 logged days. */
+/** GET /api/wellbeing/check — lowMoodStreak: average mood ≤ 3 on at least 5 of the last 7 days with a mood check-in. */
 export async function wellbeingCheck(req: Request, res: Response): Promise<void> {
-  const recent = await DailyEntryModel.find({ userId: req.userId, ...CHECKED_IN })
+  const recent = await DailyEntryModel.find({ userId: req.userId, "moodLogs.0": { $exists: true } })
     .sort({ date: -1 })
     .limit(LOW_MOOD.days)
-    .select("mood energy -_id")
+    .select("moodLogs.mood moodLogs.energy -_id")
     .lean();
-  res.json({ lowMoodStreak: isLowMoodStreak(recent.filter(isCheckedIn).map((e) => e.mood)) });
+  const moods = recent.flatMap((e) => {
+    const m = dayMood(e.moodLogs);
+    return m ? [m.avgMood] : [];
+  });
+  res.json({ lowMoodStreak: isLowMoodStreak(moods) });
 }
 
 /** GET /api/lift-me-up — good moments, purpose, a quote, a video and the last small step done. */
@@ -125,7 +130,7 @@ export async function liftMeUp(req: Request, res: Response): Promise<void> {
   ]);
 
   const goodThings = pickRandom(
-    entries.flatMap((e) => e.goodThings.map((text) => ({ text, date: e.date }))),
+    entries.flatMap((e) => e.goodThings.map((g) => ({ text: g.text, date: e.date }))),
     5,
   );
 

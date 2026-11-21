@@ -92,14 +92,23 @@ export function journeyProgress(input: {
 
 // ---------- Weekly review ----------
 
-/** One day's numbers for the review. Scores are null on days without a check-in. */
+/** One day's numbers for the review. Scores are null on days that weren't logged. */
 export type ReviewDay = {
   date: string;
   physical: number | null;
   mental: number | null;
   learning: number | null;
   overall: number | null;
+  /** The day's average mood over all check-ins (null without one) */
   mood: number | null;
+  moodMin: number | null;
+  moodMax: number | null;
+  moodCount: number;
+  goodThings: number;
+  learnings: number;
+  presentMoments: number;
+  steps: number | null;
+  activeCalories: number | null;
   sleepHours: number | null;
   /** Our calculated sleep score, when the watch synced sleep */
   sleepScore: number | null;

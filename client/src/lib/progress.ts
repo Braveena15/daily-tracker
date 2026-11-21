@@ -72,6 +72,30 @@ export type WeekSummary = {
   bestDay: { date: string; overall: number } | null
 }
 
+/** One day of the weekly review. Mood is the day's average over all check-ins. */
+export type ReviewDay = {
+  date: string
+  physical: number | null
+  mental: number | null
+  learning: number | null
+  overall: number | null
+  mood: number | null
+  moodMin: number | null
+  moodMax: number | null
+  moodCount: number
+  goodThings: number
+  learnings: number
+  presentMoments: number
+  steps: number | null
+  activeCalories: number | null
+  sleepHours: number | null
+  sleepScore: number | null
+  workouts: number
+  workoutMinutes: number
+  learningMinutes: number
+  kcal: number | null
+}
+
 export type WeeklyReviewResponse = {
   weekEnding: string
   calorieTarget: number | null
@@ -93,6 +117,8 @@ export type WeeklyReviewResponse = {
     number | null
   >
   message: string
+  /** This week's 7 days, oldest first */
+  days: ReviewDay[]
 }
 
 export type SleepResponse = {

@@ -9,6 +9,10 @@ import {
 
 const at = new Date("2026-11-20T15:30:00Z");
 
+/** Workouts without the generated _id and loggedAt, for comparing. */
+const plain = (workouts: unknown) =>
+  (workouts as StoredWorkout[]).map(({ _id, loggedAt, ...w }) => w);
+
 describe("planHealthMerge", () => {
   it("creates a new day's values when there's no entry yet", () => {
     const plan = planHealthMerge(null, { steps: 8234, activeCalories: 512, weightKg: 72.4, sleepHours: 7.5 }, at);
@@ -155,7 +159,7 @@ describe("planHealthMerge", () => {
       ],
     };
     const plan = planHealthMerge(existing, { workouts: [{ type: "Running", durationMin: 30, calories: 280 }] }, at);
-    expect(plan.set.workouts).toEqual([
+    expect(plain(plan.set.workouts)).toEqual([
       { type: "Gym", durationMin: 40, source: "manual" },
       { type: "Yoga", durationMin: 15 },
       { type: "Running", durationMin: 30, source: "watch", calories: 280 },
@@ -168,13 +172,17 @@ describe("planHealthMerge", () => {
     const first = planHealthMerge({ workouts: [{ type: "Gym", durationMin: 40, source: "manual" }] }, body, at);
     const afterFirst = { workouts: first.set.workouts as StoredWorkout[] };
 
-    expect(planHealthMerge(afterFirst, body, at).set.workouts).toEqual([
+    const second = planHealthMerge(afterFirst, body, new Date("2026-11-20T16:00:00Z")).set.workouts as StoredWorkout[];
+    expect(plain(second)).toEqual([
       { type: "Gym", durationMin: 40, source: "manual" },
       { type: "Running", durationMin: 30, source: "watch" },
     ]);
+    // The same run synced again keeps its id and time, so it doesn't move on the timeline
+    expect(second[1]!._id).toEqual(afterFirst.workouts[1]!._id);
+    expect(second[1]!.loggedAt).toEqual(at);
 
     // A later sync with a longer run replaces the old one
-    expect(planHealthMerge(afterFirst, { workouts: [{ type: "Running", durationMin: 45 }] }, at).set.workouts).toEqual([
+    expect(plain(planHealthMerge(afterFirst, { workouts: [{ type: "Running", durationMin: 45 }] }, at).set.workouts)).toEqual([
       { type: "Gym", durationMin: 40, source: "manual" },
       { type: "Running", durationMin: 45, source: "watch" },
     ]);
@@ -194,12 +202,61 @@ describe("planHealthMerge", () => {
     expect(plan.set).not.toHaveProperty("workouts");
   });
 
-  it("keeps the day within 20 workouts, manual ones first", () => {
-    const manual = Array.from({ length: 18 }, (_, i) => ({ type: `M${i}`, durationMin: 5 }));
+  it("keeps the day within 50 workouts, manual ones first", () => {
+    const manual = Array.from({ length: 48 }, (_, i) => ({ type: `M${i}`, durationMin: 5 }));
     const watch = Array.from({ length: 5 }, (_, i) => ({ type: `W${i}`, durationMin: 5 }));
     const merged = planHealthMerge({ workouts: manual }, { workouts: watch }, at).set.workouts as StoredWorkout[];
-    expect(merged).toHaveLength(20);
-    expect(merged.slice(0, 18).map((w) => w.type)).toEqual(manual.map((w) => w.type));
+    expect(merged).toHaveLength(50);
+    expect(merged.slice(0, 48).map((w) => w.type)).toEqual(manual.map((w) => w.type));
+  });
+
+  it("times a watch workout by its startTime when the Shortcut sends one", () => {
+    const start = new Date("2026-11-20T01:30:00Z");
+    const plan = planHealthMerge(null, { workouts: [{ type: "Running", durationMin: 30, startTime: start }] }, at);
+    expect((plan.set.workouts as StoredWorkout[])[0]!.loggedAt).toEqual(start);
+  });
+
+  describe("steps and active calories only increase", () => {
+    it("replaces the stored value when the synced one is higher", () => {
+      const plan = planHealthMerge({ steps: 4000, activeCalories: 200 }, { steps: 5230, activeCalories: 320 }, at);
+      expect(plan.set).toMatchObject({ steps: 5230, activeCalories: 320 });
+      expect(plan.updatedFields).toEqual(["activeCalories", "steps"]);
+    });
+
+    it("keeps the stored value when the synced one is lower or the same", () => {
+      const plan = planHealthMerge({ steps: 9000, activeCalories: 500 }, { steps: 8500, activeCalories: 500 }, at);
+      expect(plan.set).not.toHaveProperty("steps");
+      expect(plan.set).not.toHaveProperty("activeCalories");
+      expect(plan.keptFields).toEqual(["activeCalories", "steps"]);
+      expect(plan.snapshot).toBeNull();
+    });
+
+    it("fills them in when nothing is stored yet", () => {
+      expect(planHealthMerge(null, { steps: 120 }, at).set.steps).toBe(120);
+      expect(planHealthMerge({ steps: null }, { stepsWatch: 0, stepsPhone: 300 }, at).set.steps).toBe(300);
+    });
+
+    it("also beats a lower manual value", () => {
+      // You typed 3000; the watch later counted 6000
+      const plan = planHealthMerge({ steps: 3000, healthSync: { fields: [] } }, { steps: 6000 }, at);
+      expect(plan.set.steps).toBe(6000);
+      expect((plan.set.healthSync as { fields: string[] }).fields).toEqual(["steps"]);
+    });
+  });
+
+  describe("health snapshots", () => {
+    it("records the day's totals whenever steps or calories change", () => {
+      const plan = planHealthMerge({ steps: 4000, activeCalories: 300 }, { steps: 5230 }, at);
+      expect(plan.snapshot).toEqual({ time: at, steps: 5230, activeCalories: 300 });
+    });
+
+    it("leaves out a total the day doesn't have", () => {
+      expect(planHealthMerge(null, { activeCalories: 150 }, at).snapshot).toEqual({ time: at, activeCalories: 150 });
+    });
+
+    it("isn't recorded when only other fields were synced", () => {
+      expect(planHealthMerge({ steps: 100 }, { restingCalories: 1500, weightKg: 70 }, at).snapshot).toBeNull();
+    });
   });
 
   it("remembers watch fields from earlier syncs", () => {

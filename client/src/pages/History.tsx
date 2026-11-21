@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { BookOpen, Brain, CalendarDays, Dumbbell, Plus, SquarePen, Sun } from 'lucide-react'
+import { BookOpen, Brain, CalendarDays, Dumbbell, Plus, Sparkles, SquarePen, Sun } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -10,7 +10,7 @@ import { PageHeader } from '@/components/PageHeader'
 import { EmptyState, ErrorNotice } from '@/components/StatusViews'
 import { api } from '@/lib/api'
 import { addDays, formatDate, listDates, relativeDay, todayInTimezone } from '@/lib/dates'
-import { energyEmoji, isCheckedIn, moodEmoji, type CheckedInEntry, type EntriesListResponse } from '@/lib/entries'
+import { dayMood, energyEmoji, moodEmoji, type DailyEntry, type EntriesListResponse } from '@/lib/entries'
 import { toneSoft } from '@/lib/tones'
 import { cn } from '@/lib/utils'
 
@@ -23,13 +23,13 @@ export function History() {
   const [today] = useState(() => todayInTimezone())
   const from = addDays(today, -(DAYS - 1))
 
-  const [entries, setEntries] = useState<Map<string, CheckedInEntry> | null>(null)
+  const [entries, setEntries] = useState<Map<string, DailyEntry> | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     api
       .get<EntriesListResponse>(`/entries?from=${from}&to=${today}`)
-      .then((data) => setEntries(new Map(data.entries.filter(isCheckedIn).map((e) => [e.date, e]))))
+      .then((data) => setEntries(new Map(data.entries.map((e) => [e.date, e]))))
       .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Could not load your history'))
   }, [from, today])
 
@@ -37,7 +37,7 @@ export function History() {
 
   return (
     <>
-      <PageHeader title="History" description={`Your last ${DAYS} days. Tap a day to open it.`} />
+      <PageHeader title="History" description={`Your last ${DAYS} days. Tap a day to see its timeline.`} />
 
       {error ? (
         <ErrorNotice>{error}</ErrorNotice>
@@ -56,7 +56,7 @@ export function History() {
               </Button>
             }
           >
-            No check-ins in the last {DAYS} days yet. Each day you log will show up here.
+            Nothing logged in the last {DAYS} days yet. Each day you log will show up here.
           </EmptyState>
         </Card>
       ) : (
@@ -100,44 +100,75 @@ function DayHeading({ date, today }: { date: string; today: string }) {
   )
 }
 
-function DayCard({ date, today, entry }: { date: string; today: string; entry: CheckedInEntry }) {
+/** "Cycling" or "Cycling ×2" when the same activity was logged more than once. */
+function grouped(items: { type: string }[]): { type: string; count: number }[] {
+  const counts = new Map<string, { type: string; count: number }>()
+  for (const { type } of items) {
+    const key = type.trim().toLowerCase()
+    const found = counts.get(key)
+    if (found) found.count++
+    else counts.set(key, { type, count: 1 })
+  }
+  return [...counts.values()]
+}
+const times = (count: number) => (count > 1 ? ` ×${count}` : '')
+
+function DayCard({ date, today, entry }: { date: string; today: string; entry: DailyEntry }) {
   const learnings = entry.learnings.length
+  const goodThings = entry.goodThings.length
   const hasActivities =
-    entry.workouts.length + entry.mentalActivities.length + entry.outdoorActivities.length + learnings > 0
+    entry.workouts.length + entry.mentalActivities.length + entry.outdoorActivities.length + learnings + goodThings > 0
+  const mood = dayMood(entry.moodLogs)
+  const facts = [
+    mood && `${mood.count} check-in${mood.count === 1 ? '' : 's'}`,
+    mood && `${energyEmoji(mood.avgEnergy)} ${mood.avgEnergy}/10`,
+    entry.sleepHours != null && `${entry.sleepHours}h sleep`,
+  ].filter(Boolean)
 
   return (
     <Link
-      to={`/today?date=${date}`}
+      to={`/history/${date}`}
       className={cn(cardBase, 'bg-card shadow-soft ring-1 ring-foreground/[0.06] hover:ring-primary/30')}
     >
       <div className="flex items-start justify-between gap-3">
         <DayHeading date={date} today={today} />
-        <span className="text-3xl leading-none" role="img" aria-label={`Mood ${entry.mood} out of 10`}>
-          {moodEmoji(entry.mood)}
-        </span>
+        {mood && (
+          <span className="text-3xl leading-none" role="img" aria-label={`Average mood ${mood.avg} out of 10`}>
+            {moodEmoji(mood.avg)}
+          </span>
+        )}
       </div>
 
       <p className="text-sm text-muted-foreground tabular-nums">
-        Mood {entry.mood}/10 · {energyEmoji(entry.energy)} {entry.energy}/10 · {entry.sleepHours}h sleep
+        {mood ? `Mood ${mood.avg}/10${mood.count > 1 ? ` (${mood.min}–${mood.max})` : ''}` : 'No mood check-in'}
+        {facts.length > 0 && ` · ${facts.join(' · ')}`}
       </p>
 
       {hasActivities ? (
         <div className="flex flex-wrap gap-1.5">
-          {entry.workouts.map((w, i) => (
-            <Badge key={`w${i}`} className={toneSoft.physical}>
+          {grouped(entry.workouts).map((w) => (
+            <Badge key={`w${w.type}`} className={toneSoft.physical}>
               <Dumbbell aria-hidden /> {w.type}
+              {times(w.count)}
             </Badge>
           ))}
-          {entry.mentalActivities.map((a, i) => (
-            <Badge key={`m${i}`} className={toneSoft.mental}>
+          {grouped(entry.mentalActivities).map((a) => (
+            <Badge key={`m${a.type}`} className={toneSoft.mental}>
               <Brain aria-hidden /> {a.type}
+              {times(a.count)}
             </Badge>
           ))}
-          {entry.outdoorActivities.map((a, i) => (
-            <Badge key={`o${i}`} className={toneSoft.outdoor}>
+          {grouped(entry.outdoorActivities).map((a) => (
+            <Badge key={`o${a.type}`} className={toneSoft.outdoor}>
               <Sun aria-hidden /> {a.type}
+              {times(a.count)}
             </Badge>
           ))}
+          {goodThings > 0 && (
+            <Badge className={toneSoft.primary}>
+              <Sparkles aria-hidden /> {goodThings} good thing{goodThings === 1 ? '' : 's'}
+            </Badge>
+          )}
           {learnings > 0 && (
             <Badge className={toneSoft.learning}>
               <BookOpen aria-hidden /> {learnings} learning{learnings === 1 ? '' : 's'}
@@ -162,7 +193,7 @@ function EmptyDay({ date, today }: { date: string; today: string }) {
     >
       <DayHeading date={date} today={today} />
       <p className="flex items-center gap-1.5 text-sm">
-        <Plus className="size-4" aria-hidden /> No check-in · tap to log
+        <Plus className="size-4" aria-hidden /> Nothing logged · tap to add
       </p>
     </Link>
   )

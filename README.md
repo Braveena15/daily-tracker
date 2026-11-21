@@ -9,7 +9,7 @@ A personal web app for tracking mood, meals, weight, learning and reflection eve
 | ✅ | Project setup: React client, Express API, MongoDB Atlas connection, health check page |
 | ✅ | Login and user accounts (bcrypt passwords, JWT in an httpOnly cookie, protected routes) |
 | ✅ | Profile with BMR, TDEE, daily calorie target (with a safe minimum), BMI and weeks-to-goal |
-| ✅ | Daily check-in: mood, energy, sleep, body, workouts, mental and outdoor activities, good things, learnings |
+| ✅ | Today as a timeline: quick mood check-ins, workouts, mental and outdoor activities, good things, learnings and present moments, each with its own time; body values; intraday mood and step graphs |
 | ✅ | 30-day history and check-in streaks |
 | ✅ | Meal and calorie logging against the daily target |
 | ✅ | Daily mental, physical and learning scores |
@@ -132,13 +132,34 @@ Open http://localhost:5173 and create an account, or log in. Vite forwards every
 | PUT | `/api/profile` | Update profile fields; `null` clears a field (requires login) |
 | GET | `/api/profile/summary` | Age, BMR, TDEE, calorie target, BMI and weeks to goal, or which fields are missing (requires login) |
 | GET | `/api/entries?from=&to=` | Entries in a date range, newest first (default: last 30 days, max 366) |
-| GET | `/api/entries/today` | Today's entry (Asia/Colombo date) or `null` |
-| GET | `/api/entries/:date` | One day's entry or `null` |
-| PUT | `/api/entries/:date` | Create or update a day's entry (no future dates) |
-| DELETE | `/api/entries/:date` | Delete a day's entry |
-| GET | `/api/entries/stats/streak` | Current and longest check-in streak |
+| GET | `/api/entries/today` | Today's day (Asia/Colombo date), as for `GET /api/entries/:date` |
+| GET | `/api/entries/:date` | The day's `entry` (or `null`), a chronological `timeline` of everything logged, and the intraday `healthSnapshots` |
+| PUT | `/api/entries/:date/daily` | Set `weightKg`, `steps`, `activeCalories` by hand (always replaces; `null` clears) |
+| POST | `/api/entries/:date/:kind` | Add one entry; optional `time` ("HH:mm") back-fills it to earlier that day |
+| PATCH | `/api/entries/:date/:kind/:id` | Change some fields of one entry (`null` clears an optional field) |
+| DELETE | `/api/entries/:date/:kind/:id` | Delete one entry |
+| DELETE | `/api/entries/:date` | Delete the whole day |
+| GET | `/api/entries/stats/streak` | Current and longest logging streak |
+
+`kind` is `moods`, `workouts`, `mental`, `outdoor`, `goodThings`, `learnings` or `presentMoments`. Every entry has its own `id` and a `loggedAt` time. Future dates and times are rejected. Workouts from Apple Watch are replaced by each sync, so they can't be edited by hand.
 
 All `/api/entries` routes require login and only ever return the logged-in user's own entries.
+
+#### Steps and active calories only go up
+
+A day's totals only grow, so an Apple Health sync replaces `steps` or `activeCalories` only when the new number is **higher** than what's stored (a lower one is reported back as `keptFields`). Each sync that changes them also adds a `{ time, steps, activeCalories }` point to `healthSnapshots` for the "through the day" chart. Typing a value on the Today page always replaces it, so a wrong number can be fixed.
+
+### Migrating older data
+
+Data saved before the timeline model (one mood per day, a single present moment, good things as plain text) is converted with:
+
+```bash
+cd server
+npm run migrate:timeline -- --dry-run   # only count what would change
+npm run migrate:timeline                # convert
+```
+
+It's safe to run twice: days already converted are left alone.
 
 ### Tests
 
@@ -173,6 +194,7 @@ Open http://localhost:4100. The server reads `server/.env`; in production mode i
 3. On [Render](https://dashboard.render.com/): **New → Blueprint**, then pick the repo. Render reads `render.yaml`: a Node web service in Singapore on the free plan, built with `npm run build`, started with `npm start`, with `/api/health` as the health check.
 4. Render asks for each environment variable marked `sync: false`; fill them in (see the table above). Use **new** random values for `JWT_SECRET`. Use the **same** `DIARY_ENCRYPTION_KEY` as before if the database already has diary entries.
 5. Wait for the first deploy, then open `https://<your-service>.onrender.com`.
+   If the database has data from before the timeline model, run `npm run migrate:timeline` against the production database once the new code is live (see [Migrating older data](#migrating-older-data)).
 6. Apple Health sync: in the app, open **Profile → Apple Watch sync**, create a token, and point your iOS Shortcut at `https://<your-service>.onrender.com/api/health-sync`.
 
 Every push to the main branch deploys again. The free plan sleeps after about 15 minutes without visits. The first visit after that can take up to a minute, and the app shows a "Waking up the server…" screen meanwhile.

@@ -94,7 +94,7 @@ export async function healthSync(req: Request, res: Response): Promise<void> {
   }
 
   const existing = await DailyEntryModel.findOne({ userId: req.userId, date })
-    .select("weightKg sleepHours workouts healthSync sleepScoreValue sleepScoreSource")
+    .select("steps activeCalories weightKg sleepHours workouts healthSync sleepScoreValue sleepScoreSource")
     .lean();
   const sleep = input.sleepSamples === undefined ? null : await nightFromSamples(req.userId, date, input.sleepSamples);
   const syncedAt = new Date();
@@ -102,7 +102,9 @@ export async function healthSync(req: Request, res: Response): Promise<void> {
 
   await DailyEntryModel.updateOne(
     { userId: req.userId, date },
-    { $set: plan.set },
+    plan.snapshot
+      ? { $set: plan.set, $push: { healthSnapshots: { $each: [plan.snapshot], $slice: -MAX_SNAPSHOTS } } }
+      : { $set: plan.set },
     { upsert: true, runValidators: true, setDefaultsOnInsert: true },
   );
   await UserModel.updateOne({ _id: req.userId }, { $set: { lastHealthSyncAt: syncedAt } });
@@ -116,7 +118,7 @@ export async function healthSync(req: Request, res: Response): Promise<void> {
     updatedFields: plan.updatedFields,
     ...(plan.keptFields.length > 0 && {
       keptFields: plan.keptFields,
-      note: "keptFields already had a value for this day, so they weren't overwritten",
+      note: "keptFields weren't overwritten: the day already had a value (or, for steps and activeCalories, a higher one)",
     }),
     ...(ignoredFields.length > 0 && { ignoredFields }),
     ...(input.sleepSamples !== undefined && {
@@ -128,6 +130,8 @@ export async function healthSync(req: Request, res: Response): Promise<void> {
 }
 
 const BASELINE_DAYS = 14;
+// About one sync every 5 minutes for a whole day
+const MAX_SNAPSHOTS = 300;
 
 /** The night ending on `date`, scored against the bedtimes of the previous 14 nights that have sleep data. */
 async function nightFromSamples(userId: string | undefined, date: string, text: string): Promise<StoredSleep | null> {

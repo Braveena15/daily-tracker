@@ -1,6 +1,7 @@
 // Generates 60 days of realistic, varied demo data. Pure (no database), so it can be tested.
 // A fixed seed makes the "random" data the same on every run.
 import { addDays } from "../utils/dates";
+import { atTime } from "../utils/timeline";
 import type { MealType } from "../utils/meals";
 
 /** Small seeded random number generator (mulberry32): same seed → same sequence. */
@@ -73,26 +74,42 @@ const REFLECTIONS = [
   "Content. Small steps are adding up.",
 ];
 
+type Stamped = { loggedAt: Date };
+
+/** A demo day in the timeline shape (subdocument _ids are added by MongoDB on insert). */
 export type DemoEntry = {
   date: string;
-  mood: number;
-  energy: number;
   sleepHours: number;
   weightKg?: number;
   steps?: number;
   activeCalories?: number;
-  workouts: { type: string; durationMin: number }[];
-  mentalActivities: { type: string; durationMin?: number }[];
-  outdoorActivities: { type: string; durationMin?: number }[];
-  goodThings: string[];
-  learnings: { topic: string; details?: string; minutes?: number }[];
-  presentMoment: string;
+  moodLogs: (Stamped & { mood: number; energy: number })[];
+  workouts: (Stamped & { type: string; durationMin: number; source: "manual" })[];
+  mentalActivities: (Stamped & { type: string; durationMin?: number })[];
+  outdoorActivities: (Stamped & { type: string; durationMin?: number })[];
+  goodThings: (Stamped & { text: string })[];
+  learnings: (Stamped & { topic: string; details?: string; minutes?: number })[];
+  presentMoments: (Stamped & { text: string })[];
+  healthSnapshots: { time: Date; steps?: number; activeCalories?: number }[];
 };
 
 export type DemoMealItem = { mealType: MealType; foodName: FoodName; servings: number };
 export type DemoMealDay = { date: string; items: DemoMealItem[] };
 
 const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n));
+
+/** Hourly totals from 07:00 to 21:00 that grow to the day's final steps and calories. */
+function snapshots(date: string, steps: number | undefined, activeCalories: number | undefined): DemoEntry["healthSnapshots"] {
+  if (steps === undefined && activeCalories === undefined) return [];
+  return Array.from({ length: 15 }, (_, i) => {
+    const share = Math.sqrt((i + 1) / 15); // more movement earlier in the day
+    return {
+      time: atTime(date, `${String(7 + i).padStart(2, "0")}:00`),
+      ...(steps !== undefined && { steps: Math.round(steps * share) }),
+      ...(activeCalories !== undefined && { activeCalories: Math.round(activeCalories * share) }),
+    };
+  });
+}
 
 /**
  * `days` days ending on `today`: some days skipped, a gentle weight-loss trend (~0.5 kg/week)
@@ -143,20 +160,30 @@ export function generateDemoData(today: string, days = 60, seed = 2026): { entri
       // Weight: start near 86 kg, lose about 0.07 kg a day, ± daily noise from water and timing
       const weight = 86 - i * 0.07 + rnd.between(-0.45, 0.45);
 
+      const at = (hour: number) => atTime(date, `${String(hour).padStart(2, "0")}:${String(rnd.int(0, 59)).padStart(2, "0")}`);
+      // 1–3 check-ins: morning, afternoon dip, evening
+      const moodLogs = [
+        { loggedAt: at(8), mood, energy },
+        ...(rnd.chance(0.7) ? [{ loggedAt: at(14), mood: Math.round(clamp(mood - rnd.int(0, 2), 1, 10)), energy: Math.round(clamp(energy - rnd.int(0, 2), 1, 10)) }] : []),
+        ...(rnd.chance(0.6) ? [{ loggedAt: at(20), mood: Math.round(clamp(mood + rnd.int(-1, 1), 1, 10)), energy: Math.round(clamp(energy - 1, 1, 10)) }] : []),
+      ];
+      const steps = rnd.chance(0.85) ? rnd.int(3500, cycling ? 9000 : 13000) : undefined;
+      const activeCalories = rnd.chance(0.7) ? rnd.int(180, cycling ? 750 : 550) : undefined;
+
       entries.push({
         date,
-        mood,
-        energy,
         sleepHours,
         ...(rnd.chance(0.75) && { weightKg: Math.round(weight * 10) / 10 }),
-        ...(rnd.chance(0.85) && { steps: rnd.int(3500, cycling ? 9000 : 13000) }),
-        ...(rnd.chance(0.7) && { activeCalories: rnd.int(180, cycling ? 750 : 550) }),
-        workouts,
-        mentalActivities,
-        outdoorActivities,
-        goodThings: rnd.some(GOOD_THINGS, rnd.int(0, 3)),
-        learnings,
-        presentMoment: rnd.chance(0.6) ? rnd.pick(REFLECTIONS) : "",
+        ...(steps !== undefined && { steps }),
+        ...(activeCalories !== undefined && { activeCalories }),
+        moodLogs,
+        workouts: workouts.map((w) => ({ ...w, loggedAt: at(w.type === "Gym" ? 18 : 7), source: "manual" as const })),
+        mentalActivities: mentalActivities.map((a) => ({ ...a, loggedAt: at(a.type === "Meditation" ? 6 : 21) })),
+        outdoorActivities: outdoorActivities.map((a) => ({ ...a, loggedAt: at(a.type === "Cycling" ? 7 : 16) })),
+        goodThings: rnd.some(GOOD_THINGS, rnd.int(0, 3)).map((text) => ({ text, loggedAt: at(rnd.int(10, 21)) })),
+        learnings: learnings.map((l) => ({ ...l, loggedAt: at(rnd.int(9, 22)) })),
+        presentMoments: rnd.chance(0.6) ? [{ text: rnd.pick(REFLECTIONS), loggedAt: at(21) }] : [],
+        healthSnapshots: snapshots(date, steps, activeCalories),
       });
     }
 

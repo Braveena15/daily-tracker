@@ -7,6 +7,7 @@ import {
   buildDailyContext,
   buildThoughtContext,
   buildWeeklyContext,
+  entryText,
   isLowMoodToday,
   relativeDay,
   type ThoughtInput,
@@ -19,20 +20,24 @@ const json = (value: unknown) => JSON.stringify(value);
 
 const entry: ScoreEntry & { date: string } = {
   date: TODAY,
-  mood: 6,
-  energy: 5,
+  // Three check-ins: 08:10 (7), 14:30 (4, with a private note), 20:45 (7) Colombo time
+  moods: [
+    { mood: 7, energy: 6, loggedAt: "2026-11-19T02:40:00.000Z" },
+    { mood: 4, energy: 3, loggedAt: "2026-11-19T09:00:00.000Z", note: "SECRET_MOOD_NOTE argued with Sarah" },
+    { mood: 7, energy: 5, loggedAt: "2026-11-19T15:15:00.000Z" },
+  ],
   sleepHours: 7.5,
   steps: 8200,
   activeCalories: 420,
   workouts: [
-    { type: "Cycling", durationMin: 40 },
+    { type: "Cycling", durationMin: 40, loggedAt: "2026-11-19T01:30:00.000Z" },
     { type: "SECRET_WORKOUT with Sarah", durationMin: 20 }, // custom name typed by the user
   ],
   mentalActivities: [{ type: "Meditation", durationMin: 10 }],
   outdoorActivities: [{ type: "SECRET_OUTDOOR at Mum's house", durationMin: 30 }],
   goodThings: ["SECRET_GOOD_THING lunch with Priya"],
   learnings: [{ topic: "SECRET_LEARNING_TOPIC", details: "SECRET_LEARNING_DETAILS", minutes: 25 }],
-  presentMoment: "SECRET_PRESENT_MOMENT feeling calm",
+  presentMoments: ["SECRET_PRESENT_MOMENT feeling calm", "SECRET_SECOND_MOMENT"],
 };
 
 const log: ThoughtInput = {
@@ -91,6 +96,8 @@ const weekNumbers = {
   avgLearning: 50,
   avgOverall: 60,
   avgMood: 6.5,
+  avgSleepHours: 7.2,
+  avgSleepScore: 81,
   workouts: 4,
   workoutMinutes: 160,
   learningMinutes: 90,
@@ -137,16 +144,22 @@ describe("minimal mode never sends free text", () => {
     const daily = buildDailyContext({ entry, scores: { physical: 1, mental: 2, learning: 3, overall: 2 }, nutrition: null, today: TODAY });
     expect(daily.data).toMatchObject({
       day: "today",
-      mood: 6,
+      moodCheckIns: {
+        count: 3,
+        avgMood: 6,
+        avgEnergy: 4.7,
+        lowestMood: { mood: 4, timeOfDay: "afternoon" },
+        highestMood: { mood: 7, timeOfDay: "morning" },
+      },
       sleepHours: 7.5,
       workouts: [
-        { type: "cycling", minutes: 40 },
-        { type: "other workout", minutes: 20 },
+        { type: "cycling", minutes: 40, timeOfDay: "morning" },
+        { type: "other workout", minutes: 20, timeOfDay: null },
       ],
       goodThingsCount: 1,
       learningsCount: 1,
       learningMinutes: 25,
-      wroteReflection: true,
+      reflectionsCount: 2,
       nutrition: { mealsLogged: false },
     });
   });
@@ -213,10 +226,16 @@ describe("helpers", () => {
     expect(relativeDay("2026-11-12", TODAY)).toBe("7 days ago");
   });
 
-  it("detects low mood only for today's entry", () => {
-    expect(isLowMoodToday({ date: TODAY, mood: 3 }, TODAY)).toBe(true);
-    expect(isLowMoodToday({ date: TODAY, mood: 4 }, TODAY)).toBe(false);
-    expect(isLowMoodToday({ date: "2026-11-18", mood: 2 }, TODAY)).toBe(false);
+  it("detects low mood only for today's entry, from any check-in", () => {
+    expect(isLowMoodToday({ date: TODAY, moodLogs: [{ mood: 7 }, { mood: 3 }] }, TODAY)).toBe(true);
+    expect(isLowMoodToday({ date: TODAY, moodLogs: [{ mood: 4 }, { mood: 6 }] }, TODAY)).toBe(false);
+    expect(isLowMoodToday({ date: TODAY, moodLogs: [] }, TODAY)).toBe(false);
+    expect(isLowMoodToday({ date: "2026-11-18", moodLogs: [{ mood: 2 }] }, TODAY)).toBe(false);
     expect(isLowMoodToday(null, TODAY)).toBe(false);
+  });
+
+  it("checks mood notes for crisis language, but never sends them", () => {
+    expect(entryText(entry)).toContain("SECRET_MOOD_NOTE argued with Sarah");
+    expect(entryText(entry)).toContain("SECRET_SECOND_MOMENT");
   });
 });

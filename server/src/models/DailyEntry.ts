@@ -17,31 +17,31 @@ export const ENTRY_LIMITS = {
   learningTopic: 200,
   learningDetails: 2000,
   presentMoment: 2000,
-  listItems: 20,
+  moodNote: 500,
+  listItems: 50,
 } as const;
 
 const L = ENTRY_LIMITS;
 const minutes = { type: Number, min: L.minutes.min, max: L.minutes.max };
 const notes = { type: String, trim: true, maxlength: L.notes };
 const activityName = { type: String, required: true, trim: true, maxlength: L.activityName };
-
-export const SLEEP_SCORE_SOURCES = ["auto", "manual"] as const;
+// When the entry was logged (or back-filled to). Every multi-entry has one, plus its own _id.
+const loggedAt = { type: Date, required: true };
 
 export const WORKOUT_SOURCES = ["manual", "watch"] as const;
 export type WorkoutSource = (typeof WORKOUT_SOURCES)[number];
 
-// _id: false: list items don't need their own ids
-const workoutSchema = new Schema(
-  {
-    type: activityName,
-    durationMin: { ...minutes, required: true },
-    notes,
-    // "watch" workouts come from Apple Health sync and are replaced on every sync
-    source: { type: String, enum: WORKOUT_SOURCES, default: "manual" },
-    calories: { type: Number, min: L.workoutCalories.min, max: L.workoutCalories.max },
-  },
-  { _id: false },
-);
+export const SLEEP_SCORE_SOURCES = ["auto", "manual"] as const;
+
+const workoutSchema = new Schema({
+  loggedAt,
+  type: activityName,
+  durationMin: { ...minutes, required: true },
+  notes,
+  // "watch" workouts come from Apple Health sync and are replaced on every sync
+  source: { type: String, enum: WORKOUT_SOURCES, default: "manual" },
+  calories: { type: Number, min: L.workoutCalories.min, max: L.workoutCalories.max },
+});
 
 // Fields Apple Health sync can fill in (shown with a ⌚ in the app)
 export const HEALTH_SYNC_FIELDS = [
@@ -95,20 +95,35 @@ const sleepSchema = new Schema(
   { _id: false },
 );
 
-const activitySchema = new Schema({ type: activityName, durationMin: minutes, notes }, { _id: false });
+const rating = { type: Number, required: true, min: L.rating.min, max: L.rating.max };
 
-const learningSchema = new Schema(
+const moodLogSchema = new Schema({ loggedAt, mood: rating, energy: rating, note: notes });
+
+const activitySchema = new Schema({ loggedAt, type: activityName, durationMin: minutes, notes });
+
+const learningSchema = new Schema({
+  loggedAt,
+  topic: { type: String, required: true, trim: true, maxlength: L.learningTopic },
+  details: { type: String, trim: true, maxlength: L.learningDetails },
+  minutes,
+});
+
+const goodThingSchema = new Schema({ loggedAt, text: { type: String, required: true, trim: true, maxlength: L.goodThing } });
+
+const presentMomentSchema = new Schema({
+  loggedAt,
+  text: { type: String, required: true, trim: true, maxlength: L.presentMoment },
+});
+
+// How the day's totals grew, one point per sync that changed them (for the "through the day" charts)
+const healthSnapshotSchema = new Schema(
   {
-    topic: { type: String, required: true, trim: true, maxlength: L.learningTopic },
-    details: { type: String, trim: true, maxlength: L.learningDetails },
-    minutes,
+    time: { type: Date, required: true },
+    steps: { type: Number, min: L.steps.min, max: L.steps.max },
+    activeCalories: { type: Number, min: L.activeCalories.min, max: L.activeCalories.max },
   },
   { _id: false },
 );
-
-// Not required in the database: an Apple Health sync can create a day before you check in.
-// The check-in route (PUT /api/entries/:date) still requires mood, energy and sleep.
-const rating = { type: Number, min: L.rating.min, max: L.rating.max };
 
 const dailyEntrySchema = new Schema(
   {
@@ -117,30 +132,33 @@ const dailyEntrySchema = new Schema(
     // The user's local calendar day (Asia/Colombo), e.g. "2026-11-18"
     date: { type: String, required: true, match: /^\d{4}-\d{2}-\d{2}$/ },
 
-    mood: rating,
-    energy: rating,
-    sleepHours: { type: Number, min: L.sleepHours.min, max: L.sleepHours.max },
-    // Only set by Apple Health sync
-    sleep: { type: sleepSchema, default: undefined },
-    // The "Sleep score" field: the calculated score ("auto") or one you typed in ("manual").
-    // Used for the Physical score, charts and the weekly review. See utils/sleepScoreField.ts
-    sleepScoreValue: { type: Number, min: L.score.min, max: L.score.max },
-    sleepScoreSource: { type: String, enum: SLEEP_SCORE_SOURCES },
-
+    // ---------- One value per day ----------
+    // Typed in on the Today page; editing replaces it
     weightKg: { type: Number, min: L.weightKg.min, max: L.weightKg.max },
+    // From Apple Health sync (only ever goes up), or typed in by hand (always replaces)
     steps: { type: Number, min: L.steps.min, max: L.steps.max },
     activeCalories: { type: Number, min: L.activeCalories.min, max: L.activeCalories.max },
     // Only set by Apple Health sync
     restingCalories: { type: Number, min: L.restingCalories.min, max: L.restingCalories.max },
     exerciseMinutes: minutes,
+    sleepHours: { type: Number, min: L.sleepHours.min, max: L.sleepHours.max },
+    // Only set by Apple Health sync
+    sleep: { type: sleepSchema, default: undefined },
+    // The day's sleep score: the calculated one ("auto"). Older days may hold a score typed in by
+    // hand ("manual"), which a sync never overwrites. See utils/sleepScoreField.ts
+    sleepScoreValue: { type: Number, min: L.score.min, max: L.score.max },
+    sleepScoreSource: { type: String, enum: SLEEP_SCORE_SOURCES },
     healthSync: { type: healthSyncSchema, default: undefined },
+    healthSnapshots: { type: [healthSnapshotSchema], default: [] },
 
+    // ---------- Timestamped entries, added through the day ----------
+    moodLogs: { type: [moodLogSchema], default: [] },
     workouts: { type: [workoutSchema], default: [] },
     mentalActivities: { type: [activitySchema], default: [] },
     outdoorActivities: { type: [activitySchema], default: [] },
-    goodThings: { type: [{ type: String, trim: true, maxlength: L.goodThing }], default: [] },
+    goodThings: { type: [goodThingSchema], default: [] },
     learnings: { type: [learningSchema], default: [] },
-    presentMoment: { type: String, trim: true, maxlength: L.presentMoment, default: "" },
+    presentMoments: { type: [presentMomentSchema], default: [] },
   },
   {
     timestamps: true,
@@ -158,14 +176,23 @@ dailyEntrySchema.index({ userId: 1, date: 1 }, { unique: true });
 
 export type DailyEntry = InferSchemaType<typeof dailyEntrySchema>;
 
-// A day counts as "logged" (scores, streaks, history, insights) only once you've checked in.
-// Days that only hold Apple Health data don't count yet.
-export const CHECKED_IN = { mood: { $ne: null } } as const;
+// A day counts as "logged" (scores, streaks, history, insights) once you've added anything yourself.
+// Days that only hold Apple Health data (and watch workouts) don't count.
+export const USER_LISTS = ["moodLogs", "mentalActivities", "outdoorActivities", "goodThings", "learnings", "presentMoments"] as const;
 
-export function isCheckedIn<T extends { mood?: number | null; energy?: number | null }>(
-  entry: T,
-): entry is T & { mood: number; energy: number } {
-  return entry.mood != null && entry.energy != null;
+export const CHECKED_IN = {
+  $or: [
+    ...USER_LISTS.map((field) => ({ [`${field}.0`]: { $exists: true } })),
+    { workouts: { $elemMatch: { source: { $ne: "watch" } } } },
+  ],
+};
+
+type LoggedShape = Partial<Record<(typeof USER_LISTS)[number], readonly unknown[] | null>> & {
+  workouts?: readonly { source?: string | null }[] | null;
+};
+
+export function isCheckedIn(entry: LoggedShape): boolean {
+  return USER_LISTS.some((field) => (entry[field]?.length ?? 0) > 0) || (entry.workouts ?? []).some((w) => w.source !== "watch");
 }
 
 export const DailyEntryModel = model("DailyEntry", dailyEntrySchema);

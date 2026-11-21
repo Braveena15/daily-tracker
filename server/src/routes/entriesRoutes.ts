@@ -1,11 +1,14 @@
 import { Router } from "express";
 import {
+  addEntry,
   deleteByDate,
+  deleteEntry,
   getByDate,
   getStreak,
   getToday,
   listEntries,
-  saveByDate,
+  saveDaily,
+  updateEntry,
 } from "../controllers/entriesController";
 import { requireAuth } from "../middleware/requireAuth";
 
@@ -19,5 +22,10 @@ entriesRouter.get("/today", getToday);
 entriesRouter.get("/stats/streak", getStreak);
 
 entriesRouter.get("/:date", getByDate);
-entriesRouter.put("/:date", saveByDate);
 entriesRouter.delete("/:date", deleteByDate);
+// Single daily values (weight, steps, active calories)
+entriesRouter.put("/:date/daily", saveDaily);
+// Timestamped entries: kind = moods | workouts | mental | outdoor | goodThings | learnings | presentMoments
+entriesRouter.post("/:date/:kind", addEntry);
+entriesRouter.patch("/:date/:kind/:id", updateEntry);
+entriesRouter.delete("/:date/:kind/:id", deleteEntry);

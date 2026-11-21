@@ -4,8 +4,9 @@
 // - Diary entries are never sent. Nothing here accepts diary data at all.
 // - Names, emails and account details are never sent. Nothing here accepts them.
 // - "minimal" mode sends only structured, non-identifying data: relative days ("today"),
-//   scores, mood/energy numbers, sleep hours and sleep score (never raw sleep samples), activity types and minutes, feeling names and
-//   intensities, thinking-trap types, and counts. No free text written by the user.
+//   scores, mood/energy counts and averages, times of day ("afternoon"), sleep hours and sleep score
+//   (never raw sleep samples), activity types and minutes, feeling names and intensities,
+//   thinking-trap types, and counts. No free text written by the user — not even mood notes.
 //   Even activity and feeling names are free text when the user types their own
 //   ("Walk with Sarah"), so only the app's built-in names are sent; anything else becomes "other".
 // - "full" mode may also send thought-log text — but never from a log marked private.
@@ -13,6 +14,7 @@
 // These are pure functions (no database, no AI calls), so they're easy to test.
 import type { ScoreEntry } from "../utils/scores";
 import { daysBetween } from "../utils/dates";
+import { dayMood, timeOfDay } from "../utils/timeline";
 
 export type AiMode = "minimal" | "full";
 export type AiTask = "thought" | "daily" | "weekly" | "boost";
@@ -69,14 +71,31 @@ const sum = (items: { durationMin?: number | null; minutes?: number | null }[]) 
 
 // ---------- Shared pieces ----------
 
-/** A day's check-in as numbers and categories only. Never includes reflections, good things or notes. */
+const when = (at: Date | string | null | undefined) => (at ? timeOfDay(at) : null);
+
+/**
+ * A day's mood check-ins as numbers only, e.g. { count: 3, avgMood: 6.3, lowestMoodAt: "afternoon" }.
+ * Notes written with a check-in are never included.
+ */
+export function moodFacts(moods: ScoreEntry["moods"]) {
+  const m = dayMood(moods);
+  if (!m) return { count: 0, avgMood: null, avgEnergy: null, lowestMood: null, highestMood: null };
+  return {
+    count: m.count,
+    avgMood: m.avgMood,
+    avgEnergy: m.avgEnergy,
+    lowestMood: { mood: m.minMood, timeOfDay: when(m.lowest.loggedAt) },
+    highestMood: { mood: m.maxMood, timeOfDay: when(m.highest.loggedAt) },
+  };
+}
+
+/** A day's entries as numbers, categories and times of day only. Never includes reflections, good things or notes. */
 export function entryFacts(entry: ScoreEntry & { date: string }, today: string) {
   const activities = (items: ScoreEntry["workouts"], other: string) =>
-    items.map((a) => ({ type: safeName(a.type, KNOWN_ACTIVITIES, other), minutes: a.durationMin ?? null }));
+    items.map((a) => ({ type: safeName(a.type, KNOWN_ACTIVITIES, other), minutes: a.durationMin ?? null, timeOfDay: when(a.loggedAt) }));
   return {
     day: relativeDay(entry.date, today),
-    mood: entry.mood,
-    energy: entry.energy,
+    moodCheckIns: moodFacts(entry.moods),
     sleepHours: entry.sleepHours ?? null,
     sleepScore: entry.sleepScore ?? null,
     steps: entry.steps ?? null,
@@ -87,7 +106,7 @@ export function entryFacts(entry: ScoreEntry & { date: string }, today: string) 
     goodThingsCount: entry.goodThings.length,
     learningsCount: entry.learnings.length,
     learningMinutes: sum(entry.learnings),
-    wroteReflection: (entry.presentMoment ?? "").trim().length > 0,
+    reflectionsCount: entry.presentMoments.filter((p) => p.trim().length > 0).length,
   };
 }
 
@@ -274,14 +293,18 @@ export function buildBoostContext(input: {
 export const thoughtText = (log: ThoughtInput) =>
   [log.thought, log.situation, log.evidenceFor, log.evidenceAgainst, log.friendAdvice, log.balancedThought, log.smallStep];
 
-/** All user-written text in a check-in, for the crisis check (never sent anywhere). */
+/** All user-written text in a day's entries, for the crisis check (never sent anywhere). */
 export const entryText = (entry: ScoreEntry) => [
-  entry.presentMoment ?? "",
+  ...entry.presentMoments,
   ...entry.goodThings,
+  ...entry.moods.map((m) => m.note ?? ""),
   ...entry.learnings.flatMap((l) => [l.topic, l.details ?? ""]),
 ];
 
-/** Mood 3 or lower today means the reply ends with a gentle reminder about support. */
-export function isLowMoodToday(entry: { date: string; mood?: number | null } | null | undefined, today: string): boolean {
-  return !!entry && entry.date === today && entry.mood != null && entry.mood <= 3;
+/** Any mood check-in of 3 or lower today means the reply ends with a gentle reminder about support. */
+export function isLowMoodToday(
+  entry: { date: string; moodLogs?: { mood: number }[] | null } | null | undefined,
+  today: string,
+): boolean {
+  return !!entry && entry.date === today && (entry.moodLogs ?? []).some((m) => m.mood <= 3);
 }

@@ -23,6 +23,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AiMessageCard } from '@/components/ai/AiMessageCard'
 import { IconBubble } from '@/components/IconBubble'
+import { WeekDayList, WeekMoodChart } from '@/components/progress/WeekDays'
 import { aiRequests } from '@/lib/ai'
 import { PageHeader } from '@/components/PageHeader'
 import { ErrorNotice } from '@/components/StatusViews'
@@ -167,7 +168,7 @@ function ReviewBody({ data, today }: { data: WeeklyReviewResponse; today: string
 
       {w.bestDay && (
         <Link
-          to={`/today?date=${w.bestDay.date}`}
+          to={`/history/${w.bestDay.date}`}
           className="flex items-center gap-3 rounded-2xl bg-card p-4 shadow-soft ring-1 ring-foreground/[0.06] transition-all outline-none hover:-translate-y-0.5 hover:ring-primary/30 focus-visible:ring-3 focus-visible:ring-ring/50"
         >
           <IconBubble icon={Trophy} tone="learning" />
@@ -254,6 +255,18 @@ function ReviewBody({ data, today }: { data: WeeklyReviewResponse; today: string
             delta={<Delta diff={d.daysLogged} unit={Math.abs(d.daysLogged ?? 0) === 1 ? ' day' : ' days'} />}
           />
         </div>
+      </section>
+
+      <WeekMoodChart days={data.days} />
+
+      <section aria-labelledby="days-heading" className="space-y-3">
+        <div>
+          <h2 id="days-heading" className="text-xl font-semibold">
+            Day by day
+          </h2>
+          <p className="text-sm text-muted-foreground">Tap a day to see everything you logged, in time order.</p>
+        </div>
+        <WeekDayList days={data.days} today={today} />
       </section>
     </>
   )

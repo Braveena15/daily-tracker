@@ -1,14 +1,25 @@
 import type { Request, Response } from "express";
-import { CHECKED_IN, DailyEntryModel } from "../models/DailyEntry";
+import { isValidObjectId, Types } from "mongoose";
+import { CHECKED_IN, DailyEntryModel, ENTRY_LIMITS, isCheckedIn } from "../models/DailyEntry";
 import { updateProfileWeightIfLatest } from "../services/profileWeight";
 import { fieldsStillFromWatch } from "../utils/healthSyncMerge";
-import { sleepScoreAfterSave } from "../utils/sleepScoreField";
 import { AppError } from "../utils/AppError";
 import { addDays, daysBetween, isValidDateString, todayInTimezone } from "../utils/dates";
 import { calculateStreaks } from "../utils/streaks";
-import { OPTIONAL_NUMBERS, entrySchema } from "../validation/entrySchema";
+import {
+  KIND_FIELDS,
+  LoggedAtError,
+  atTime,
+  buildTimeline,
+  isEntryKind,
+  resolveLoggedAt,
+  type EntryKind,
+  type TimelineSource,
+} from "../utils/timeline";
+import { CLEARABLE, DAILY_FIELDS, dailySchema, entryPatchSchemas, entrySchemas } from "../validation/entrySchema";
 
 const MAX_RANGE_DAYS = 366;
+const LISTS = Object.values(KIND_FIELDS);
 
 // ---------- Helpers ----------
 
@@ -23,6 +34,27 @@ function dateParam(req: Request): string {
   return date;
 }
 
+/** A date that can be written to: not in the future. */
+function writableDate(req: Request): string {
+  const date = dateParam(req);
+  if (date > today()) throw new AppError(400, "You can't log a day in the future");
+  return date;
+}
+
+function kindParam(req: Request): EntryKind {
+  const { kind } = req.params;
+  if (!isEntryKind(kind)) {
+    throw new AppError(404, `Unknown entry kind. Use one of: ${Object.keys(KIND_FIELDS).join(", ")}`);
+  }
+  return kind;
+}
+
+function idParam(req: Request): string {
+  const { id } = req.params;
+  if (!isValidObjectId(id)) throw new AppError(404, "Entry not found");
+  return String(id);
+}
+
 function queryDate(value: unknown, name: string, fallback: string): string {
   if (value === undefined || value === "") return fallback;
   if (!isValidDateString(value)) {
@@ -31,71 +63,184 @@ function queryDate(value: unknown, name: string, fallback: string): string {
   return value;
 }
 
-async function findEntry(userId: string | undefined, date: string) {
-  return DailyEntryModel.findOne({ userId, date });
+function loggedAt(date: string, time: string | undefined): Date {
+  try {
+    return resolveLoggedAt(date, time, new Date(), today());
+  } catch (err) {
+    if (err instanceof LoggedAtError) throw new AppError(400, err.message);
+    throw err;
+  }
 }
 
+type LeanDay = Record<string, unknown> & TimelineSource & { _id: unknown };
+
+const withId = (item: Record<string, unknown>) => {
+  const { _id, ...rest } = item;
+  return _id === undefined ? rest : { id: String(_id), ...rest };
+};
+
+/** A stored day for the API: ids as strings, and every list newest first. */
+export function serializeEntry(doc: LeanDay) {
+  const { _id, __v, userId, ...rest } = doc;
+  const out: Record<string, unknown> = { id: String(_id), ...rest };
+  for (const field of LISTS) {
+    const list = (doc[field] as Record<string, unknown>[] | undefined) ?? [];
+    out[field] = list
+      .map(withId)
+      .sort((a, b) => new Date(String(b.loggedAt)).getTime() - new Date(String(a.loggedAt)).getTime());
+  }
+  return out;
+}
+
+/** Everything the Today page and day views need. */
+function dayResponse(date: string, doc: LeanDay | null) {
+  return {
+    date,
+    entry: doc ? serializeEntry(doc) : null,
+    logged: doc ? isCheckedIn(doc) : false,
+    timeline: doc ? buildTimeline(doc) : [],
+    healthSnapshots: doc?.healthSnapshots ?? [],
+  };
+}
+
+const findDay = (userId: string | undefined, date: string) =>
+  DailyEntryModel.findOne({ userId, date }).lean() as Promise<LeanDay | null>;
+
 // ---------- Handlers ----------
-// Every query filters by req.userId, so users only ever see their own entries.
+// Every query filters by req.userId, so users only ever see and change their own entries.
 
 export async function getToday(req: Request, res: Response): Promise<void> {
   const date = today();
-  res.json({ date, entry: await findEntry(req.userId, date) });
+  res.json(dayResponse(date, await findDay(req.userId, date)));
 }
 
+/** GET /api/entries/:date — the day, its chronological timeline and the intraday health snapshots. */
 export async function getByDate(req: Request, res: Response): Promise<void> {
   const date = dateParam(req);
-  res.json({ date, entry: await findEntry(req.userId, date) });
+  res.json(dayResponse(date, await findDay(req.userId, date)));
 }
 
-export async function saveByDate(req: Request, res: Response): Promise<void> {
-  const date = dateParam(req);
-  if (date > today()) {
-    throw new AppError(400, "You can't log a day in the future");
-  }
+/** PUT /api/entries/:date/daily — weight, steps and active calories typed in by hand. Always replaces. */
+export async function saveDaily(req: Request, res: Response): Promise<void> {
+  const date = writableDate(req);
+  const body = dailySchema.parse(req.body ?? {});
 
-  const body = entrySchema.parse(req.body ?? {});
-
-  // Optional numbers that were left out or set to null are removed from the entry.
-  const { sleepScoreValue, ...rest } = body;
-  const $set: Record<string, unknown> = { ...rest };
+  const $set: Record<string, unknown> = {};
   const $unset: Record<string, 1> = {};
-  for (const key of OPTIONAL_NUMBERS) {
-    if (body[key] === undefined || body[key] === null) {
-      delete $set[key];
-      $unset[key] = 1;
-    }
+  for (const key of DAILY_FIELDS) {
+    if (body[key] === undefined) continue;
+    if (body[key] === null) $unset[key] = 1;
+    else $set[key] = body[key];
   }
-
-  const before = await DailyEntryModel.findOne({ userId: req.userId, date })
-    .select("weightKg steps activeCalories sleepHours healthSync sleepScoreValue sleepScoreSource sleep.score")
-    .lean();
-
-  // Sleep score: a typed value is "manual"; clearing it goes back to the calculated score
-  const sleepScore = sleepScoreAfterSave(before, sleepScoreValue);
-  Object.assign($set, sleepScore.set);
-  for (const key of sleepScore.unset) $unset[key] = 1;
 
   // A watch value you changed by hand loses its ⌚ mark (see utils/healthSyncMerge.ts)
+  const before = await DailyEntryModel.findOne({ userId: req.userId, date }).select("weightKg steps activeCalories healthSync").lean();
   const marked = before?.healthSync?.fields ?? [];
   if (marked.length > 0) {
-    $set["healthSync.fields"] = fieldsStillFromWatch(marked, before ?? {}, body);
+    const after = { ...before, ...Object.fromEntries(DAILY_FIELDS.filter((k) => k in body).map((k) => [k, body[k] ?? null])) };
+    $set["healthSync.fields"] = fieldsStillFromWatch(marked, before ?? {}, after);
   }
 
-  // Upsert: update this day's entry, or create it if it doesn't exist yet.
-  const entry = await DailyEntryModel.findOneAndUpdate(
+  const doc = (await DailyEntryModel.findOneAndUpdate(
     { userId: req.userId, date },
     Object.keys($unset).length > 0 ? { $set, $unset } : { $set },
     { upsert: true, returnDocument: "after", runValidators: true, setDefaultsOnInsert: true },
-  );
+  ).lean()) as LeanDay | null;
 
   // If this is the most recent day with a weight, it becomes the profile's current weight.
-  const profileWeightUpdated =
-    body.weightKg != null ? await updateProfileWeightIfLatest(req.userId, date, body.weightKg) : false;
+  const profileWeightUpdated = body.weightKg != null ? await updateProfileWeightIfLatest(req.userId, date, body.weightKg) : false;
 
-  res.json({ date, entry, profileWeightUpdated });
+  res.json({ ...dayResponse(date, doc), profileWeightUpdated });
 }
 
+/** POST /api/entries/:date/:kind — adds one entry, logged now (or at `time` earlier that day). */
+export async function addEntry(req: Request, res: Response): Promise<void> {
+  const date = writableDate(req);
+  const kind = kindParam(req);
+  const field = KIND_FIELDS[kind];
+  const { time, ...values } = entrySchemas[kind].parse(req.body ?? {}) as Record<string, unknown> & { time?: string };
+
+  const existing = await DailyEntryModel.findOne({ userId: req.userId, date }).select(field).lean();
+  const count = ((existing as Record<string, unknown[] | undefined> | null)?.[field] ?? []).length;
+  if (count >= ENTRY_LIMITS.listItems) {
+    throw new AppError(400, `You can add up to ${ENTRY_LIMITS.listItems} of these a day`);
+  }
+
+  const item = {
+    _id: new Types.ObjectId(),
+    loggedAt: loggedAt(date, time),
+    ...Object.fromEntries(Object.entries(values).filter(([, v]) => v !== undefined)),
+    ...(kind === "workouts" && { source: "manual" }),
+  };
+  const doc = (await DailyEntryModel.findOneAndUpdate(
+    { userId: req.userId, date },
+    { $push: { [field]: item } },
+    { upsert: true, returnDocument: "after", runValidators: true, setDefaultsOnInsert: true },
+  ).lean()) as LeanDay | null;
+
+  res.status(201).json({ ...dayResponse(date, doc), id: String(item._id) });
+}
+
+/** The entry with this id on this day, or a 404. Watch workouts can't be changed by hand. */
+async function findItem(req: Request, date: string, kind: EntryKind, id: string) {
+  const field = KIND_FIELDS[kind];
+  const doc = await DailyEntryModel.findOne({ userId: req.userId, date, [`${field}._id`]: id }).select(field).lean();
+  const list = ((doc as Record<string, { _id: unknown; source?: string }[] | undefined> | null)?.[field] ?? []);
+  const item = list.find((i) => String(i._id) === id);
+  if (!item) throw new AppError(404, "Entry not found");
+  if (kind === "workouts" && item.source === "watch") {
+    throw new AppError(400, "Workouts from Apple Watch are updated by the next sync, so they can't be changed here");
+  }
+  return field;
+}
+
+/** PATCH /api/entries/:date/:kind/:id — changes some fields of one entry (null clears an optional one). */
+export async function updateEntry(req: Request, res: Response): Promise<void> {
+  const date = writableDate(req);
+  const kind = kindParam(req);
+  const id = idParam(req);
+  const { time, ...values } = entryPatchSchemas[kind].parse(req.body ?? {}) as Record<string, unknown> & { time?: string };
+  const field = await findItem(req, date, kind, id);
+
+  const $set: Record<string, unknown> = {};
+  const $unset: Record<string, 1> = {};
+  for (const [key, value] of Object.entries(values)) {
+    if (value === undefined) continue;
+    if (value === null && CLEARABLE[kind].includes(key)) $unset[`${field}.$.${key}`] = 1;
+    else $set[`${field}.$.${key}`] = value;
+  }
+  if (time !== undefined) {
+    const at = atTime(date, time);
+    if (at.getTime() > Date.now() + 60_000) throw new AppError(400, "That time hasn't happened yet");
+    $set[`${field}.$.loggedAt`] = at;
+  }
+
+  const doc = (await DailyEntryModel.findOneAndUpdate(
+    { userId: req.userId, date, [`${field}._id`]: id },
+    Object.keys($unset).length > 0 ? { $set, $unset } : { $set },
+    { returnDocument: "after", runValidators: true },
+  ).lean()) as LeanDay | null;
+
+  res.json(dayResponse(date, doc));
+}
+
+/** DELETE /api/entries/:date/:kind/:id */
+export async function deleteEntry(req: Request, res: Response): Promise<void> {
+  const date = dateParam(req);
+  const kind = kindParam(req);
+  const id = idParam(req);
+  const field = await findItem(req, date, kind, id);
+
+  const doc = (await DailyEntryModel.findOneAndUpdate(
+    { userId: req.userId, date },
+    { $pull: { [field]: { _id: new Types.ObjectId(id) } } },
+    { returnDocument: "after" },
+  ).lean()) as LeanDay | null;
+
+  res.json(dayResponse(date, doc));
+}
+
+/** DELETE /api/entries/:date — the whole day. */
 export async function deleteByDate(req: Request, res: Response): Promise<void> {
   const date = dateParam(req);
   const result = await DailyEntryModel.deleteOne({ userId: req.userId, date });
@@ -113,11 +258,12 @@ export async function listEntries(req: Request, res: Response): Promise<void> {
     throw new AppError(400, `You can load at most ${MAX_RANGE_DAYS} days at a time`);
   }
 
-  // Check-ins only: days that so far only hold Apple Health data are left out
-  const entries = await DailyEntryModel.find({ userId: req.userId, date: { $gte: from, $lte: to }, ...CHECKED_IN }).sort({
-    date: -1,
-  });
-  res.json({ from, to, entries });
+  // Logged days only: days that so far only hold Apple Health data are left out
+  const rows = (await DailyEntryModel.find({ userId: req.userId, date: { $gte: from, $lte: to }, ...CHECKED_IN })
+    .select("-healthSnapshots")
+    .sort({ date: -1 })
+    .lean()) as LeanDay[];
+  res.json({ from, to, entries: rows.map(serializeEntry) });
 }
 
 export async function getStreak(req: Request, res: Response): Promise<void> {

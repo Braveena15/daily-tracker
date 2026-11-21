@@ -10,6 +10,7 @@ import { Register } from './pages/Register'
 import { Dashboard } from './pages/Dashboard'
 import { Today } from './pages/Today'
 import { History } from './pages/History'
+import { DayDetail } from './pages/DayDetail'
 import { Meals } from './pages/Meals'
 import { Foods } from './pages/Foods'
 import { Review } from './pages/Review'
@@ -23,7 +24,7 @@ import { Purpose } from './pages/Purpose'
 import { Motivation } from './pages/Motivation'
 import { Profile } from './pages/Profile'
 
-// A "data router", which the Today page needs to warn about unsaved changes (useBlocker).
+// A "data router" (createBrowserRouter), so pages can use the data APIs such as useBlocker.
 const router = createBrowserRouter([
   { path: '/login', element: <Login /> },
   { path: '/register', element: <Register /> },
@@ -38,6 +39,7 @@ const router = createBrowserRouter([
           { path: '/meals', element: <Meals /> },
           { path: '/foods', element: <Foods /> },
           { path: '/history', element: <History /> },
+          { path: '/history/:date', element: <DayDetail /> },
           { path: '/review', element: <Review /> },
           { path: '/mind', element: <Mind /> },
           { path: '/diary', element: <Diary /> },

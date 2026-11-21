@@ -13,15 +13,14 @@ import {
 const goals: ScoreGoals = { stepGoal: 8000, activeCalorieGoal: 400, workoutMinutesGoal: 30, learningMinutesGoal: 30 };
 
 const empty: ScoreEntry = {
-  mood: 5,
-  energy: 5,
+  moods: [{ mood: 5, energy: 5 }],
   sleepHours: null,
   workouts: [],
   mentalActivities: [],
   outdoorActivities: [],
   goodThings: [],
   learnings: [],
-  presentMoment: "",
+  presentMoments: [],
 };
 
 const noMeals: NutritionInput = { eatenKcal: null, targetKcal: 2000, minimumKcal: 1500 };
@@ -47,6 +46,18 @@ describe("physicalScore", () => {
     const result = physicalScore(empty, goals, noMeals);
     expect(result.breakdown.reduce((s, l) => s + l.max, 0)).toBe(100);
     expect(result.score).toBe(0);
+  });
+
+  it("adds up the minutes of every workout entry that day", () => {
+    const three = [
+      { type: "Cycling", durationMin: 10 },
+      { type: "Gym", durationMin: 10 },
+      { type: "Cycling", durationMin: 10 },
+    ];
+    expect(line(physicalScore({ ...empty, workouts: three }, goals, noMeals), "Workouts")).toMatchObject({
+      points: 20,
+      reason: "30 of 30 workout minutes ✓",
+    });
   });
 
   it("scores workout minutes toward the goal, capped at 20", () => {
@@ -155,9 +166,8 @@ describe("mentalScore", () => {
     const result = mentalScore({
       ...empty,
       goodThings: ["a", "b"],
-      presentMoment: "Calm and a little tired today.",
-      mood: 7,
-      energy: 6,
+      presentMoments: ["Calm and a little tired today."],
+      moods: [{ mood: 7, energy: 6 }],
     });
     expect(line(result, "Good things").points).toBe(15);
     expect(line(result, "Present-moment reflection").points).toBe(15);
@@ -167,17 +177,52 @@ describe("mentalScore", () => {
   });
 
   it("needs at least 20 characters of reflection", () => {
-    expect(line(mentalScore({ ...empty, presentMoment: "  short  " }), "Present-moment reflection").points).toBe(0);
+    expect(line(mentalScore({ ...empty, presentMoments: ["  short  "] }), "Present-moment reflection").points).toBe(0);
+  });
+
+  it("counts reflection when any present moment has 20+ characters", () => {
+    const result = mentalScore({ ...empty, presentMoments: ["short", "A longer moment of calm tonight."] });
+    expect(line(result, "Present-moment reflection").points).toBe(15);
+  });
+
+  it("uses the day's average of all mood check-ins", () => {
+    const result = mentalScore({
+      ...empty,
+      moods: [
+        { mood: 8, energy: 7 },
+        { mood: 5, energy: 4 },
+        { mood: 6, energy: 6 },
+      ],
+    });
+    // Mood average 6.3 → 13 points; energy average 5.7 → 6 points
+    expect(line(result, "Mood")).toMatchObject({ points: 13, reason: "Mood 6.3/10 (average of 3 check-ins)" });
+    expect(line(result, "Energy")).toMatchObject({ points: 6, reason: "Energy 5.7/10 (average of 3 check-ins)" });
+  });
+
+  it("gives no mood points when there's no check-in yet", () => {
+    const result = mentalScore({ ...empty, moods: [], goodThings: ["a"] });
+    expect(line(result, "Mood")).toMatchObject({ points: 0, reason: "No mood check-in" });
+    expect(line(result, "Energy").points).toBe(0);
+    expect(result.score).toBe(10);
+  });
+
+  it("counts every good-thing entry and distinct activity types across the day", () => {
+    const result = mentalScore({
+      ...empty,
+      goodThings: ["a", "b", "c", "d"],
+      mentalActivities: [{ type: "Meditation" }, { type: "Meditation" }, { type: "Reading" }],
+    });
+    expect(line(result, "Good things").points).toBe(20);
+    expect(line(result, "Mental-strength activities").points).toBe(25);
   });
 
   it("reaches 100 on a full day", () => {
     const result = mentalScore({
       ...empty,
-      mood: 10,
-      energy: 10,
+      moods: [{ mood: 10, energy: 10 }],
       mentalActivities: [{ type: "A" }, { type: "B" }, { type: "C" }],
       goodThings: ["1", "2", "3"],
-      presentMoment: "Feeling grounded and grateful tonight.",
+      presentMoments: ["Feeling grounded and grateful tonight."],
     });
     expect(result.score).toBe(100);
   });
@@ -200,6 +245,15 @@ describe("learningScore", () => {
     );
     expect(two.score).toBe(100);
     expect(line(two, "Learning time").reason).toBe("40 of 30 learning minutes ✓");
+  });
+
+  it("counts learning entries and adds up their minutes", () => {
+    const result = learningScore(
+      { ...empty, learnings: [{ topic: "TS", minutes: 10 }, { topic: "TS", minutes: 10 }, { topic: "Go", minutes: 5 }] },
+      goals,
+    );
+    expect(line(result, "Learnings logged")).toMatchObject({ points: 50, reason: "3 learnings logged ✓" });
+    expect(line(result, "Learning time").reason).toBe("25 of 30 learning minutes");
   });
 
   it("is 0 with no learnings", () => {

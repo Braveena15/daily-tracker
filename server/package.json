@@ -9,7 +9,8 @@
     "start": "node dist/index.js",
     "test": "vitest run",
     "seed:demo": "tsx src/scripts/seedDemo.ts",
-    "seed:demo:clear": "tsx src/scripts/seedDemo.ts --clear"
+    "seed:demo:clear": "tsx src/scripts/seedDemo.ts --clear",
+    "migrate:timeline": "tsx src/scripts/migrateTimeline.ts"
   },
   "keywords": [],
   "author": "",

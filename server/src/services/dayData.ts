@@ -51,7 +51,7 @@ export async function loadUserContext(userId: string | undefined): Promise<UserC
 type LeanEntry = Awaited<ReturnType<typeof loadEntries>> extends Map<string, infer E> ? E : never;
 
 async function loadEntries(userId: string | undefined, from: string, to: string) {
-  // Check-ins only: a day with just Apple Health data has no scores yet
+  // Logged days only: a day with just Apple Health data has no scores yet
   const rows = await DailyEntryModel.find({ userId, date: { $gte: from, $lte: to }, ...CHECKED_IN }).lean();
   return new Map(rows.filter(isCheckedIn).map((r) => [r.date, r]));
 }
@@ -69,18 +69,17 @@ export async function loadDays(userId: string | undefined, from: string, to: str
 /** A stored entry in the shape the score functions expect. */
 export function toScoreEntry(entry: LeanEntry): ScoreEntry {
   return {
-    mood: entry.mood,
-    energy: entry.energy,
+    moods: entry.moodLogs.map((m) => ({ mood: m.mood, energy: m.energy, note: m.note, loggedAt: m.loggedAt })),
     sleepHours: entry.sleepHours,
     sleepScore: entry.sleepScoreValue ?? null,
     steps: entry.steps,
     activeCalories: entry.activeCalories,
-    workouts: entry.workouts.map((w) => ({ type: w.type, durationMin: w.durationMin })),
-    mentalActivities: entry.mentalActivities.map((a) => ({ type: a.type, durationMin: a.durationMin })),
-    outdoorActivities: entry.outdoorActivities.map((a) => ({ type: a.type, durationMin: a.durationMin })),
-    goodThings: [...entry.goodThings],
-    learnings: entry.learnings.map((l) => ({ topic: l.topic, details: l.details, minutes: l.minutes })),
-    presentMoment: entry.presentMoment,
+    workouts: entry.workouts.map((w) => ({ type: w.type, durationMin: w.durationMin, loggedAt: w.loggedAt })),
+    mentalActivities: entry.mentalActivities.map((a) => ({ type: a.type, durationMin: a.durationMin, loggedAt: a.loggedAt })),
+    outdoorActivities: entry.outdoorActivities.map((a) => ({ type: a.type, durationMin: a.durationMin, loggedAt: a.loggedAt })),
+    goodThings: entry.goodThings.map((g) => g.text),
+    learnings: entry.learnings.map((l) => ({ topic: l.topic, details: l.details, minutes: l.minutes, loggedAt: l.loggedAt })),
+    presentMoments: entry.presentMoments.map((p) => p.text),
   };
 }
 
