@@ -24,13 +24,14 @@ export function DateBar({ date, today, onChange }: { date: string; today: string
             type="button"
             variant="ghost"
             className="h-auto min-w-0 flex-col gap-0 rounded-xl px-4 py-1.5"
-            aria-label={`${title}${title === subtitle ? '' : `, ${subtitle}`}. Choose a date`}
           >
-            <span className="font-heading text-lg font-semibold">{title}</span>
+            {/* The visible text is the button's name (plus "Choose a date" for screen readers) */}
+            <span className="font-heading text-lg font-semibold">{title} </span>
             <span className="flex items-center gap-1 text-xs font-normal text-muted-foreground">
               <CalendarDays className="size-4" aria-hidden />
               {title === subtitle ? 'Pick a date' : subtitle}
             </span>
+            <span className="sr-only">. Choose a date</span>
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-2" align="center">
