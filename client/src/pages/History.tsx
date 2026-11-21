@@ -18,6 +18,7 @@ import { energyBand, moodBand } from '@/lib/mood'
 import { MoodIcon } from '@/components/MoodFace'
 import { toneSoft } from '@/lib/tones'
 import { cn } from '@/lib/utils'
+import { CardChevron } from '@/components/CardChevron'
 
 const PAGE_DAYS = 30
 // The entries route returns at most this many days at once
@@ -170,7 +171,7 @@ function DayCard({ date, today, entry, isStart }: { date: string; today: string;
   return (
     <Link
       to={`/history/${date}`}
-      className={cn(cardBase, 'surface hover:ring-primary/30')}
+      className={cn(cardBase, 'group surface hover:bg-accent/40 hover:ring-primary/30')}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
@@ -184,6 +185,7 @@ function DayCard({ date, today, entry, isStart }: { date: string; today: string;
             <span className="sr-only">, average mood {mood.avg} out of 10</span>
           </span>
         )}
+        <CardChevron className="self-center" />
       </div>
 
       {entry.dailyPurpose && (entry.dailyPurpose.text || intentionsDone(entry.dailyPurpose)) && (

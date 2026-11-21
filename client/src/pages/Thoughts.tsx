@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, Brain, Lock, Plus } from 'lucide-react'
+import { Brain, Lock, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -15,6 +15,7 @@ import { useFetch } from '@/hooks/useFetch'
 import { api } from '@/lib/api'
 import { relativeDay, todayInTimezone } from '@/lib/dates'
 import { strongestFeeling, type ThoughtLog, type ThoughtResponse, type ThoughtStats } from '@/lib/mind'
+import { CardChevron } from '@/components/CardChevron'
 
 export function Thoughts() {
   const [logs, setLogs] = useState<ThoughtLog[] | null>(null)
@@ -129,7 +130,7 @@ export function Thoughts() {
                           <p className="line-clamp-2 font-serif text-lg leading-snug">"{log.thought}"</p>
                           {log.balancedThought && <p className="line-clamp-2 text-sm text-muted-foreground">→ {log.balancedThought}</p>}
                         </div>
-                        <ArrowRight className="mt-1 size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden />
+                        <CardChevron className="mt-1" />
                       </Link>
 
                       <div className="flex flex-wrap items-center gap-1.5">

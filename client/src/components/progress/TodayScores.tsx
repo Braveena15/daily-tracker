@@ -13,6 +13,7 @@ import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { todayInTimezone } from '@/lib/dates'
 import { AREAS, type Area, type DayScoresResponse } from '@/lib/progress'
 import { cn } from '@/lib/utils'
+import { InfoTip } from '@/components/InfoTip'
 
 // Written out in full so Tailwind generates them
 const BAR_CLASS: Record<Area, string> = { physical: 'bg-physical', mental: 'bg-mental', learning: 'bg-learning' }
@@ -30,7 +31,13 @@ export function TodayScores() {
         <div className="flex items-center gap-3">
           <IconBubble icon={Gauge} />
           <div>
-            <CardTitle className="text-lg font-semibold">Today's scores</CardTitle>
+            <CardTitle className="flex items-center gap-1.5 text-lg font-semibold">
+              Today's scores
+              <InfoTip title="Today's scores">
+                Physical, mental and learning scores run from 0 to 100, from what you log today; overall is the average of
+                the three. Tap a ring to see exactly how it was worked out.
+              </InfoTip>
+            </CardTitle>
             {data?.logged && <CardDescription>Tap a ring to see how it's worked out</CardDescription>}
           </div>
         </div>

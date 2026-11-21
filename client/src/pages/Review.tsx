@@ -1,6 +1,6 @@
 import { Suspense, useState, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ArrowDown, ArrowRight, ArrowUp, BookOpen, Brain, CalendarCheck, ChevronLeft, ChevronRight, Dumbbell, Flag, Gauge, LineChart as LineChartIcon, Moon, Smile, Sparkles, Target, Trophy, UtensilsCrossed, Wheat, type LucideIcon } from 'lucide-react'
+import { ArrowDown, ArrowUp, BookOpen, Brain, CalendarCheck, ChevronLeft, ChevronRight, Dumbbell, Flag, Gauge, LineChart as LineChartIcon, Moon, Smile, Sparkles, Target, Trophy, UtensilsCrossed, Wheat, type LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/InfoTip'
 import { WeeklyGoalsCard, type GoalSuggestion } from '@/components/progress/WeeklyGoals'
@@ -24,6 +24,7 @@ import type { WeeklyReviewResponse } from '@/lib/progress'
 import type { Tone } from '@/lib/tones'
 import { cn } from '@/lib/utils'
 import { lazyPage } from '@/lib/lazyPage'
+import { CardChevron } from '@/components/CardChevron'
 
 // Recharts loads only when the charts are shown
 const DailyScoresChart = lazyPage(() => import('@/components/progress/WeekScoreCharts').then((m) => m.DailyScoresChart))
@@ -228,7 +229,7 @@ function ReviewBody({ data, today }: { data: WeeklyReviewResponse; today: string
       {w.bestDay && (
         <Link
           to={`/history/${w.bestDay.date}`}
-          className="flex items-center gap-3 surface p-4 transition-all outline-none hover:ring-primary/30 focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="group flex items-center gap-3 surface p-4 transition-all outline-none hover:bg-accent/40 hover:ring-primary/30 focus-visible:ring-3 focus-visible:ring-ring/50"
         >
           <IconBubble icon={Trophy} tone="learning" />
           <div className="min-w-0 flex-1">
@@ -237,7 +238,7 @@ function ReviewBody({ data, today }: { data: WeeklyReviewResponse; today: string
               {relativeDay(w.bestDay.date, today)} · overall score {w.bestDay.overall}
             </p>
           </div>
-          <ArrowRight className="size-4 text-muted-foreground" aria-hidden />
+          <CardChevron />
         </Link>
       )}
 

@@ -12,6 +12,7 @@ import { useFetch } from '@/hooks/useFetch'
 import { relativeDay, todayInTimezone } from '@/lib/dates'
 import type { DiaryListResponse } from '@/lib/mind'
 import { cn } from '@/lib/utils'
+import { CardChevron } from '@/components/CardChevron'
 
 const chip =
   'touch-hit h-9 overflow-visible rounded-full px-3.5 text-sm transition-all outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-95'
@@ -101,14 +102,17 @@ export function Diary() {
               <li key={entry.id}>
                 <Link
                   to={`/diary/${entry.id}`}
-                  className="block space-y-2 surface p-4 transition-all outline-none hover:ring-mental/40 focus-visible:ring-3 focus-visible:ring-ring/50"
+                  className="group block space-y-2 surface p-4 transition-all outline-none hover:bg-accent/40 hover:ring-mental/40 focus-visible:ring-3 focus-visible:ring-ring/50"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-xs text-muted-foreground">{relativeDay(entry.date, today)}</p>
                       <p className="truncate font-heading text-lg font-semibold">{entry.title || 'Untitled'}</p>
                     </div>
-                    {entry.isFavourite && <Star className="size-4 shrink-0 fill-learning text-learning" aria-label="Favourite" />}
+                    <span className="flex shrink-0 items-center gap-1">
+                      {entry.isFavourite && <Star className="size-4 shrink-0 fill-learning text-learning" aria-label="Favourite" />}
+                      <CardChevron />
+                    </span>
                   </div>
                   <p className="line-clamp-2 font-serif text-muted-foreground">{entry.preview}</p>
                   {entry.tags.length > 0 && (

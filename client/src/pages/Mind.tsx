@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, Lock } from 'lucide-react'
+import { Lock } from 'lucide-react'
 import { IconBubble } from '@/components/IconBubble'
 import { PageHeader } from '@/components/PageHeader'
 import { SupportButton } from '@/components/mind/Support'
 import { MIND_PAGES } from '@/lib/mind'
+import { CardChevron } from '@/components/CardChevron'
 
 /** The "Mind" hub: links to the diary, thought log, lift me up, purpose and motivation. */
 export function Mind() {
@@ -18,14 +19,14 @@ export function Mind() {
             <li key={page.to}>
               <Link
                 to={page.to}
-                className="flex h-full items-center gap-4 surface p-4 transition-all outline-none hover:ring-mental/40 focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.99]"
+                className="group flex h-full items-center gap-4 surface p-4 transition-all outline-none hover:bg-accent/40 hover:ring-mental/40 focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.99]"
               >
                 <IconBubble icon={page.icon} tone="mental" className="size-12 rounded-2xl [&_svg]:size-6" />
                 <div className="min-w-0 flex-1">
                   <p className="font-heading text-lg font-semibold">{page.label}</p>
                   <p className="text-sm text-muted-foreground">{page.description}</p>
                 </div>
-                <ArrowRight className="size-4 text-muted-foreground" aria-hidden />
+                <CardChevron />
               </Link>
             </li>
           ))}

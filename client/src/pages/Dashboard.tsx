@@ -13,6 +13,7 @@ import { TodayScores } from '@/components/progress/TodayScores'
 import { useFetch } from '@/hooks/useFetch'
 import type { SummaryResponse } from '@/lib/profile'
 import type { Tone } from '@/lib/tones'
+import { MilestoneNote } from '@/components/progress/MilestoneNote'
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
 
@@ -33,6 +34,7 @@ export function Dashboard() {
 
       <div className="space-y-4 md:space-y-6">
         <WellbeingNote />
+        <MilestoneNote />
         <JourneyRow />
         <TodayScores />
         <ScoreTrendCard />

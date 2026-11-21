@@ -95,6 +95,9 @@ const userSchema = new Schema(
     // false = never call the AI for this user; pre-written messages are shown instead
     aiEnabled: { type: Boolean, default: true },
 
+    // Milestone notes (e.g. "streak-7") the user has closed, so they don't show again on any device
+    dismissedMilestones: { type: [String], default: [] },
+
     // Apple Health sync. Only the SHA-256 hash of the token is stored, never the token itself.
     // sparse: users without a token don't take part in the unique index.
     healthSyncTokenHash: { type: String, select: false, unique: true, sparse: true },
