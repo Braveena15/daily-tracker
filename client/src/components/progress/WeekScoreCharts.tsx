@@ -1,5 +1,6 @@
 // The weekly review's two score charts (loaded on their own, with Recharts, only on that page).
-// They only ever plot what was logged: unlogged days are gaps, and a missing week shows no bar.
+// They only ever plot what was logged: unlogged days stay empty (a dashed line only bridges them),
+// and a missing week shows no bar.
 import type { ReactNode } from 'react'
 import { Bar, BarChart, CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts'
 import { BarChart3, LineChart as LineIcon } from 'lucide-react'
@@ -38,14 +39,14 @@ const dailyConfig = Object.fromEntries(AREAS.map((a) => [a.key, { label: a.label
 function dailySummary(days: ReviewDay[]): string {
   const logged = days.filter((d) => d.overall !== null)
   const parts = logged.map((d) => `${tooltipDate(d.date)}: physical ${d.physical}, mental ${d.mental}, learning ${d.learning}`)
-  return `Daily scores on the ${logged.length} logged days. ${parts.join('; ')}.`
+  return `Daily scores on the ${logged.length} logged days. ${parts.join('; ')}. Dashed lines bridge days without a check-in.`
 }
 
 export function DailyScoresChart({ days }: { days: ReviewDay[] }) {
   const animate = !useMediaQuery('(prefers-reduced-motion: reduce)')
   const logged = days.filter((d) => d.overall !== null).length
   return (
-    <ChartCard icon={LineIcon} title="Scores day by day" description={`${logged} of ${days.length} days logged · gaps are days without a check-in`}>
+    <ChartCard icon={LineIcon} title="Scores day by day" description={`${logged} of ${days.length} days logged · dashed lines bridge days without a check-in`}>
       <ChartContainer config={dailyConfig} className={CHART_CLASS} summary={dailySummary(days)}>
         <LineChart data={days} margin={{ left: 0, right: 12, top: 8 }}>
           <CartesianGrid vertical={false} />
@@ -54,6 +55,25 @@ export function DailyScoresChart({ days }: { days: ReviewDay[] }) {
           <YAxis {...AXIS} width={scoreAxis.width} domain={scoreAxis.domain} ticks={scoreAxis.ticks} tickFormatter={scoreAxis.format} />
           <ChartTooltip content={<ChartTooltipContent labelFormatter={(_, p) => tooltipDate(String(p[0]?.payload.date))} />} />
           <ChartLegend content={<ChartLegendContent />} />
+          {/* Bottom layer: a faint dashed line across days without a check-in (no dots, tooltip or legend entry) */}
+          {AREAS.map((a) => (
+            <Line
+              key={`${a.key}-bridge`}
+              dataKey={a.key}
+              type="monotone"
+              stroke={`var(--color-${a.key})`}
+              strokeOpacity={0.4}
+              strokeWidth={1.5}
+              strokeDasharray="4 4"
+              connectNulls
+              dot={false}
+              activeDot={false}
+              legendType="none"
+              tooltipType="none"
+              isAnimationActive={animate}
+            />
+          ))}
+          {/* Top layer: solid only between consecutive logged days, with a dot on each real score */}
           {AREAS.map((a) => (
             <Line
               key={a.key}
