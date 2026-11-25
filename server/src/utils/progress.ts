@@ -11,9 +11,10 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 export type WeightPoint = { date: string; weightKg: number | null; averageKg: number | null };
 
 /**
- * One point per day from `from` to `to`, with the day's weight (or null) and the 7-day
- * moving average. The average smooths out day-to-day noise (water, salt, timing) so the
- * real trend is easier to see; it skips days with no weigh-in.
+ * One point per day from `from` to `to`, with the day's weight (null without a weigh-in, never
+ * filled from another day) and the 7-day average. The average smooths out day-to-day noise
+ * (water, salt, timing); it's only given on days with a weigh-in, from at least 2 real readings
+ * in that day's 7-day window, and is null on every other day.
  */
 export function weightSeries(weights: Map<string, number>, from: string, to: string): WeightPoint[] {
   const dates = listDates(from, to);
@@ -27,16 +28,20 @@ export function weightSeries(weights: Map<string, number>, from: string, to: str
 }
 
 /**
- * Average change per week over the last 4 weeks, from the moving average (not raw weights):
- * (latest average − average 28 days earlier) ÷ 4. Null if either end has no average.
+ * Average change per week over about the last 4 weeks, from the 7-day average (not raw weights):
+ * the latest average compared with the average from 28 days before it — or, since averages only
+ * exist on weigh-in days, the latest one from 28–35 days before — per week between them.
+ * Null without two such averages (so always null with fewer than 2 readings on different days).
  */
 export function weeklyChangeFromAverage(series: WeightPoint[]): number | null {
-  const last = [...series].reverse().find((p) => p.averageKg !== null);
+  const averaged = series.filter((p): p is WeightPoint & { averageKg: number } => p.averageKg !== null);
+  const last = averaged.at(-1);
   if (!last) return null;
-  const earlierDate = addDays(last.date, -28);
-  const earlier = series.find((p) => p.date === earlierDate);
-  if (!earlier || earlier.averageKg === null) return null;
-  return round2((last.averageKg! - earlier.averageKg) / 4);
+  const latestEarlier = addDays(last.date, -28);
+  const oldestEarlier = addDays(last.date, -35);
+  const earlier = averaged.filter((p) => p.date <= latestEarlier && p.date >= oldestEarlier).at(-1);
+  if (!earlier) return null;
+  return round2((last.averageKg - earlier.averageKg) / (daysBetween(earlier.date, last.date) / 7));
 }
 
 /** Latest weight minus the first weight on or after the journey start. Null without both. */

@@ -144,24 +144,31 @@ describe("estimateWeeksToGoal", () => {
 });
 
 describe("movingAverage", () => {
-  it("averages a trailing 7-day window by default", () => {
+  it("averages a trailing 7-day window by default, from the second reading on", () => {
     const result = movingAverage([1, 2, 3, 4, 5, 6, 7, 8]);
-    expect(result.slice(0, 3)).toEqual([1, 1.5, 2]); // fewer than 7 days so far
+    expect(result.slice(0, 3)).toEqual([null, 1.5, 2]); // one reading isn't an average yet
     expect(result[6]).toBe(4); // (1..7) / 7
     expect(result[7]).toBe(5); // (2..8) / 7
   });
 
   it("skips nulls instead of treating them as zero", () => {
-    expect(movingAverage([70, null, 72, 74], 3)).toEqual([70, 70, 71, 73]);
+    expect(movingAverage([70, null, 72, 74], 3)).toEqual([null, null, 71, 73]);
   });
 
-  it("returns null only when the whole window is empty", () => {
-    expect(movingAverage([null, null, 70, null, null, null], 3)).toEqual([null, null, 70, 70, 70, null]);
+  it("never carries an average into a day without a reading", () => {
+    expect(movingAverage([70, 71, null, null, 73, null], 3)).toEqual([null, 70.5, null, null, null, null]);
+    expect(movingAverage([null, null, 70, null, null, null], 3)).toEqual([null, null, null, null, null, null]);
+  });
+
+  it("can ask for a different number of readings", () => {
+    expect(movingAverage([70, null, 72], 3, 1)).toEqual([70, null, 71]);
+    expect(() => movingAverage([1, 2], 7, 0)).toThrow(RangeError);
   });
 
   it("handles empty input and a window of 1", () => {
     expect(movingAverage([])).toEqual([]);
-    expect(movingAverage([70, null, 71], 1)).toEqual([70, null, 71]);
+    expect(movingAverage([70, null, 71], 1, 1)).toEqual([70, null, 71]);
+    expect(movingAverage([70, null, 71], 1)).toEqual([null, null, null]);
   });
 
   it("handles decimals", () => {

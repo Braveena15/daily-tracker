@@ -15,18 +15,54 @@ import {
 import { addDays, listDates } from "./dates";
 
 describe("weightSeries", () => {
-  it("has one point per day with a 7-day average that skips missing days", () => {
+  it("has one point per day; weight and average only on days with a real reading", () => {
     const weights = new Map([
       ["2026-11-01", 80],
       ["2026-11-03", 79],
     ]);
     const series = weightSeries(weights, "2026-11-01", "2026-11-04");
     expect(series).toEqual([
-      { date: "2026-11-01", weightKg: 80, averageKg: 80 },
-      { date: "2026-11-02", weightKg: null, averageKg: 80 },
+      { date: "2026-11-01", weightKg: 80, averageKg: null }, // one reading isn't an average
+      { date: "2026-11-02", weightKg: null, averageKg: null },
       { date: "2026-11-03", weightKg: 79, averageKg: 79.5 },
-      { date: "2026-11-04", weightKg: null, averageKg: 79.5 },
+      { date: "2026-11-04", weightKg: null, averageKg: null }, // never past the last reading
     ]);
+  });
+
+  it("one reading: one daily point, no average, no change", () => {
+    const weights = new Map([["2026-11-21", 54.2]]);
+    const series = weightSeries(weights, "2026-11-15", "2026-11-25");
+    expect(series.filter((p) => p.weightKg !== null)).toEqual([{ date: "2026-11-21", weightKg: 54.2, averageKg: null }]);
+    expect(series.every((p) => p.averageKg === null)).toBe(true);
+    expect(changeSinceStart([{ date: "2026-11-21", weightKg: 54.2 }], "2026-11-01")).toBeNull();
+    expect(weeklyChangeFromAverage(series)).toBeNull();
+  });
+
+  it("readings on Nov 21 and Nov 25: nothing for Nov 22–24, and an average only on Nov 25", () => {
+    const weights = new Map([
+      ["2026-11-21", 54.2],
+      ["2026-11-25", 53.8],
+    ]);
+    const series = weightSeries(weights, "2026-11-19", "2026-11-27");
+    const byDate = Object.fromEntries(series.map((p) => [p.date, p]));
+    for (const d of ["2026-11-22", "2026-11-23", "2026-11-24"]) {
+      expect(byDate[d]).toEqual({ date: d, weightKg: null, averageKg: null });
+    }
+    expect(byDate["2026-11-21"]).toEqual({ date: "2026-11-21", weightKg: 54.2, averageKg: null });
+    expect(byDate["2026-11-25"]).toEqual({ date: "2026-11-25", weightKg: 53.8, averageKg: 54 });
+    // Nothing before the first reading or after the last one
+    expect(series.filter((p) => p.date < "2026-11-21" || p.date > "2026-11-25").every((p) => p.weightKg === null && p.averageKg === null)).toBe(true);
+    expect(changeSinceStart([...weights].map(([date, weightKg]) => ({ date, weightKg })), "2026-11-01")).toBe(-0.4);
+  });
+
+  it("only averages readings within the 7-day window, and needs 2 of them", () => {
+    const weights = new Map([
+      ["2026-11-01", 80],
+      ["2026-11-08", 79], // 7 days later: Nov 1 is outside its window (Nov 2–8)
+      ["2026-11-10", 78],
+    ]);
+    const series = weightSeries(weights, "2026-11-01", "2026-11-10");
+    expect(series.filter((p) => p.averageKg !== null)).toEqual([{ date: "2026-11-10", weightKg: 78, averageKg: 78.5 }]);
   });
 });
 
@@ -42,6 +78,19 @@ describe("weeklyChangeFromAverage", () => {
   it("is null without 4 weeks of history", () => {
     const weights = new Map([["2026-11-19", 80]]);
     expect(weeklyChangeFromAverage(weightSeries(weights, "2026-11-01", "2026-11-19"))).toBeNull();
+    const twoClose = new Map([
+      ["2026-11-21", 54.2],
+      ["2026-11-25", 53.8],
+    ]);
+    expect(weeklyChangeFromAverage(weightSeries(twoClose, "2026-10-01", "2026-11-25"))).toBeNull();
+  });
+
+  it("works with a few weigh-ins a week, using the latest average 28–35 days earlier", () => {
+    // Weighed every Mon/Wed/Fri-ish (every other day), losing 0.1 kg a day
+    const dates = listDates("2026-10-01", "2026-11-19").filter((_, i) => i % 2 === 0);
+    const weights = new Map(dates.map((d, i) => [d, 90 - i * 0.2]));
+    const series = weightSeries(weights, "2026-10-01", "2026-11-19");
+    expect(weeklyChangeFromAverage(series)).toBeCloseTo(-0.7, 5);
   });
 });
 

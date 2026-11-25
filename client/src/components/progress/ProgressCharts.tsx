@@ -168,30 +168,57 @@ export function ScoreTrendCard() {
 
 // ---------- Weight ----------
 
+/** Legend marks that look like what's drawn: a dot for each weigh-in, a line for the average. */
+const DotIcon = () => <span aria-hidden className="size-2.5 shrink-0 rounded-full bg-[var(--color-weightKg)]" />
+const LineMarkIcon = () => <span aria-hidden className="h-0.5 w-3.5 shrink-0 rounded-full bg-[var(--color-averageKg)]" />
+
 const weightConfig = {
-  weightKg: { label: 'Daily weight', color: 'var(--muted-foreground)' },
-  averageKg: { label: '7-day average', color: 'var(--primary)' },
+  weightKg: { label: 'Daily weight', color: 'var(--muted-foreground)', icon: DotIcon },
+  averageKg: { label: '7-day average', color: 'var(--primary)', icon: LineMarkIcon },
 } satisfies ChartConfig
 
 /** "−1.8" kg with a real minus sign, or "—". */
 const kg = (n: number | null, digits = 1) => (n === null ? '—' : `${signed(n, digits)} kg`)
 
+type WeightPoint = WeightResponse['points'][number]
+
+/**
+ * For screen readers: only real weigh-ins, never days without one.
+ * "2 weigh-ins: 54.2 kg on Sat, Nov 21 and 53.8 kg on Wed, Nov 25; goal 52 kg."
+ */
+function weightSummary(readings: (WeightPoint & { weightKg: number })[], latestAverage: number | null, goal: number | null): string {
+  const at = (p: WeightPoint & { weightKg: number }) => `${p.weightKg} kg on ${tooltipDate(p.date)}`
+  const first = readings[0]!
+  const last = readings.at(-1)!
+  const values = readings.map((p) => p.weightKg)
+  const parts =
+    readings.length === 1
+      ? [`1 weigh-in: ${at(first)}`]
+      : readings.length <= 4
+        ? [`${readings.length} weigh-ins: ${readings.slice(0, -1).map(at).join(', ')} and ${at(last)}`]
+        : [`${readings.length} weigh-ins, from ${at(first)} to ${at(last)}`, `lowest ${Math.min(...values)} kg, highest ${Math.max(...values)} kg`]
+  if (latestAverage !== null) parts.push(`latest 7-day average ${latestAverage.toFixed(1)} kg`)
+  if (goal !== null) parts.push(`goal ${goal} kg`)
+  return `${parts.join('; ')}.`
+}
+
 export function WeightCard() {
   const animate = useAnimate()
   const { data, error } = useFetch<WeightResponse>('/progress/weight?days=90')
-  const weights = data?.points.filter((p) => p.weightKg !== null) ?? []
+  // Real weigh-ins only: a day without one is null and is never filled from another day
+  const readings = (data?.points ?? []).filter((p): p is WeightPoint & { weightKg: number } => p.weightKg !== null)
+  const averages = (data?.points ?? []).filter((p) => p.averageKg !== null)
   // Start the chart at the first weigh-in rather than weeks of empty space
   const firstIndex = data?.points.findIndex((p) => p.weightKg !== null) ?? -1
   const points = data && firstIndex > 0 ? data.points.slice(firstIndex) : (data?.points ?? [])
 
-  // Show the goal line only when it's near the data, so the trend isn't squashed flat
-  const values = weights.map((p) => p.weightKg!)
-  const min = Math.min(...values)
-  const max = Math.max(...values)
+  // The y-axis fits the real readings; the goal is drawn only when it already falls inside
+  const values = readings.map((p) => p.weightKg)
+  const lo = Math.floor(Math.min(...values) - 0.5)
+  const hi = Math.ceil(Math.max(...values) + 0.5)
   const goal = data?.goalWeightKg ?? null
-  const goalOnChart = goal !== null && values.length > 0 && goal >= min - 4 && goal <= max + 4
-  const lo = Math.floor(Math.min(min, goalOnChart ? goal! : min) - 0.5)
-  const hi = Math.ceil(Math.max(max, goalOnChart ? goal! : max) + 0.5)
+  const goalOnChart = goal !== null && values.length > 0 && goal >= lo && goal <= hi
+  const goalText = goal !== null && !goalOnChart ? <> · goal {goal} kg</> : null
 
   return (
     <ChartCard icon={Scale} title="Weight" description={data?.latestKg != null ? `Latest ${data.latestKg} kg` : undefined}>
@@ -199,7 +226,7 @@ export function WeightCard() {
         <ErrorNotice>{error}</ErrorNotice>
       ) : !data ? (
         <ChartSkeleton />
-      ) : weights.length === 0 ? (
+      ) : readings.length === 0 ? (
         <EmptyState icon={Scale} title="No weigh-ins yet" className="py-10">
           Add your weight in the daily check-in to see your trend.
         </EmptyState>
@@ -208,24 +235,32 @@ export function WeightCard() {
           <ChartContainer
             config={weightConfig}
             className={CHART_CLASS}
-            summary={`Weight from ${values[0]} kg to ${values.at(-1)} kg over ${weights.length} weigh-ins${goal !== null ? `; goal ${goal} kg` : ''}.`}
+            summary={weightSummary(readings, averages.at(-1)?.averageKg ?? null, goal)}
           >
             <ComposedChart data={points} margin={{ left: 0, right: 8, top: 8 }}>
               <CartesianGrid vertical={false} />
               <XAxis dataKey="date" {...AXIS} minTickGap={28} tickFormatter={shortDate} />
               <YAxis {...AXIS} width={34} domain={[lo, hi]} allowDecimals={false} />
               <ChartTooltip
-                content={
-                  <ChartTooltipContent
-                    labelFormatter={(_, p) => tooltipDate(String(p[0]?.payload.date))}
-                    formatter={(value, name) => (
-                      <div className="flex w-full justify-between gap-4">
-                        <span className="text-muted-foreground">{weightConfig[name as keyof typeof weightConfig]?.label}</span>
-                        <span className="font-medium tabular-nums">{Number(value).toFixed(1)} kg</span>
-                      </div>
-                    )}
-                  />
-                }
+                content={(props) => {
+                  // Days without a weigh-in have nothing to show (never a made-up value)
+                  const payload = props.payload?.filter((p) => p.value !== null && p.value !== undefined)
+                  if (!props.active || !payload?.length) return null
+                  return (
+                    <ChartTooltipContent
+                      active={props.active}
+                      payload={payload}
+                      label={props.label}
+                      labelFormatter={(_, p) => tooltipDate(String(p[0]?.payload.date))}
+                      formatter={(value, name) => (
+                        <div className="flex w-full justify-between gap-4">
+                          <span className="text-muted-foreground">{weightConfig[name as keyof typeof weightConfig]?.label}</span>
+                          <span className="font-medium tabular-nums">{Number(value).toFixed(1)} kg</span>
+                        </div>
+                      )}
+                    />
+                  )
+                }}
               />
               <ChartLegend content={<ChartLegendContent />} />
               {goalOnChart && (
@@ -237,28 +272,49 @@ export function WeightCard() {
                   label={{ value: `Goal ${goal} kg`, position: 'insideBottomRight', fill: 'var(--muted-foreground)', fontSize: 11 }}
                 />
               )}
-              {/* Daily weigh-ins: dots only */}
+              {/* Daily weigh-ins: clearly visible dots, never joined across days without one */}
               <Line
                 dataKey="weightKg"
-                stroke="transparent"
-                dot={{ r: 2.5, strokeWidth: 0, fill: 'var(--color-weightKg)', fillOpacity: 0.55 }}
-                activeDot={{ r: 4 }}
+                stroke="none"
+                dot={{ r: 4, strokeWidth: 1.5, stroke: 'var(--card)', fill: 'var(--color-weightKg)' }}
+                activeDot={{ r: 5.5 }}
                 connectNulls={false}
                 isAnimationActive={false}
               />
-              {/* The smooth trend */}
-              <Line dataKey="averageKg" type="monotone" stroke="var(--color-averageKg)" strokeWidth={2.5} dot={false} connectNulls isAnimationActive={animate} />
+              {/* The 7-day average: only on weigh-in days with 2+ readings in the week, joined between those
+                  real points only (it can't reach past the first or last reading, as there are no points there) */}
+              {averages.length > 0 && (
+                <Line
+                  dataKey="averageKg"
+                  type="monotone"
+                  stroke="var(--color-averageKg)"
+                  strokeWidth={2.5}
+                  dot={averages.length === 1 ? { r: 3, strokeWidth: 0, fill: 'var(--color-averageKg)' } : false}
+                  connectNulls
+                  isAnimationActive={animate}
+                />
+              )}
             </ComposedChart>
           </ChartContainer>
+          {readings.length === 1 && <p className="text-sm text-muted-foreground">Log your weight on a few more days to see your trend.</p>}
           <p className="text-sm text-muted-foreground">
-            <span className="font-medium text-foreground">{kg(data.changeSinceStartKg)}</span> since you started
-            {data.weeklyChangeKg !== null && (
+            {data.changeSinceStartKg === null ? (
               <>
-                {' · '}avg <span className="font-medium text-foreground">{kg(data.weeklyChangeKg)}/week</span>
+                Log a second weigh-in to see your change
+                {goal !== null && <> · goal {goal} kg</>}
+              </>
+            ) : (
+              <>
+                <span className="font-medium text-foreground">{kg(data.changeSinceStartKg)}</span> since you started
+                {data.weeklyChangeKg !== null && (
+                  <>
+                    {' · '}avg <span className="font-medium text-foreground">{kg(data.weeklyChangeKg)}/week</span>
+                  </>
+                )}
+                {data.expectedWeeklyChangeKg !== null && <> (plan: {kg(data.expectedWeeklyChangeKg)})</>}
+                {goalText}
               </>
             )}
-            {data.expectedWeeklyChangeKg !== null && <> (plan: {kg(data.expectedWeeklyChangeKg)})</>}
-            {!goalOnChart && goal !== null && <> · goal {goal} kg</>}
           </p>
         </>
       )}

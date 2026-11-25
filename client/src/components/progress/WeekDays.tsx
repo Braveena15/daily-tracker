@@ -73,7 +73,8 @@ export function WeekMoodChart({ days }: { days: ReviewDay[] }) {
                   )
                 }}
               />
-              <Area dataKey="range" type="monotone" stroke="none" fill="var(--color-range)" fillOpacity={0.15} connectNulls isAnimationActive={animate} />
+              {/* Not joined across days without a check-in, like the line */}
+              <Area dataKey="range" type="monotone" stroke="none" fill="var(--color-range)" fillOpacity={0.15} connectNulls={false} isAnimationActive={animate} />
               <Line
                 dataKey="mood"
                 type="monotone"

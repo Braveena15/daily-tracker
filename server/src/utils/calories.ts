@@ -104,23 +104,28 @@ export function estimateWeeksToGoal(currentKg: number, goalKg: number, weeklyGoa
 }
 
 /**
- * Trailing moving average: each result is the average of that day and the previous
- * `window − 1` days. Missing days (null) are skipped; a result is null only when the
- * whole window has no values.
+ * Trailing moving average of real readings only. A day gets an average only when it has a
+ * reading itself (nothing is carried forward into days without one) and there are at least
+ * `minReadings` readings in its window: that day and the previous `window − 1` days.
+ * So the average never reaches before the first reading or past the last one.
  *
- * Example with window 3: [70, null, 72, 74] → [70, 70, 71, 73]
+ * Example with window 3: [70, null, 72, 74] → [null, null, 71, 73]
  */
-export function movingAverage(values: (number | null)[], window = 7): (number | null)[] {
+export function movingAverage(values: (number | null)[], window = 7, minReadings = 2): (number | null)[] {
   if (!Number.isInteger(window) || window < 1) {
     throw new RangeError("window must be a positive whole number");
   }
+  if (!Number.isInteger(minReadings) || minReadings < 1) {
+    throw new RangeError("minReadings must be a positive whole number");
+  }
 
-  return values.map((_, i) => {
+  return values.map((value, i) => {
+    if (value === null) return null;
     const inWindow = values
       .slice(Math.max(0, i - window + 1), i + 1)
       .filter((v): v is number => v !== null);
 
-    if (inWindow.length === 0) return null;
+    if (inWindow.length < minReadings) return null;
     return inWindow.reduce((sum, v) => sum + v, 0) / inWindow.length;
   });
 }
