@@ -1,15 +1,15 @@
-// How a day progressed: mood & energy through the day.
+// How a day progressed: mood and energy through the day, as two charts with the same time axis.
 // The x-axis is the time of day (minutes since midnight, Asia/Colombo).
-import { Smile } from 'lucide-react'
+import { Smile, Zap } from 'lucide-react'
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, type ChartConfig } from '@/components/ui/chart'
-import { MoodSquare } from '@/components/day/MoodDot'
-import { energyBand, moodBand } from '@/lib/mood'
+import { ChartContainer, ChartTooltip, type ChartConfig } from '@/components/ui/chart'
+import { moodBand } from '@/lib/mood'
 import { IconBubble } from '@/components/IconBubble'
 import { EmptyState } from '@/components/StatusViews'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
-import { timeOf } from '@/lib/healthSync'
+import { dayOf, timeOf } from '@/lib/healthSync'
+import { todayInTimezone } from '@/lib/dates'
 import type { MoodLog } from '@/lib/entries'
 import type { LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
@@ -24,13 +24,6 @@ function minuteOfDay(iso: string): number {
   return h * 60 + m
 }
 const clock = (minute: number) => `${String(Math.floor(minute / 60) % 24).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`
-
-/** The x-axis range: whole hours around the data, at least 3 hours wide. */
-function hourDomain(minutes: number[]): [number, number] {
-  const lo = Math.floor(Math.min(...minutes) / 60) * 60
-  const hi = Math.max(Math.ceil(Math.max(...minutes) / 60) * 60, lo + 180)
-  return [lo, Math.min(hi, 24 * 60)]
-}
 
 function hourTicks([lo, hi]: [number, number]): number[] {
   const hours = (hi - lo) / 60
@@ -57,82 +50,103 @@ function DayChartCard({ icon, title, description, children }: { icon: LucideIcon
   )
 }
 
-// ---------- Mood & energy ----------
+// ---------- Mood and energy (two charts) ----------
 
-/** "3 check-ins. Mood from Okay 5 to Good 8; latest Good 7 at 20:58, with some energy (6/10)." */
-function moodSummary(points: { minute: number; mood: number; energy: number }[]): string {
-  const moods = points.map((p) => p.mood)
-  const lo = Math.min(...moods)
-  const hi = Math.max(...moods)
-  const last = points.at(-1)!
-  const range = lo === hi ? `Mood ${moodBand(lo).word} ${lo}` : `Mood from ${moodBand(lo).word} ${lo} to ${moodBand(hi).word} ${hi}`
-  return `${points.length} check-in${points.length === 1 ? '' : 's'}. ${range}; latest ${moodBand(last.mood).word} ${last.mood} at ${clock(last.minute)}, ${energyBand(last.energy).word.toLowerCase()} (${last.energy}/10).`
+type CheckinPoint = { minute: number; mood: number; energy: number; note?: string }
+type Series = 'mood' | 'energy'
+
+const levelAxis = fixedAxis([0, 5, 10])
+
+const SERIES = {
+  mood: { title: 'Mood through the day', label: 'Mood', color: 'var(--chart-mental)', icon: Smile, tone: 'mental' },
+  energy: { title: 'Energy through the day', label: 'Energy', color: 'var(--chart-learning)', icon: Zap, tone: 'learning' },
+} as const
+
+/** "15:42 · 7 Good" for mood, "15:42 · Energy 6" for energy. */
+const pointText = (series: Series, p: CheckinPoint) =>
+  series === 'mood' ? `${clock(p.minute)} · ${p.mood} ${moodBand(p.mood).word}` : `${clock(p.minute)} · Energy ${p.energy}`
+
+/** From an hour before the first check-in to an hour after the last one (or now, today), on whole hours. */
+function checkinDomain(minutes: number[], nowMinute: number | null): [number, number] {
+  const first = Math.min(...minutes)
+  const last = Math.max(...minutes, nowMinute ?? 0)
+  const lo = Math.max(0, Math.floor((first - 60) / 60) * 60)
+  const hi = Math.min(24 * 60, Math.ceil((last + 60) / 60) * 60)
+  return [lo, Math.max(hi, lo + 120)]
 }
 
-const moodAxis = fixedAxis([0, 5, 10])
+/** "2 check-ins. Mood 5 (Okay) at 09:10, 6 (Okay) at 15:42; average 5.5." */
+function seriesSummary(series: Series, points: CheckinPoint[], avg: number): string {
+  const list = points.map((p) => `${p[series]}${series === 'mood' ? ` (${moodBand(p.mood).word})` : ''} at ${clock(p.minute)}`).join(', ')
+  return `${points.length} check-in${points.length === 1 ? '' : 's'}. ${SERIES[series].label} ${list}; average ${avg}.`
+}
 
-const moodConfig = {
-  mood: { label: 'Mood', color: 'var(--chart-mental)' },
-  energy: { label: 'Energy', color: 'var(--chart-learning)' },
-} satisfies ChartConfig
-
-export function MoodDayChart({ moodLogs }: { moodLogs: MoodLog[] }) {
+function SeriesChart({ series, points, domain }: { series: Series; points: CheckinPoint[]; domain: [number, number] }) {
   const animate = !useMediaQuery('(prefers-reduced-motion: reduce)')
-  const points = moodLogs
-    .map((m) => ({ minute: minuteOfDay(m.loggedAt), mood: m.mood, energy: m.energy, note: m.note }))
-    .sort((a, b) => a.minute - b.minute)
-  const domain = points.length > 0 ? hourDomain(points.map((p) => p.minute)) : ([0, 0] as [number, number])
+  const meta = SERIES[series]
+  const avg = Math.round((points.reduce((s, p) => s + p[series], 0) / Math.max(1, points.length)) * 10) / 10
+  const config = { [series]: { label: meta.label, color: meta.color } } satisfies ChartConfig
 
   return (
     <DayChartCard
-      icon={Smile}
-      title="Mood & energy through the day"
-      description={points.length === 1 ? '1 check-in' : `${points.length} check-ins`}
+      icon={meta.icon}
+      title={meta.title}
+      description={points.length === 0 ? 'No check-ins yet' : `${points.length} check-in${points.length === 1 ? '' : 's'} · avg ${avg}`}
     >
-      {points.length < 2 ? (
-        <EmptyState icon={Smile} tone="mental" title={points.length === 0 ? 'No check-ins yet' : 'One check-in so far'} className="py-6">
-          Check in a couple of times through the day to see how your mood and energy move.
+      {points.length === 0 ? (
+        <EmptyState icon={meta.icon} tone={meta.tone} title="No check-ins yet" className="py-6">
+          Do a quick mood check-in and it will show up here.
         </EmptyState>
       ) : (
-        <ChartContainer config={moodConfig} className={CHART_CLASS} summary={moodSummary(points)}>
-          <LineChart data={points} margin={{ left: 0, right: 12, top: 8 }}>
-            <CartesianGrid vertical={false} />
-            <XAxis dataKey="minute" type="number" domain={domain} ticks={hourTicks(domain)} tickFormatter={clock} {...AXIS} />
-            <YAxis {...AXIS} width={moodAxis.width} domain={moodAxis.domain} ticks={moodAxis.ticks} tickFormatter={moodAxis.format} />
-            <ChartTooltip
-              content={({ active, payload }) => {
-                const p = active ? (payload?.[0]?.payload as (typeof points)[number] | undefined) : undefined
-                if (!p) return null
-                return (
-                  <div className="max-w-56 rounded-lg border bg-background px-2.5 py-1.5 text-xs shadow-raised">
-                    <p className="font-medium tabular-nums">{clock(p.minute)}</p>
-                    <p className="tabular-nums">
-                      Mood: {moodBand(p.mood).word} {p.mood}/10
-                    </p>
-                    <p className="tabular-nums">
-                      Energy: {energyBand(p.energy).word.replace(' energy', '')} {p.energy}/10
-                    </p>
-                    {p.note && <p className="mt-0.5 text-muted-foreground">{p.note}</p>}
-                  </div>
-                )
-              }}
-            />
-            <ChartLegend content={<ChartLegendContent />} />
-            {(['mood', 'energy'] as const).map((key) => (
+        <div className="space-y-2">
+          <ChartContainer config={config} className={CHART_CLASS} summary={seriesSummary(series, points, avg)}>
+            <LineChart data={points} margin={{ left: 0, right: 12, top: 8 }}>
+              <CartesianGrid vertical={false} />
+              <XAxis dataKey="minute" type="number" domain={domain} ticks={hourTicks(domain)} tickFormatter={clock} {...AXIS} />
+              <YAxis {...AXIS} width={levelAxis.width} domain={levelAxis.domain} ticks={levelAxis.ticks} tickFormatter={levelAxis.format} />
+              <ChartTooltip
+                content={({ active, payload }) => {
+                  const p = active ? (payload?.[0]?.payload as CheckinPoint | undefined) : undefined
+                  if (!p) return null
+                  return (
+                    <div className="max-w-56 rounded-lg border bg-background px-2.5 py-1.5 text-xs shadow-raised">
+                      <p className="font-medium tabular-nums">{pointText(series, p)}</p>
+                      {p.note && <p className="mt-0.5 text-muted-foreground">{p.note}</p>}
+                    </div>
+                  )
+                }}
+              />
               <Line
-                key={key}
-                dataKey={key}
+                dataKey={series}
                 type="monotone"
-                stroke={`var(--color-${key})`}
+                stroke={`var(--color-${series})`}
                 strokeWidth={2}
-                dot={key === 'mood' ? MoodSquare : { r: 3, strokeWidth: 0, fill: `var(--color-${key})` }}
-                activeDot={{ r: 5 }}
+                dot={{ r: 4, strokeWidth: 1.5, stroke: 'var(--card)', fill: `var(--color-${series})` }}
+                activeDot={{ r: 5.5 }}
                 isAnimationActive={animate}
               />
-            ))}
-          </LineChart>
-        </ChartContainer>
+            </LineChart>
+          </ChartContainer>
+          {points.length === 1 && <p className="text-center text-sm text-muted-foreground">Check in again later to see how your day changes</p>}
+        </div>
       )}
     </DayChartCard>
+  )
+}
+
+/** Mood and energy as two charts with the same time axis: side by side on wide screens, stacked on phones. */
+export function MoodDayChart({ moodLogs }: { moodLogs: MoodLog[] }) {
+  const points: CheckinPoint[] = moodLogs
+    .map((m) => ({ minute: minuteOfDay(m.loggedAt), mood: m.mood, energy: m.energy, note: m.note }))
+    .sort((a, b) => a.minute - b.minute)
+  // Today the axis reaches now; a past day ends an hour after its last check-in
+  const isToday = moodLogs.length > 0 && dayOf(moodLogs[0]!.loggedAt) === todayInTimezone()
+  const domain = points.length > 0 ? checkinDomain(points.map((p) => p.minute), isToday ? minuteOfDay(new Date().toISOString()) : null) : ([0, 0] as [number, number])
+
+  return (
+    <div className="grid gap-4 md:gap-6 lg:grid-cols-2">
+      <SeriesChart series="mood" points={points} domain={domain} />
+      <SeriesChart series="energy" points={points} domain={domain} />
+    </div>
   )
 }
