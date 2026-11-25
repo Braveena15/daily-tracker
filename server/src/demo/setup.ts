@@ -12,6 +12,7 @@ import { MealDayModel } from "../models/MealDay";
 import { DiaryEntryModel, PurposeModel, QuoteModel, ThoughtLogModel, VideoModel } from "../models/Mind";
 import { UserModel } from "../models/User";
 import { WeeklyGoalModel } from "../models/WeeklyGoal";
+import { ExpenseModel } from "../models/Expense";
 
 /** Every model with a user's data (each has the demo expiry plugin), and the users themselves. */
 type OwnedModel = {
@@ -30,6 +31,7 @@ export const USER_OWNED_MODELS: OwnedModel[] = [
   QuoteModel,
   VideoModel,
   WeeklyGoalModel,
+  ExpenseModel,
   AiMessageModel,
   AiUsageModel,
 ] as unknown as OwnedModel[];

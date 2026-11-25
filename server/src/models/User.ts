@@ -58,6 +58,9 @@ const weight = {
 
 const userSchema = new Schema(
   {
+    // Expenses: the currency new expenses use, and an optional weekly budget (in that currency)
+    currency: { type: String, match: /^[A-Z]{3}$/, default: "LKR" },
+    weeklyBudget: { type: Number, min: 0 },
     name: { type: String, required: true, trim: true, maxlength: 100 },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     // select: false means normal queries never load the hash; login asks for it explicitly.

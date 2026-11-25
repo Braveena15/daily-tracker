@@ -17,6 +17,7 @@ import {
   Moon,
   Smile,
   UtensilsCrossed,
+  Wallet,
   Wheat,
   type LucideIcon,
 } from 'lucide-react'
@@ -33,6 +34,7 @@ import type { MetricKey, ReviewDay, WeekMetric, WeeklyReviewResponse } from '@/l
 import type { Tone } from '@/lib/tones'
 import { cn } from '@/lib/utils'
 import { litres } from '@/lib/water'
+import { money } from '@/lib/expenses'
 
 type Direction = 'higher-is-good' | 'neutral'
 
@@ -59,7 +61,7 @@ export function Delta({ diff, unit = '', direction = 'higher-is-good', digits = 
 const plural = (n: number, word: string, words = `${word}s`) => `${n} ${n === 1 ? word : words}`
 
 /** Which day-by-day sheet a card opens */
-type SheetKind = 'scores' | 'workouts' | 'learning' | 'sleep' | 'mood' | 'kcal' | 'fiber' | 'water' | 'days'
+type SheetKind = 'scores' | 'workouts' | 'learning' | 'sleep' | 'mood' | 'kcal' | 'fiber' | 'water' | 'expenses' | 'days'
 
 type CardSpec = {
   key: string
@@ -125,6 +127,7 @@ function WeekCard({ spec, onOpen }: { spec: CardSpec; onOpen: () => void }) {
 
 export function YourWeek({ data, today }: { data: WeeklyReviewResponse; today: string }) {
   const { thisWeek: w, lastWeek: p, differences: d, metrics: m, lastWeekMetrics: lm } = data
+  const currency = data.currency ?? 'LKR'
   const [open, setOpen] = useState<{ kind: SheetKind; title: string } | null>(null)
   // No line at all in the first week; "Not logged last week" when last week was there but empty
   const firstWeek = p.daysTracked === 0
@@ -285,6 +288,17 @@ export function YourWeek({ data, today }: { data: WeeklyReviewResponse; today: s
       sheet: 'water',
     },
     {
+      key: 'expenses',
+      icon: Wallet,
+      label: 'Expenses',
+      value: m.spent.value === null ? null : money(m.spent.value, currency),
+      info: `Total spent this week (in ${currency}), from the ${plural(m.spent.daysWithData, 'day')} with expenses.`,
+      empty: 'No expenses this week yet',
+      emptyLink: { to: '/expenses?add=1', label: 'Add an expense' },
+      lastWeek: last(lm.spent, (v) => money(v, currency)),
+      sheet: 'expenses',
+    },
+    {
       key: 'days',
       icon: CalendarCheck,
       label: 'Days logged',
@@ -393,6 +407,8 @@ function dayContent(kind: SheetKind, day: ReviewDay, data: WeeklyReviewResponse)
           {day.waterMl >= data.waterGoalMl && <Check className="size-4 text-success" aria-label="goal reached" />}
         </span>
       )
+    case 'expenses':
+      return day.expenseItems?.length ? <List items={day.expenseItems.map((x) => `${x.title} · ${money(x.amount, data.currency ?? 'LKR')}`)} /> : null
     case 'days':
       return day.logged ?? day.overall !== null ? (
         <span className="flex items-center gap-1.5">
@@ -423,6 +439,7 @@ const EMPTY_FOR: Record<SheetKind, string> = {
   kcal: 'No meals logged',
   fiber: 'No fibre info',
   water: 'No water logged',
+  expenses: 'No expenses',
   days: 'Not logged',
 }
 

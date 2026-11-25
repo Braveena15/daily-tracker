@@ -1,5 +1,7 @@
 // The weekly review and insights, shared by the progress routes and the AI weekly reflection.
 import { CHECKED_IN, DailyEntryModel } from "../models/DailyEntry";
+import { ExpenseModel } from "../models/Expense";
+import { sumAmounts } from "../utils/expenses";
 import { journeyStart, loadDays, loadUserContext, loadWater, scoresFor, toScoreEntry } from "./dayData";
 import { clampFrom } from "../utils/journey";
 import { addDays, listDates, todayInTimezone } from "../utils/dates";
@@ -33,6 +35,15 @@ export async function computeWeeklyReview(userId: string | undefined, weekEnding
       .select("date sleepHours sleepScoreValue sleep.bedtime sleep.wakeTime missedReason")
       .lean(),
   ]);
+  // Expenses in the user's currency (titles decrypted for the owner's drill-down only; never sent to the AI)
+  const currency = ctx.user?.currency ?? "LKR";
+  const expenseRows = await ExpenseModel.find({ userId, currency, date: { $gte: clampFrom(previous.from, start), $lte: current.to } })
+    .select("date amount category title")
+    .lean();
+  const expensesByDate = new Map<string, { title: string; amount: number; category: string }[]>();
+  for (const e of expenseRows) {
+    expensesByDate.set(e.date, [...(expensesByDate.get(e.date) ?? []), { title: fieldCrypto.tryDecrypt(e.title) ?? "", amount: e.amount, category: e.category }]);
+  }
   const extraByDate = new Map(extras.map((e) => [e.date, e]));
 
   // Only days from the journey start count; earlier days are neither logged nor "missed"
@@ -68,6 +79,8 @@ export async function computeWeeklyReview(userId: string | undefined, weekEnding
         workoutItems: (entry?.workouts ?? []).map((w) => ({ type: w.type, minutes: w.durationMin ?? null })),
         learningItems: (entry?.learnings ?? []).map((l) => ({ topic: l.topic, minutes: l.minutes ?? null })),
         logged: entry !== undefined,
+        spent: expensesByDate.has(date) ? sumAmounts(expensesByDate.get(date)!.map((x) => x.amount)) : null,
+        expenseItems: expensesByDate.get(date) ?? [],
         missedReason: reason && { category: reason.category, note: reason.note },
       };
     });
@@ -82,6 +95,7 @@ export async function computeWeeklyReview(userId: string | undefined, weekEnding
   return {
     weekEnding,
     calorieTarget: ctx.summary?.calorieTarget ?? null,
+    currency,
     waterGoalMl,
     thisWeek,
     lastWeek,

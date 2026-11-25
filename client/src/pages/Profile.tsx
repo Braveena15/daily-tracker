@@ -29,6 +29,7 @@ import {
   type WeeklyGoalKg,
 } from '@/lib/profile'
 import { cn } from '@/lib/utils'
+import { ExpenseSettingsCard } from '@/components/expenses/ExpenseCards'
 
 // Form inputs hold strings; an empty string means "not set".
 type FormState = { [K in keyof ProfileData]: string }
@@ -456,6 +457,10 @@ export function Profile() {
           <AppleWatchSync />
         </section>
       )}
+
+      <section aria-label="Expenses" className="mt-4 md:mt-6">
+        <ExpenseSettingsCard />
+      </section>
 
       <section aria-label="AI settings" className="mt-4 md:mt-6">
         <AiSettings />

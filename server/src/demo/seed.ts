@@ -9,6 +9,7 @@ import { FoodModel } from "../models/Food";
 import { MealDayModel } from "../models/MealDay";
 import { DiaryEntryModel, PurposeModel, ThoughtLogModel } from "../models/Mind";
 import { WeeklyGoalModel } from "../models/WeeklyGoal";
+import { ExpenseModel } from "../models/Expense";
 import { DEMO_FOODS, DEMO_PROFILE, DEMO_PURPOSE, generateDemoData, generateDemoMind, type DemoDailyPurpose } from "../scripts/demoData";
 import { addDays } from "../utils/dates";
 
@@ -115,5 +116,54 @@ export async function seedSampleData(userId: Types.ObjectId, today: string, expi
     }),
   );
 
+  await ExpenseModel.insertMany(
+    sampleExpenses(today).map((e) => ({
+      ...e,
+      ...owned,
+      title: fieldCrypto.encrypt(e.title),
+    })),
+  );
+
   return { days: entries.length, mealDays: mealDays.length };
+}
+
+const SAMPLE_EXPENSES = [
+  { title: "Lunch with a friend", category: "food", amount: 1850, paymentMethod: "card" },
+  { title: "Bus to work", category: "transport", amount: 120, paymentMethod: "cash" },
+  { title: "Groceries", category: "food", amount: 4320.5, paymentMethod: "card" },
+  { title: "Phone bill", category: "bills", amount: 1990, paymentMethod: "online" },
+  { title: "Pharmacy", category: "health", amount: 760, paymentMethod: "cash" },
+  { title: "Book about habits", category: "education", amount: 2450, paymentMethod: "card" },
+  { title: "Tuk-tuk home", category: "transport", amount: 450, paymentMethod: "cash" },
+  { title: "Cinema", category: "entertainment", amount: 1500, paymentMethod: "card" },
+] as const;
+
+/**
+ * About two weeks of made-up expenses, some with a receipt. Receipts point at "sample-…" ids: the
+ * demo shows a placeholder image for them, and no file is ever stored.
+ */
+export function sampleExpenses(today: string) {
+  const out = [];
+  let n = 0;
+  for (let d = 13; d >= 0; d--) {
+    const date = addDays(today, -d);
+    const count = (d * 7) % 3 === 0 ? 1 : (d % 4) + 1;
+    for (let i = 0; i < count; i++) {
+      const s = SAMPLE_EXPENSES[n % SAMPLE_EXPENSES.length]!;
+      n++;
+      out.push({
+        date,
+        amount: s.amount,
+        currency: "LKR",
+        category: s.category,
+        title: s.title,
+        paymentMethod: s.paymentMethod,
+        receipts:
+          n % 3 === 0
+            ? [{ fileId: `sample-${n}`, filename: "sample-receipt.svg", mimeType: "image/svg+xml", size: 2400, uploadedAt: new Date(`${date}T12:00:00+05:30`) }]
+            : [],
+      });
+    }
+  }
+  return out;
 }

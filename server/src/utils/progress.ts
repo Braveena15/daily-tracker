@@ -138,6 +138,9 @@ export type ReviewDay = {
   wakeTime?: string | null;
   /** True when something was logged by hand (a reason alone never counts) */
   logged?: boolean;
+  /** Money spent that day in the user's currency (null without expenses), and the expenses */
+  spent?: number | null;
+  expenseItems?: { title: string; amount: number; category: string }[];
   /** Why the day wasn't logged, when noted (today or yesterday only) */
   missedReason?: { category: string; note: string } | null;
 };
@@ -217,7 +220,8 @@ export type MetricKey =
   | "workoutMinutes"
   | "learnings"
   | "learningMinutes"
-  | "daysLogged";
+  | "daysLogged"
+  | "spent";
 
 export type WeekMetric = {
   /** An average over the days with data, or a weekly total; null when no day had any */
@@ -267,6 +271,8 @@ export function weekMetrics(days: ReviewDay[]): Record<MetricKey, WeekMetric> {
     learnings: metric((d) => positive(d.learnings), "total"),
     learningMinutes: metric((d) => positive(d.learningMinutes), "total"),
     daysLogged: metric((d) => ((d.logged ?? d.overall !== null) ? 1 : null), "total"),
+    // Weekly total, added in cents (days without expenses aren't counted)
+    spent: { ...metric((d) => d.spent ?? null, "total", (n) => Math.round(n * 100) / 100) },
   };
 }
 

@@ -9,6 +9,7 @@ import {
   SquarePen,
   UserRound,
   UtensilsCrossed,
+  Wallet,
 } from 'lucide-react'
 import { Suspense, useState, type ReactNode } from 'react'
 import { Link, Outlet, useLocation } from 'react-router-dom'
@@ -46,6 +47,8 @@ const NAV: NavItem[] = [
   { to: '/today', label: 'Today', icon: SquarePen },
   // My Foods lives inside Meals, so the Meals tab stays highlighted there
   { to: '/meals', label: 'Meals', icon: UtensilsCrossed, alsoActiveOn: ['/foods'] },
+  // Phones keep 5 tabs: Expenses is reached from the Today card and the Dashboard
+  { to: '/expenses', label: 'Expenses', icon: Wallet, sidebarOnly: true },
   // Phones get one "Mind" tab; the sidebar lists the Mind pages in their own section
   { to: '/mind', label: 'Mind', icon: Sparkles, alsoActiveOn: MIND_PATHS, mobileOnly: true },
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true, alsoActiveOnMobile: ['/review'] },
@@ -72,7 +75,7 @@ function useIsActive(mobile: boolean) {
 const byPath = (to: string) => NAV.find((item) => item.to === to)!
 const SIDEBAR_GROUPS: { label: string | null; items: NavItem[] }[] = [
   { label: null, items: [byPath('/today')] },
-  { label: 'Track', items: [byPath('/meals'), byPath('/history'), byPath('/review'), byPath('/')] },
+  { label: 'Track', items: [byPath('/meals'), byPath('/expenses'), byPath('/history'), byPath('/review'), byPath('/')] },
   { label: 'Mind', items: MIND_PAGES },
 ]
 

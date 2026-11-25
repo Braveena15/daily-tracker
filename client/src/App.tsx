@@ -27,6 +27,7 @@ const Thoughts = lazyPage(() => import('./pages/Thoughts').then((m) => m.Thought
 const ThoughtFlow = lazyPage(() => import('./pages/ThoughtFlow').then((m) => m.ThoughtFlow))
 const Lift = lazyPage(() => import('./pages/Lift').then((m) => m.Lift))
 const Purpose = lazyPage(() => import('./pages/Purpose').then((m) => m.Purpose))
+const Expenses = lazyPage(() => import('./pages/Expenses').then((m) => m.Expenses))
 const Motivation = lazyPage(() => import('./pages/Motivation').then((m) => m.Motivation))
 const Profile = lazyPage(() => import('./pages/Profile').then((m) => m.Profile))
 
@@ -43,6 +44,7 @@ const router = createBrowserRouter([
           { path: '/', element: <Dashboard /> },
           { path: '/today', element: <Today /> },
           { path: '/meals', element: <Meals /> },
+          { path: '/expenses', element: <Expenses /> },
           { path: '/foods', element: <Foods /> },
           { path: '/history', element: <History /> },
           { path: '/history/:date', element: <DayDetail /> },

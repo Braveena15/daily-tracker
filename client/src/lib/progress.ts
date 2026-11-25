@@ -124,6 +124,9 @@ export type ReviewDay = {
   /** Something was logged by hand (a missed-day reason alone never counts) */
   logged?: boolean
   missedReason?: { category: string; note: string } | null
+  /** Spent that day in the user's currency (null without expenses), and what */
+  spent?: number | null
+  expenseItems?: { title: string; amount: number; category: string }[]
 }
 
 export type MetricKey =
@@ -143,6 +146,7 @@ export type MetricKey =
   | 'learnings'
   | 'learningMinutes'
   | 'daysLogged'
+  | 'spent'
 
 /** One "Your week" figure: averages skip days without the data; workouts and learning are totals. */
 export type WeekMetric = {
@@ -154,6 +158,8 @@ export type WeekMetric = {
 
 export type WeeklyReviewResponse = {
   weekEnding: string
+  /** The currency expenses are totalled in */
+  currency?: string
   metrics: Record<MetricKey, WeekMetric>
   lastWeekMetrics: Record<MetricKey, WeekMetric>
   calorieTarget: number | null

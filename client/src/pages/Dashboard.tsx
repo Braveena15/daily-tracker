@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, BedDouble, CalendarRange, Flame, Info, Scale, Target, UserRound, type LucideIcon } from 'lucide-react'
+import { ArrowRight, BedDouble, CalendarRange, Flame, Info, Scale, Target, UserRound, Wallet, type LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -14,6 +14,7 @@ import { useFetch } from '@/hooks/useFetch'
 import type { SummaryResponse } from '@/lib/profile'
 import type { Tone } from '@/lib/tones'
 import { MilestoneNote } from '@/components/progress/MilestoneNote'
+import { WeekExpensesCard } from '@/components/expenses/ExpenseCards'
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
 
@@ -23,12 +24,21 @@ export function Dashboard() {
       <PageHeader
         description="Here's how today is going."
         action={
-          <Button asChild variant="outline" size="sm" className="size-10 rounded-xl p-0 sm:w-auto sm:px-3">
-            <Link to="/review" aria-label="Weekly review">
-              <CalendarRange aria-hidden />
-              <span className="hidden sm:inline">Weekly review</span>
-            </Link>
-          </Button>
+          <div className="flex gap-2">
+            {/* Expenses has no phone tab: a quick way there */}
+            <Button asChild variant="outline" size="sm" className="size-10 rounded-xl p-0 sm:w-auto sm:px-3">
+              <Link to="/expenses" aria-label="Expenses">
+                <Wallet aria-hidden />
+                <span className="hidden sm:inline">Expenses</span>
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="sm" className="size-10 rounded-xl p-0 sm:w-auto sm:px-3">
+              <Link to="/review" aria-label="Weekly review">
+                <CalendarRange aria-hidden />
+                <span className="hidden sm:inline">Weekly review</span>
+              </Link>
+            </Button>
+          </div>
         }
       />
 
@@ -46,6 +56,7 @@ export function Dashboard() {
           <SleepChartCard />
           <WaterChartCard />
         </div>
+        <WeekExpensesCard />
         <InsightsCard />
       </div>
 

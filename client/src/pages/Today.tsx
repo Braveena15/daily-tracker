@@ -37,6 +37,7 @@ import { SupportButton } from '@/components/mind/Support'
 import { WeeklyGoalReminder } from '@/components/day/WeeklyGoalReminder'
 import { WaterCard } from '@/components/day/WaterCard'
 import { MissedTodayControls, MissedYesterdayCard } from '@/components/day/MissedDay'
+import { SpentTodayCard } from '@/components/expenses/ExpenseCards'
 
 export function Today() {
   // ?date=YYYY-MM-DD picks a past day; anything missing, invalid or in the future means today
@@ -141,6 +142,8 @@ function DayEditor({ date, today }: { date: string; today: string }) {
           onDelete={(m) => actions.remove('moods', m.id)}
         />
       </Section>
+
+      <SpentTodayCard date={date} isToday={isToday} />
 
       <div id="water" className="scroll-mt-4">
         <WaterCard logs={entry?.waterLogs ?? []} isToday={isToday} actions={actions} />

@@ -42,17 +42,40 @@ export function decryptWithKey(key: Buffer, stored: string): string {
   return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString("utf8");
 }
 
+/**
+ * Files (receipts): the same AES-256-GCM, as bytes. Stored format: iv (12) + authTag (16) + ciphertext.
+ */
+export function encryptBytesWithKey(key: Buffer, plain: Buffer): Buffer {
+  const iv = randomBytes(IV_BYTES);
+  const cipher = createCipheriv(ALGORITHM, key, iv);
+  const ciphertext = Buffer.concat([cipher.update(plain), cipher.final()]);
+  return Buffer.concat([iv, cipher.getAuthTag(), ciphertext]);
+}
+
+/** Throws if the bytes were changed, are too short, or were encrypted with a different key. */
+export function decryptBytesWithKey(key: Buffer, stored: Buffer): Buffer {
+  if (stored.length < IV_BYTES + TAG_BYTES) throw new Error("Encrypted file is malformed");
+  const decipher = createDecipheriv(ALGORITHM, key, stored.subarray(0, IV_BYTES));
+  decipher.setAuthTag(stored.subarray(IV_BYTES, IV_BYTES + TAG_BYTES));
+  return Buffer.concat([decipher.update(stored.subarray(IV_BYTES + TAG_BYTES)), decipher.final()]);
+}
+
 export type FieldCrypto = {
   encrypt: (plaintext: string) => string;
   decrypt: (stored: string) => string;
   /** Decrypts, or returns null if the value can't be read (wrong key or damaged). */
   tryDecrypt: (stored: string | null | undefined) => string | null;
+  /** Files: encrypt / decrypt raw bytes */
+  encryptBytes: (plain: Buffer) => Buffer;
+  decryptBytes: (stored: Buffer) => Buffer;
 };
 
 export function createFieldCrypto(hexKey: string): FieldCrypto {
   const key = parseKey(hexKey);
   return {
     encrypt: (plaintext) => encryptWithKey(key, plaintext),
+    encryptBytes: (plain) => encryptBytesWithKey(key, plain),
+    decryptBytes: (stored) => decryptBytesWithKey(key, stored),
     decrypt: (stored) => decryptWithKey(key, stored),
     tryDecrypt: (stored) => {
       if (stored == null) return null;
