@@ -18,7 +18,7 @@ import { dayMood, manualSleep, type DayResponse } from '@/lib/entries'
 import { moodBand } from '@/lib/mood'
 import { MoodIcon } from '@/components/MoodFace'
 import { dayPurposesOf, daySummary } from '@/lib/purpose'
-import { EditableUntilLabel, LockedLabel, PurposeDayView } from '@/components/purpose/PurposeDayView'
+import { PurposeDayView } from '@/components/purpose/PurposeDayView'
 import type { Tone } from '@/lib/tones'
 import type { ReactNode } from 'react'
 import { litres } from '@/lib/water'
@@ -108,7 +108,6 @@ function DayBody({ day }: { day: DayResponse }) {
           tone="mental"
         >
           <PurposeDayView day={dayPurposesOf(entry)} />
-          {day.date === todayInTimezone() ? <EditableUntilLabel /> : <LockedLabel />}
         </Section>
       ) : null}
 

@@ -2,10 +2,7 @@
 // how strongly I feel it (intensity 0–10), optional focus values from my core values and optional
 // intentions to tick off (folded away until opened). One evening note covers the whole day.
 //
-// Editable only during that day (Asia/Colombo; the server enforces it too):
-// - a past day shows its items read-only, locked;
-// - today shows each item with Edit and Delete.
-// The card is given `isToday` from a clock, so it locks by itself at midnight.
+// Today and past days are edited the same way (no lock at midnight); future days can't have any.
 import { useId, useState, type FormEvent } from 'react'
 import { Check, ChevronDown, Copy, NotebookPen, Pencil, Plus, Target, Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
@@ -19,9 +16,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Section } from '@/components/CheckinFields'
 import { useFetch } from '@/hooks/useFetch'
 import type { PurposeActions } from '@/hooks/useDay'
-import { EditableUntilLabel, FocusValueChips, IntensityBadge, LockedLabel, PurposeDayView } from '@/components/purpose/PurposeDayView'
-import { useNow } from '@/hooks/useClock'
-import { hourInTimezone } from '@/lib/dates'
+import { FocusValueChips, IntensityBadge } from '@/components/purpose/PurposeDayView'
 import { timeOf } from '@/lib/healthSync'
 import type { Purpose } from '@/lib/mind'
 import {
@@ -37,9 +32,6 @@ import {
 import { toneChipOn } from '@/lib/tones'
 import { cn } from '@/lib/utils'
 
-const EVENING_HOUR = 18
-// From 23:00 there's one hour left before the day locks
-const LAST_HOUR = 23
 const TITLE = 'What matters to me today'
 
 type Actions = PurposeActions
@@ -56,37 +48,22 @@ async function attempt(run: () => Promise<unknown>): Promise<boolean> {
 }
 
 export function PurposeCard({ day, isToday, actions }: { day: DayPurposes; isToday: boolean; actions: Actions }) {
-  // Locked: a past day (also right after midnight, when the page moves on by itself)
-  if (!isToday) {
-    const empty = day.purposes.length === 0 && !day.reflectionNote
-    return (
-      <Section
-        title="What mattered"
-        hint={empty ? 'Nothing was noted for this day.' : day.purposes.length > 0 ? daySummary(day) : undefined}
-        icon={Target}
-        tone="mental"
-        aside={<LockedLabel />}
-      >
-        {!empty && <PurposeDayView day={day} />}
-      </Section>
-    )
-  }
-  return <TodayPurposes day={day} actions={actions} />
+  return <TodayPurposes day={day} isToday={isToday} actions={actions} />
 }
 
-function TodayPurposes({ day, actions }: { day: DayPurposes; actions: Actions }) {
+function TodayPurposes({ day, isToday, actions }: { day: DayPurposes; isToday: boolean; actions: Actions }) {
   const [adding, setAdding] = useState(false)
   const { data } = useFetch<{ purpose: Purpose }>('/purpose')
   // Wordings used on earlier days, offered while typing (the same thing, worded the same way)
   const { data: earlier } = useFetch<{ suggestions: string[] }>('/purpose/suggestions')
   const main = data?.purpose
-  const hour = hourInTimezone(undefined, useNow())
   const { purposes } = day
+  const title = isToday ? TITLE : 'What mattered'
   const full = purposes.length >= MAX_PURPOSES
 
   if (purposes.length === 0 && !adding && !day.reflectionNote) {
     return (
-      <Section title={TITLE} hint="Optional: one thing or several, and how strongly you feel each." icon={Target} tone="mental">
+      <Section title={title} hint="Optional: one thing or several, and how strongly you feel each." icon={Target} tone="mental">
         <Button type="button" variant="outline" className="w-full border-dashed sm:w-auto" onClick={() => setAdding(true)}>
           <Target aria-hidden /> Add what matters today
         </Button>
@@ -95,12 +72,7 @@ function TodayPurposes({ day, actions }: { day: DayPurposes; actions: Actions })
   }
 
   return (
-    <Section title={TITLE} hint={purposes.length > 0 ? daySummary(day) : 'What do I want today to be about?'} icon={Target} tone="mental">
-      {hour >= LAST_HOUR && (
-        <p className="rounded-xl bg-mental-soft/50 px-3 py-2 text-sm text-mental-foreground" role="status">
-          1 hour left to edit today
-        </p>
-      )}
+    <Section title={title} hint={purposes.length > 0 ? daySummary(day) : 'What do I want today to be about?'} icon={Target} tone="mental">
 
       {purposes.length > 0 && (
         <ul className="space-y-3" aria-label={`${TITLE}: ${purposes.length} of ${MAX_PURPOSES}`}>
@@ -128,7 +100,7 @@ function TodayPurposes({ day, actions }: { day: DayPurposes; actions: Actions })
         )
       )}
 
-      <EveningNote saved={day.reflectionNote} hour={hour} onSave={actions.saveReflectionNote} />
+      <EveningNote saved={day.reflectionNote} onSave={actions.saveReflectionNote} />
     </Section>
   )
 }
@@ -513,12 +485,12 @@ function Intentions({ purpose, actions, editable }: { purpose: DayPurpose; actio
   )
 }
 
-/** One evening note for the whole day, below all the items. Shown from 18:00, once written, or with a tap. */
-function EveningNote({ saved, hour, onSave }: { saved: string; hour: number; onSave: Actions['saveReflectionNote'] }) {
+/** One evening note for the whole day, below all the items: shown once written, or with a tap. */
+function EveningNote({ saved, onSave }: { saved: string; onSave: Actions['saveReflectionNote'] }) {
   const [opened, setOpened] = useState(false)
   const [note, setNote] = useState(saved)
   const [busy, setBusy] = useState(false)
-  const show = opened || saved !== '' || hour >= EVENING_HOUR
+  const show = opened || saved !== ''
 
   if (!show) {
     return (
@@ -539,12 +511,9 @@ function EveningNote({ saved, hour, onSave }: { saved: string; hour: number; onS
 
   return (
     <form className="space-y-2 rounded-xl bg-mental-soft/50 p-3" onSubmit={submit} noValidate>
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-        <Label htmlFor="evening-note" className="flex items-center gap-1.5">
-          <NotebookPen className="size-4 text-mental" aria-hidden /> Evening note
-        </Label>
-        <EditableUntilLabel />
-      </div>
+      <Label htmlFor="evening-note" className="flex items-center gap-1.5">
+        <NotebookPen className="size-4 text-mental" aria-hidden /> Evening note
+      </Label>
       <Textarea id="evening-note" placeholder="How did today go?" rows={2} maxLength={1000} value={note} onChange={(e) => setNote(e.target.value)} />
       <div className="flex justify-end">
         <Button loading={busy} type="submit" size="sm" disabled={busy || !dirty}>

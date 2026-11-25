@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState, ErrorNotice } from '@/components/StatusViews'
-import { EditableUntilLabel, LockedLabel, PurposeDayView } from '@/components/purpose/PurposeDayView'
+import { PurposeDayView } from '@/components/purpose/PurposeDayView'
 import { useFetch } from '@/hooks/useFetch'
 import { addDays, formatDate, relativeDay, todayInTimezone } from '@/lib/dates'
 import {
@@ -107,8 +107,7 @@ export function DailyPurposes({ onSetToday, todayCardAbove = false }: { onSetTod
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                         <span className="font-heading font-semibold">Today</span>
-                        <EditableUntilLabel />
-                      </p>
+                        </p>
                       <Button asChild variant="outline" size="sm">
                         <Link to="/today#purpose">
                           <Pencil aria-hidden /> Edit
@@ -144,8 +143,7 @@ export function DailyPurposes({ onSetToday, todayCardAbove = false }: { onSetTod
                         </span>
                       </div>
                       <PurposeDayView day={day} />
-                      <LockedLabel />
-                    </Link>
+                      </Link>
                   </li>
                 ))}
               </ol>

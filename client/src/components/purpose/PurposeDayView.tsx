@@ -1,6 +1,6 @@
 // "What matters to me today", read-only: each item as its own small block (text, its intensity,
 // focus value chips and any intentions done / not done), then the day's evening note.
-import { Check, Clock, Lock, Target, X } from 'lucide-react'
+import { Check, Target, X } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { type DayPurpose, type DayPurposes } from '@/lib/purpose'
 import { cn } from '@/lib/utils'
@@ -85,23 +85,5 @@ export function PurposeDayView({ day, className }: { day: DayPurposes; className
         </p>
       )}
     </div>
-  )
-}
-
-/** A past day's purposes can't be changed any more. */
-export function LockedLabel({ className }: { className?: string }) {
-  return (
-    <p className={cn('inline-flex items-center gap-1.5 text-xs text-muted-foreground', className)}>
-      <Lock className="size-4" aria-hidden /> Locked · this day has ended
-    </p>
-  )
-}
-
-/** Today's purposes can be changed until midnight (Asia/Colombo). */
-export function EditableUntilLabel({ className }: { className?: string }) {
-  return (
-    <p className={cn('inline-flex items-center gap-1.5 text-xs text-muted-foreground', className)}>
-      <Clock className="size-4" aria-hidden /> Editable until 11:59 PM
-    </p>
   )
 }

@@ -1,7 +1,7 @@
 /// <reference types="vitest/globals" />
 // "What matters to me today", end to end against a real (in-memory) MongoDB: up to 5 purposes, each
-// with an intensity (0–10) and its own intentions, one evening note, the midnight lock on every write
-// route, text encrypted at rest, suggestions, recurring purposes, and the migrations from older data.
+// with an intensity (0–10) and its own intentions, one evening note, editing past days (no midnight lock),
+// text encrypted at rest, suggestions, recurring purposes, and the migrations from older data.
 import mongoose from "mongoose";
 import { startHarness, type Harness } from "../test/harness";
 import { addDays } from "../utils/dates";
@@ -151,47 +151,29 @@ describe("today's purposes", () => {
   });
 });
 
-describe("the midnight lock", () => {
-  const writes = (date: string, pid: string, iid: string): [string, string, unknown?][] => [
-    ["POST", `/api/entries/${date}/purposes`, { text: "Late purpose", intensity: 5 }],
-    ["PATCH", `/api/entries/${date}/purposes/${pid}`, { intensity: 7 }],
-    ["DELETE", `/api/entries/${date}/purposes/${pid}`],
-    ["POST", `/api/entries/${date}/purposes/${pid}/intentions`, { text: "Late intention" }],
-    ["PATCH", `/api/entries/${date}/purposes/${pid}/intentions/${iid}`, { done: true }],
-    ["DELETE", `/api/entries/${date}/purposes/${pid}/intentions/${iid}`],
-    ["PUT", `/api/entries/${date}/reflection-note`, { note: "Late note" }],
-  ];
-
-  it("locks every write route once the day has ended, and refuses future days", async () => {
-    const id = new mongoose.Types.ObjectId().toHexString();
-    for (const [method, path, body] of writes(addDays(today, -1), id, id)) {
-      const res = await h.request(method, path, body);
-      expect(res.status, `${method} ${path}`).toBe(403);
-      expect(res.body.message).toMatch(/locked/);
-    }
-    for (const [method, path, body] of writes(addDays(today, 1), id, id)) {
-      expect((await h.request(method, path, body)).status, `${method} ${path}`).toBe(400);
-    }
+describe("no midnight lock", () => {
+  it("adds, edits and deletes purposes, intentions and the evening note on a past day", async () => {
+    await h.request("PUT", "/api/profile", { journeyStartDate: addDays(today, -30) });
+    const past = `/api/entries/${addDays(today, -2)}`;
+    const added = await h.request("POST", `${past}/purposes`, { text: "Rest well", intensity: 6 });
+    expect(added.status).toBe(201);
+    const pid = added.body.entry.dailyPurposes[0].id;
+    expect((await h.request("PATCH", `${past}/purposes/${pid}`, { intensity: 8 })).body.entry.dailyPurposes[0].intensity).toBe(8);
+    const withIntention = await h.request("POST", `${past}/purposes/${pid}/intentions`, { text: "Nap" });
+    expect(withIntention.status).toBe(201);
+    const iid = withIntention.body.entry.dailyPurposes[0].intentions[0].id;
+    expect((await h.request("PATCH", `${past}/purposes/${pid}/intentions/${iid}`, { done: true })).status).toBe(200);
+    expect((await h.request("DELETE", `${past}/purposes/${pid}/intentions/${iid}`)).status).toBe(200);
+    expect((await h.request("PUT", `${past}/reflection-note`, { note: "Written later" })).body.entry.dailyReflectionNote).toBe("Written later");
+    expect((await h.request("DELETE", `${past}/purposes/${pid}`)).status).toBe(200);
   });
 
-  it("locks today's purposes after midnight (Asia/Colombo)", async () => {
-    const day = (await h.request("GET", base())).body.entry;
-    const p = day.dailyPurposes.find((x: { intentions: unknown[] }) => x.intentions.length > 0);
-    const iid = p.intentions[0].id;
-
-    vi.useFakeTimers({ toFake: ["Date"] });
-    vi.setSystemTime(new Date(`${addDays(today, 1)}T00:01:00+05:30`));
-    try {
-      for (const [method, path, body] of writes(today, p.id, iid)) {
-        expect((await h.request(method, path, body)).status, `${method} ${path}`).toBe(403);
-      }
-      // Still readable, unchanged
-      const after = (await h.request("GET", base())).body.entry;
-      expect(after.dailyPurposes).toHaveLength(day.dailyPurposes.length);
-      expect(after.dailyReflectionNote).toBe("A calm, good day");
-    } finally {
-      vi.useRealTimers();
-    }
+  it("still refuses future days and days before the journey start", async () => {
+    const future = await h.request("POST", `/api/entries/${addDays(today, 1)}/purposes`, { text: "Later", intensity: 5 });
+    expect(future.status).toBe(400);
+    const early = await h.request("PUT", `/api/entries/${addDays(today, -31)}/reflection-note`, { note: "Too early" });
+    expect(early.status).toBe(400);
+    expect(early.body.message).toMatch(/before your journey/);
   });
 });
 

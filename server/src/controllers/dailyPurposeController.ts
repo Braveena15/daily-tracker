@@ -37,14 +37,13 @@ import {
 const MAX_RANGE_DAYS = 366;
 
 /**
- * A day's purposes can only be added or changed on that day itself (Asia/Colombo): once midnight
- * passes they're locked, and a future day can't have any yet. Every write route checks this first.
+ * Purposes and the evening note can be added or changed for today and any earlier day from the
+ * journey start (no lock at midnight); a future day can't have any yet.
  */
-function purposeDate(req: Request): string {
+async function purposeDate(req: Request): Promise<string> {
   const date = dateParam(req);
-  const status = dayStatus(date);
-  if (status === "past") throw new AppError(403, "This day has ended — its purposes are locked.");
-  if (status === "future") throw new AppError(400, "You can only set purposes for today.");
+  if (dayStatus(date) === "future") throw new AppError(400, "You can't add purposes for a future day.");
+  if (date < (await journeyStart(req.userId))) throw new AppError(400, "This day is before your journey started.");
   return date;
 }
 
@@ -89,7 +88,7 @@ const tooManyIntentions = () => new AppError(400, `A purpose can have up to ${MA
 
 /** POST /api/entries/:date/purposes — add one of today's purposes (up to 5). */
 export async function addPurpose(req: Request, res: Response): Promise<void> {
-  const date = purposeDate(req);
+  const date = await purposeDate(req);
   const body = purposeCreateSchema.parse(req.body ?? {});
   const focusValues = body.focusValues ? await checkFocusValues(req, body.focusValues) : [];
   const now = new Date();
@@ -118,7 +117,7 @@ export async function addPurpose(req: Request, res: Response): Promise<void> {
 
 /** PATCH /api/entries/:date/purposes/:purposeId — change the text, intensity or focus values. */
 export async function updatePurpose(req: Request, res: Response): Promise<void> {
-  const date = purposeDate(req);
+  const date = await purposeDate(req);
   const id = purposeId(req);
   const body = purposePatchSchema.parse(req.body ?? {});
 
@@ -134,7 +133,7 @@ export async function updatePurpose(req: Request, res: Response): Promise<void> 
 
 /** DELETE /api/entries/:date/purposes/:purposeId — the purpose and its intentions. */
 export async function deletePurpose(req: Request, res: Response): Promise<void> {
-  const date = purposeDate(req);
+  const date = await purposeDate(req);
   const id = purposeId(req);
   const doc = await update(req, date, { "dailyPurposes._id": id }, { $pull: { dailyPurposes: { _id: id } } });
   if (!doc) throw new AppError(404, "Purpose not found");
@@ -145,7 +144,7 @@ export async function deletePurpose(req: Request, res: Response): Promise<void> 
 
 /** POST /api/entries/:date/purposes/:purposeId/intentions — up to 5 per purpose. */
 export async function addIntention(req: Request, res: Response): Promise<void> {
-  const date = purposeDate(req);
+  const date = await purposeDate(req);
   const pid = purposeId(req);
   const { text } = intentionSchema.parse(req.body ?? {});
   const doc = await update(
@@ -167,7 +166,7 @@ export async function addIntention(req: Request, res: Response): Promise<void> {
 
 /** PATCH /api/entries/:date/purposes/:purposeId/intentions/:intentionId — change the text, or tick it (saved with the time). */
 export async function updateIntention(req: Request, res: Response): Promise<void> {
-  const date = purposeDate(req);
+  const date = await purposeDate(req);
   const pid = purposeId(req);
   const iid = intentionId(req);
   const body = intentionPatchSchema.parse(req.body ?? {});
@@ -196,7 +195,7 @@ export async function updateIntention(req: Request, res: Response): Promise<void
 
 /** DELETE /api/entries/:date/purposes/:purposeId/intentions/:intentionId */
 export async function deleteIntention(req: Request, res: Response): Promise<void> {
-  const date = purposeDate(req);
+  const date = await purposeDate(req);
   const pid = purposeId(req);
   const iid = intentionId(req);
   const doc = await update(
@@ -214,7 +213,7 @@ export async function deleteIntention(req: Request, res: Response): Promise<void
 
 /** PUT /api/entries/:date/reflection-note — one note for the whole day; empty clears it. */
 export async function saveReflectionNote(req: Request, res: Response): Promise<void> {
-  const date = purposeDate(req);
+  const date = await purposeDate(req);
   const { note } = reflectionNoteSchema.parse(req.body ?? {});
   const sealed = sealText(fieldCrypto, note);
   const doc = await update(req, date, {}, sealed ? { $set: { dailyReflectionNote: sealed } } : { $unset: { dailyReflectionNote: 1 } }, { upsert: true });
