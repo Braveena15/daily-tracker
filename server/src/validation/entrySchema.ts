@@ -6,6 +6,7 @@
 import { z } from "zod";
 import { ENTRY_LIMITS as L } from "../models/DailyEntry";
 import type { EntryKind } from "../utils/timeline";
+import { parseWaterAmount } from "../utils/water";
 
 function numberIn(label: string, min: number, max: number, unit = "") {
   const range = `${label} must be between ${min} and ${max}${unit}`;
@@ -115,3 +116,24 @@ export const entryPatchSchemas = Object.fromEntries(
     ];
   }),
 ) as unknown as Record<EntryKind, z.ZodType<Record<string, unknown>>>;
+
+/**
+ * PUT /:date/water/total — the day's water total, in ml or as typed ("1500", "1.5 L").
+ * The range (0 to 2 × the goal, at most 6000 ml) depends on the user's goal, so it's checked
+ * in the controller; here only that it's an amount and under the safety cap.
+ */
+export const waterTotalSchema = z.strictObject({
+  totalMl: z
+    .union([z.number({ error: "Enter an amount in ml or litres" }), z.string({ error: "Enter an amount in ml or litres" })], {
+      error: "Enter an amount in ml or litres",
+    })
+    .transform((value, ctx) => {
+      const ml = parseWaterAmount(value);
+      if (ml === null) {
+        ctx.addIssue({ code: "custom", message: 'Enter an amount like "1500" or "1.5 L"' });
+        return z.NEVER;
+      }
+      return ml;
+    })
+    .pipe(z.number().int().min(0, "Water can't be negative").max(L.waterTotalMl, `Water can be at most ${L.waterTotalMl} ml a day`)),
+});

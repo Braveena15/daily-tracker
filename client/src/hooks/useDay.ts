@@ -37,6 +37,8 @@ export function useDay(date: string) {
       apply(api.patch<DayResponse>(`/entries/${date}/${kind}/${id}`, body)),
     remove: (kind: EntryKind, id: string) => apply(api.delete<DayResponse>(`/entries/${date}/${kind}/${id}`)),
     saveDaily: (body: DailyInput) => apply(api.put<DayResponse>(`/entries/${date}/daily`, body)),
+    // Sets the day's water to exactly this total (replaces the day's drinks)
+    setWaterTotal: (totalMl: number) => apply(api.put<DayResponse>(`/entries/${date}/water/total`, { totalMl })),
     // Today's purposes (up to 5), each with its own intentions and rating, and the day's evening note
     ...purposeActions(date, apply),
   }

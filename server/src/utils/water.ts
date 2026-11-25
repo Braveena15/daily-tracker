@@ -32,3 +32,31 @@ export function waterWeek(totals: readonly (number | null | undefined)[], goalMl
 export function waterSeries(totals: ReadonlyMap<string, number>, from: string, to: string): { date: string; ml: number | null }[] {
   return from > to ? [] : listDates(from, to).map((date) => ({ date, ml: totals.get(date) || null }));
 }
+
+// ---------- Editing the day's total ----------
+
+/** The highest daily total anyone can save, whatever their goal (a safety cap). */
+export const WATER_TOTAL_CAP_ML = 6000;
+
+/** The allowed range for a day's total: 0 to 2 × the goal, and never above 6000 ml. */
+export const waterTotalRange = (goalMl: number) => ({ min: 0, max: Math.min(2 * goalMl, WATER_TOTAL_CAP_ML) });
+
+/**
+ * A typed amount in whole ml: "1500", "1500 ml", "1.5 L", "1,5 l", "2 litres", or a number.
+ * Without a unit, a number up to 10 is read as litres ("1.5" → 1500) and anything larger as ml.
+ * Null when it isn't an amount.
+ */
+export function parseWaterAmount(input: unknown): number | null {
+  if (typeof input === "number") return Number.isFinite(input) && input >= 0 ? Math.round(input) : null;
+  if (typeof input !== "string") return null;
+  const match = input
+    .trim()
+    .toLowerCase()
+    .replace(",", ".")
+    .match(/^(\d+(?:\.\d+)?|\.\d+)\s*(ml|millilitres?|milliliters?|l|litres?|liters?)?$/);
+  if (!match) return null;
+  const value = Number(match[1]);
+  const unit = match[2];
+  const litres = unit ? unit.startsWith("l") : value <= 10;
+  return Math.round(litres ? value * 1000 : value);
+}

@@ -155,7 +155,7 @@ export function buildTimeline(day: TimelineSource): TimelineItem[] {
   add("goodThings", day.goodThings, (g: { text: string }) => clip(g.text));
   add("learnings", day.learnings, (l: { topic: string; minutes?: number | null }) => `${l.topic}${minutesText(l.minutes)}`);
   add("presentMoments", day.presentMoments, (p: { text: string }) => clip(p.text));
-  add("water", day.waterLogs, (w: { amountMl: number }) => `${fmt(w.amountMl)} ml`);
+  // Water isn't on the timeline: it's shown as the day's total on the Water card
 
   for (const s of day.healthSnapshots ?? []) {
     const parts = [s.steps != null && `${fmt(s.steps)} steps`, s.activeCalories != null && `${fmt(s.activeCalories)} active kcal`].filter(Boolean);

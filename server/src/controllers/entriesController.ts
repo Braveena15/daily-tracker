@@ -19,8 +19,10 @@ import {
   type EntryKind,
   type TimelineSource,
 } from "../utils/timeline";
-import { CLEARABLE, DAILY_FIELDS, dailySchema, entryPatchSchemas, entrySchemas } from "../validation/entrySchema";
-import { waterTotal } from "../utils/water";
+import { CLEARABLE, DAILY_FIELDS, dailySchema, entryPatchSchemas, entrySchemas, waterTotalSchema } from "../validation/entrySchema";
+import { UserModel } from "../models/User";
+import { goalNumbers } from "../services/dayData";
+import { waterTotal, waterTotalRange } from "../utils/water";
 
 const MAX_RANGE_DAYS = 366;
 const LISTS = Object.values(KIND_FIELDS);
@@ -190,6 +192,36 @@ export async function addEntry(req: Request, res: Response): Promise<void> {
   ).lean()) as LeanDay | null;
 
   res.status(201).json({ ...dayResponse(date, doc), id: String(item._id) });
+}
+
+/**
+ * PUT /api/entries/:date/water/total — sets the day's water to exactly `totalMl` (ml, or as typed:
+ * "1.5 L"). The day's drinks are replaced by one entry holding the total, or none for 0.
+ * Range: 0 to 2 × the water goal, never above 6000 ml. No future days, nothing before the journey start.
+ */
+export async function setWaterTotal(req: Request, res: Response): Promise<void> {
+  const date = writableDate(req);
+  const { totalMl } = waterTotalSchema.parse(req.body ?? {});
+  const user = await UserModel.findById(req.userId).select("waterGoalMl journeyStartDate").lean();
+  if (user?.journeyStartDate && date < user.journeyStartDate) {
+    throw new AppError(400, "This day is before your journey started");
+  }
+  const { min, max } = waterTotalRange(goalNumbers(user ?? {}).waterGoalMl);
+  if (totalMl < min || totalMl > max) {
+    throw new AppError(400, `Today's water can be from ${min} to ${max} ml (2 × your goal)`);
+  }
+
+  // Keep the time of the day's latest drink, so the day reads the same; otherwise now (or midday on a past day)
+  const existing = await DailyEntryModel.findOne({ userId: req.userId, date }).select("waterLogs").lean();
+  const times = (existing?.waterLogs ?? []).map((w) => new Date(w.loggedAt).getTime());
+  const at = times.length > 0 ? new Date(Math.max(...times)) : date === today() ? new Date() : atTime(date, "12:00");
+
+  const doc = (await DailyEntryModel.findOneAndUpdate(
+    { userId: req.userId, date },
+    { $set: { waterLogs: totalMl > 0 ? [{ _id: new Types.ObjectId(), loggedAt: at, amountMl: totalMl }] : [] } },
+    { upsert: true, returnDocument: "after", runValidators: true, setDefaultsOnInsert: true },
+  ).lean()) as LeanDay | null;
+  res.json(dayResponse(date, doc));
 }
 
 /** The entry with this id on this day, or a 404. Watch workouts can't be changed by hand. */

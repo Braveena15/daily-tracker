@@ -27,6 +27,8 @@ export const ENTRY_LIMITS = {
   reflectionNote: 1000,
   listItems: 50,
   waterMl: { min: 50, max: 2000 },
+  // A day's total (the safety cap; the real limit is 2 × the user's goal)
+  waterTotalMl: 6000,
 } as const;
 
 const L = ENTRY_LIMITS;
@@ -116,8 +118,10 @@ const learningSchema = new Schema({
   minutes,
 });
 
-// One drink of water. Not part of the scores, and doesn't make a day "logged" (see USER_LISTS).
-const waterLogSchema = new Schema({ loggedAt, amountMl: { type: Number, required: true, min: L.waterMl.min, max: L.waterMl.max } });
+// Water: one drink (added with +1 glass etc., up to 2000 ml — checked in validation/entrySchema.ts), or the
+// day's whole total after it was edited (PUT /:date/water/total, up to 6000 ml). Not part of the scores,
+// and doesn't make a day "logged" (see USER_LISTS).
+const waterLogSchema = new Schema({ loggedAt, amountMl: { type: Number, required: true, min: 1, max: L.waterTotalMl } });
 const goodThingSchema = new Schema({ loggedAt, text: { type: String, required: true, trim: true, maxlength: L.goodThing } });
 
 const presentMomentSchema = new Schema({

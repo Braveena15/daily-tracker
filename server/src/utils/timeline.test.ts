@@ -100,7 +100,7 @@ it("knows the entry kinds", () => {
 });
 
 describe("water on the timeline", () => {
-  it("shows each drink in time order", () => {
+  it("leaves water off the timeline (it's shown as the day's total instead)", () => {
     const timeline = buildTimeline({
       date: "2026-11-20",
       waterLogs: [
@@ -108,10 +108,7 @@ describe("water on the timeline", () => {
         { _id: "w1", amountMl: 250, loggedAt: "2026-11-20T04:45:00.000Z" },
       ],
     } as Parameters<typeof buildTimeline>[0]);
-    expect(timeline.map((t) => [t.kind, t.summary, t.id])).toEqual([
-      ["water", "250 ml", "w1"],
-      ["water", "500 ml", "w2"],
-    ]);
+    expect(timeline).toEqual([]);
     expect(isEntryKind("water")).toBe(true);
   });
   it("refuses a drink later than now (no future times)", () => {

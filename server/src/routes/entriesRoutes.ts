@@ -8,6 +8,7 @@ import {
   getToday,
   listEntries,
   saveDaily,
+  setWaterTotal,
   updateEntry,
 } from "../controllers/entriesController";
 import {
@@ -34,6 +35,8 @@ entriesRouter.get("/:date", getByDate);
 entriesRouter.delete("/:date", deleteByDate);
 // Single daily values (weight, steps, active calories)
 entriesRouter.put("/:date/daily", saveDaily);
+// The day's water total, typed in (replaces the day's drinks with one entry)
+entriesRouter.put("/:date/water/total", setWaterTotal);
 // Today's purposes (up to 5), each with its own intentions and rating, and the day's evening note.
 // Before "/:date/:kind…" so "purposes" isn't treated as a kind of entry.
 entriesRouter.post("/:date/purposes", addPurpose);
