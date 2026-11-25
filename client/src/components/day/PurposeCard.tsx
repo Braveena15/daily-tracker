@@ -226,7 +226,7 @@ function NewPurposeForm({
   )
 }
 
-/** One item: view (with its intensity, and intentions to tick when opened), edit, or delete (asks first). */
+/** One item: view (with its intensity), edit, or delete (asks first). */
 function PurposeBlock({ purpose, index, coreValues, actions }: { purpose: DayPurpose; index: number; coreValues: string[]; actions: Actions }) {
   const [editing, setEditing] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
