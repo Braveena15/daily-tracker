@@ -21,7 +21,8 @@ export type WaterResponse = {
   from: string
   to: string
   goalMl: number
-  days: { date: string; ml: number }[]
+  /** null on days without any water logged */
+  days: { date: string; ml: number | null }[]
   avgWaterMl: number | null
   waterDays: number
   waterGoalDays: number

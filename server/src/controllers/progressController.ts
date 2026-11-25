@@ -120,7 +120,7 @@ export async function getInsights(req: Request, res: Response): Promise<void> {
   res.json(await computeInsights(req.userId));
 }
 
-/** GET /api/progress/water?days=7 — each day's water (0 when none), from the journey start, with the goal. */
+/** GET /api/progress/water?days=7 — each day's water (null when none was logged), from the journey start, with the goal. */
 export async function getWater(req: Request, res: Response): Promise<void> {
   const days = req.query.days === undefined ? 7 : Number(req.query.days);
   if (!Number.isInteger(days) || days < 7 || days > 90) {

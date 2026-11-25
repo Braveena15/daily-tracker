@@ -21,12 +21,17 @@ describe("waterWeek", () => {
 });
 
 describe("waterSeries", () => {
-  it("has one point per day, 0 for days without water", () => {
-    expect(waterSeries(new Map([["2026-11-20", 750]]), "2026-11-19", "2026-11-21")).toEqual([
-      { date: "2026-11-19", ml: 0 },
+  it("has one point per day, null (not 0) for days without water", () => {
+    expect(waterSeries(new Map([["2026-11-20", 750], ["2026-11-21", 0]]), "2026-11-19", "2026-11-21")).toEqual([
+      { date: "2026-11-19", ml: null },
       { date: "2026-11-20", ml: 750 },
-      { date: "2026-11-21", ml: 0 },
+      { date: "2026-11-21", ml: null },
     ]);
+  });
+
+  it("counts only logged days for the goal: 0 of 2 logged days", () => {
+    const points = waterSeries(new Map([["2026-11-20", 750], ["2026-11-21", 1200]]), "2026-11-15", "2026-11-21");
+    expect(waterWeek(points.map((p) => p.ml), 2000)).toEqual({ avgWaterMl: 975, waterDays: 2, waterGoalDays: 0 });
   });
   it("is empty when the range starts after it ends (journey starting today or later)", () => {
     expect(waterSeries(new Map(), "2026-11-22", "2026-11-21")).toEqual([]);

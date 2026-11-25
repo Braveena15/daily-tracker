@@ -8,6 +8,9 @@ import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartToo
 import { IconBubble } from '@/components/IconBubble'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { AREAS, tooltipDate, type ReviewDay, type WeeklyReviewResponse } from '@/lib/progress'
+import { fixedAxis } from '@/lib/chartAxis'
+
+const scoreAxis = fixedAxis([0, 50, 100])
 
 const CHART_CLASS = 'aspect-auto h-56 w-full sm:h-64'
 const AXIS = { tickLine: false, axisLine: false, tickMargin: 8 } as const
@@ -46,8 +49,9 @@ export function DailyScoresChart({ days }: { days: ReviewDay[] }) {
       <ChartContainer config={dailyConfig} className={CHART_CLASS} summary={dailySummary(days)}>
         <LineChart data={days} margin={{ left: 0, right: 12, top: 8 }}>
           <CartesianGrid vertical={false} />
-          <XAxis dataKey="date" {...AXIS} tickFormatter={weekday} interval={0} />
-          <YAxis {...AXIS} width={32} domain={[0, 100]} ticks={[0, 50, 100]} />
+          {/* Padding keeps the first and last weekday labels inside the chart */}
+          <XAxis dataKey="date" {...AXIS} tickFormatter={weekday} interval={0} padding={{ left: 12, right: 12 }} />
+          <YAxis {...AXIS} width={scoreAxis.width} domain={scoreAxis.domain} ticks={scoreAxis.ticks} tickFormatter={scoreAxis.format} />
           <ChartTooltip content={<ChartTooltipContent labelFormatter={(_, p) => tooltipDate(String(p[0]?.payload.date))} />} />
           <ChartLegend content={<ChartLegendContent />} />
           {AREAS.map((a) => (
@@ -95,7 +99,7 @@ export function WeekCompareChart({ data }: { data: WeeklyReviewResponse }) {
         <BarChart data={rows} margin={{ left: 0, right: 8, top: 8 }} barGap={4}>
           <CartesianGrid vertical={false} />
           <XAxis dataKey="area" {...AXIS} interval={0} />
-          <YAxis {...AXIS} width={32} domain={[0, 100]} ticks={[0, 50, 100]} />
+          <YAxis {...AXIS} width={scoreAxis.width} domain={scoreAxis.domain} ticks={scoreAxis.ticks} tickFormatter={scoreAxis.format} />
           <ChartTooltip content={<ChartTooltipContent />} />
           <ChartLegend content={<ChartLegendContent />} />
           <Bar dataKey="lastWeek" fill="var(--color-lastWeek)" fillOpacity={0.45} radius={[4, 4, 0, 0]} isAnimationActive={animate} />

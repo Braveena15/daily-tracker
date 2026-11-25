@@ -28,7 +28,7 @@ export function waterWeek(totals: readonly (number | null | undefined)[], goalMl
   };
 }
 
-/** One point per day from `from` to `to`, 0 for days without water. */
-export function waterSeries(totals: ReadonlyMap<string, number>, from: string, to: string): { date: string; ml: number }[] {
-  return from > to ? [] : listDates(from, to).map((date) => ({ date, ml: totals.get(date) ?? 0 }));
+/** One point per day from `from` to `to`; null for days without any water logged (not 0). */
+export function waterSeries(totals: ReadonlyMap<string, number>, from: string, to: string): { date: string; ml: number | null }[] {
+  return from > to ? [] : listDates(from, to).map((date) => ({ date, ml: totals.get(date) || null }));
 }

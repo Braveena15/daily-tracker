@@ -34,11 +34,13 @@ import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { addDays, todayInTimezone } from '@/lib/dates'
 import { kcal } from '@/lib/meals'
 import { litres, litres1, type WaterResponse } from '@/lib/water'
+import { fixedAxis, fmtKcal, fmtKg, hoursAxis as sleepHoursAxis, niceAxis, waterAxis } from '@/lib/chartAxis'
 import {
   AREAS,
   shortDate,
   signed,
   tooltipDate,
+  weekdayShort,
   type DailyKcalResponse,
   type InsightsResponse,
   type ScoresListResponse,
@@ -101,6 +103,8 @@ function scoreSummary(days: ScoresListResponse['days']): string {
 }
 type Range = (typeof RANGES)[number]
 
+const scoreAxis = fixedAxis([0, 50, 100])
+
 const scoreConfig = Object.fromEntries(AREAS.map((a) => [a.key, { label: a.label, color: a.chartColor }])) satisfies ChartConfig
 
 export function ScoreTrendCard() {
@@ -142,7 +146,7 @@ export function ScoreTrendCard() {
           <LineChart data={data.days} margin={{ left: 0, right: 8, top: 8 }}>
             <CartesianGrid vertical={false} />
             <XAxis dataKey="date" {...AXIS} minTickGap={28} tickFormatter={shortDate} />
-            <YAxis {...AXIS} width={36} domain={[0, 100]} ticks={[0, 50, 100]} />
+            <YAxis {...AXIS} width={scoreAxis.width} domain={scoreAxis.domain} ticks={scoreAxis.ticks} tickFormatter={scoreAxis.format} />
             <ChartTooltip content={<ChartTooltipContent labelFormatter={(_, p) => tooltipDate(String(p[0]?.payload.date))} />} />
             <ChartLegend content={<ChartLegendContent />} />
             {AREAS.map((a) => (
@@ -212,10 +216,10 @@ export function WeightCard() {
   const firstIndex = data?.points.findIndex((p) => p.weightKg !== null) ?? -1
   const points = data && firstIndex > 0 ? data.points.slice(firstIndex) : (data?.points ?? [])
 
-  // The y-axis fits the real readings; the goal is drawn only when it already falls inside
+  // The y-axis fits the real readings (round kg ticks); the goal is drawn only when it already falls inside
   const values = readings.map((p) => p.weightKg)
-  const lo = Math.floor(Math.min(...values) - 0.5)
-  const hi = Math.ceil(Math.max(...values) + 0.5)
+  const yAxis = niceAxis({ min: Math.min(...values) - 0.5, max: Math.max(...values) + 0.5, headroom: 0, targetTicks: 4, minStep: 0.5, format: fmtKg })
+  const [lo, hi] = yAxis.domain
   const goal = data?.goalWeightKg ?? null
   const goalOnChart = goal !== null && values.length > 0 && goal >= lo && goal <= hi
   const goalText = goal !== null && !goalOnChart ? <> · goal {goal} kg</> : null
@@ -240,7 +244,7 @@ export function WeightCard() {
             <ComposedChart data={points} margin={{ left: 0, right: 8, top: 8 }}>
               <CartesianGrid vertical={false} />
               <XAxis dataKey="date" {...AXIS} minTickGap={28} tickFormatter={shortDate} />
-              <YAxis {...AXIS} width={34} domain={[lo, hi]} allowDecimals={false} />
+              <YAxis {...AXIS} width={yAxis.width} domain={yAxis.domain} ticks={yAxis.ticks} tickFormatter={yAxis.format} />
               <ChartTooltip
                 content={(props) => {
                   // Days without a weigh-in have nothing to show (never a made-up value)
@@ -332,6 +336,8 @@ export function CaloriesChartCard() {
   const logged = data?.days.filter((d) => d.kcal !== null) ?? []
   const today = data?.days.at(-1)
   const target = data?.calorieTarget ?? null
+  // Round kcal ticks; the target line always stays inside
+  const yAxis = niceAxis({ max: Math.max(0, target ?? 0, ...logged.map((d) => d.kcal!)), format: fmtKcal, unit: 'kcal' })
 
   return (
     <ChartCard
@@ -377,12 +383,7 @@ export function CaloriesChartCard() {
             <BarChart data={data.days} margin={{ left: 0, right: 8, top: 8 }}>
               <CartesianGrid vertical={false} />
               <XAxis dataKey="date" {...AXIS} minTickGap={20} tickFormatter={shortDate} />
-              <YAxis
-                {...AXIS}
-                width={40}
-                tickFormatter={(v: number) => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v))}
-                domain={[0, (dataMax: number) => Math.max(dataMax, (target ?? 0) * 1.15)]}
-              />
+              <YAxis {...AXIS} width={yAxis.width} domain={yAxis.domain} ticks={yAxis.ticks} tickFormatter={yAxis.format} />
               <ChartTooltip
                 cursor={false}
                 content={
@@ -443,6 +444,8 @@ export function SleepChartCard() {
   const { data, error } = useFetch<SleepResponse>('/progress/sleep?days=14')
   const nights = data?.days.filter((d) => d.hours !== null).length ?? 0
   const scored = data?.days.some((d) => d.score !== null) ?? false
+  // Hours in whole-hour steps (0, 5, 10 h), at least up to 10 h; the score is always 0–100
+  const hoursAxis = sleepHoursAxis(Math.max(0, ...(data?.days ?? []).map((d) => d.hours ?? 0)))
 
   return (
     <ChartCard
@@ -469,18 +472,27 @@ export function SleepChartCard() {
             className={CHART_CLASS}
             summary={`Sleep on ${nights} of the last ${data.days.length} nights${data.avgHours !== null ? `, ${data.avgHours} hours on average` : ''}${data.avgScore !== null ? `, average sleep score ${data.avgScore}` : ''}.`}
           >
-            <ComposedChart data={data.days} margin={{ left: 0, right: 0, top: 8 }}>
+            <ComposedChart data={data.days} margin={{ left: 0, right: scored ? 0 : 8, top: 8 }}>
               <CartesianGrid vertical={false} />
               <XAxis dataKey="date" {...AXIS} minTickGap={20} tickFormatter={shortDate} />
               <YAxis
                 yAxisId="hours"
                 {...AXIS}
-                width={30}
-                allowDecimals={false}
-                domain={[0, (dataMax: number) => Math.max(10, Math.ceil(dataMax))]}
-                tickFormatter={(v: number) => `${v}h`}
+                width={hoursAxis.width}
+                domain={hoursAxis.domain}
+                ticks={hoursAxis.ticks}
+                tickFormatter={hoursAxis.format}
               />
-              <YAxis yAxisId="score" orientation="right" {...AXIS} width={30} domain={[0, 100]} ticks={[0, 50, 100]} hide={!scored} />
+              <YAxis
+                yAxisId="score"
+                orientation="right"
+                {...AXIS}
+                width={scoreAxis.width}
+                domain={scoreAxis.domain}
+                ticks={scoreAxis.ticks}
+                tickFormatter={scoreAxis.format}
+                hide={!scored}
+              />
               <ChartTooltip
                 cursor={false}
                 content={
@@ -555,19 +567,26 @@ export function WaterChartCard() {
   const { data, error } = useFetch<WaterResponse>('/progress/water?days=7')
   const goal = data?.goalMl ?? null
   const today = data?.days.at(-1)
+  const logged = data?.days.filter((d) => d.ml !== null) ?? []
+  // Whole or half litres, from 0 to above the goal and the highest day
+  const yAxis = waterAxis(Math.max(0, ...logged.map((d) => d.ml!)), goal ?? 0)
+  const goalSummary =
+    data && data.waterDays > 0
+      ? `Goal reached on ${data.waterGoalDays} of ${data.waterDays} logged ${data.waterDays === 1 ? 'day' : 'days'}`
+      : 'No water logged yet this week'
 
   return (
     <ChartCard
       icon={GlassWater}
       title="Water"
-      description={today ? `Today ${litres(today.ml)}${goal !== null ? ` of ${litres1(goal)}` : ''}` : 'Last 7 days'}
+      description={today ? `Today ${today.ml === null ? 'not logged' : litres(today.ml)}${goal !== null ? ` · goal ${litres1(goal)}` : ''}` : 'Last 7 days'}
     >
       {error ? (
         <ErrorNotice>{error}</ErrorNotice>
       ) : !data ? (
         <ChartSkeleton />
       ) : data.waterDays === 0 ? (
-        <EmptyState icon={GlassWater} tone="outdoor" title="No water logged yet" className="py-10">
+        <EmptyState icon={GlassWater} tone="outdoor" title="No water logged yet this week" className="py-10">
           Tap “+1 glass” on Today and your week will show up here.
         </EmptyState>
       ) : (
@@ -575,27 +594,28 @@ export function WaterChartCard() {
           <ChartContainer
             config={waterConfig}
             className={CHART_CLASS}
-            summary={`Water on ${data.waterDays} of the last ${data.days.length} days, ${litres(data.avgWaterMl ?? 0)} a day on average; goal ${litres1(data.goalMl)}, reached on ${data.waterGoalDays} ${data.waterGoalDays === 1 ? 'day' : 'days'}.`}
+            summary={`Water logged on ${data.waterDays} of the last ${data.days.length} days, ${litres(data.avgWaterMl ?? 0)} a day on average on those days; goal ${litres1(data.goalMl)}. ${goalSummary}.`}
           >
             <BarChart data={data.days} margin={{ left: 0, right: 8, top: 8 }}>
               <CartesianGrid vertical={false} />
-              <XAxis dataKey="date" {...AXIS} interval={0} tickFormatter={shortDate} />
-              <YAxis
-                {...AXIS}
-                width={36}
-                tickFormatter={(v: number) => `${v / 1000}L`}
-                domain={[0, (dataMax: number) => Math.max(dataMax, data.goalMl * 1.15)]}
-              />
+              {/* Weekdays: seven "Nov 19" labels overlap on a phone; the tooltip shows the full date */}
+              <XAxis dataKey="date" {...AXIS} interval={0} tickFormatter={weekdayShort} padding={{ left: 4, right: 4 }} />
+              <YAxis {...AXIS} width={yAxis.width} domain={yAxis.domain} ticks={yAxis.ticks} tickFormatter={yAxis.format} />
               <ChartTooltip
                 cursor={false}
+                // Keep days without a log, so their tooltip can say so
+                filterNull={false}
                 content={
                   <ChartTooltipContent
                     hideIndicator
                     labelFormatter={(_, p) => tooltipDate(String(p[0]?.payload.date))}
-                    formatter={(value) => <span className="font-medium tabular-nums">{litres(Number(value))}</span>}
+                    formatter={(value) => (
+                      <span className="font-medium tabular-nums">{value === null || value === undefined ? 'Not logged' : litres(Number(value))}</span>
+                    )}
                   />
                 }
               />
+              {/* Days without a log have no bar at all (null, not 0) */}
               <Bar dataKey="ml" fill="var(--color-ml)" radius={[4, 4, 0, 0]} maxBarSize={28} isAnimationActive={animate} />
               <ReferenceLine y={data.goalMl} stroke="var(--foreground)" strokeOpacity={0.45} strokeDasharray="5 4" />
             </BarChart>
@@ -605,7 +625,7 @@ export function WaterChartCard() {
               <span aria-hidden className="w-4 border-t-2 border-dashed border-foreground/45" />
               Goal {litres1(data.goalMl)} ·
             </span>
-            reached on {data.waterGoalDays} of {data.days.length} {data.days.length === 1 ? 'day' : 'days'}
+            {goalSummary}
           </p>
         </>
       )}

@@ -341,9 +341,10 @@ function ReviewBody({ data, today }: { data: WeeklyReviewResponse; today: string
             icon={GlassWater}
             tone="outdoor"
             label={`Water goal (${litres(data.waterGoalMl)})`}
-            value={w.waterDays === 0 ? null : `${w.waterGoalDays} of ${w.daysTracked} ${w.daysTracked === 1 ? 'day' : 'days'}`}
-            emptyHint="Reached days show here"
-            previous={p.daysTracked > 0 && p.waterDays > 0 ? `${p.waterGoalDays} of ${p.daysTracked}` : null}
+            // Out of the days water was actually logged
+            value={w.waterDays === 0 ? null : `${w.waterGoalDays} of ${w.waterDays} logged ${w.waterDays === 1 ? 'day' : 'days'}`}
+            emptyHint="No water logged yet this week"
+            previous={p.daysTracked > 0 && p.waterDays > 0 ? `${p.waterGoalDays} of ${p.waterDays}` : null}
             delta={<Delta diff={d.waterGoalDays} unit={Math.abs(d.waterGoalDays ?? 0) === 1 ? ' day' : ' days'} />}
           />
           <StatCard

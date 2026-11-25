@@ -13,6 +13,7 @@ import { timeOf } from '@/lib/healthSync'
 import type { HealthSnapshot, MoodLog } from '@/lib/entries'
 import type { LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { fixedAxis, fmtKcal, fmtSteps, niceAxis } from '@/lib/chartAxis'
 
 const CHART_CLASS = 'aspect-auto h-52 w-full sm:h-60'
 const AXIS = { tickLine: false, axisLine: false, tickMargin: 8 } as const
@@ -77,6 +78,8 @@ function activitySummary(points: { minute: number; steps: number | null; activeC
   return `By ${clock(last.minute)}: ${parts.join(' and ')}, over ${points.length} syncs.`
 }
 
+const moodAxis = fixedAxis([0, 5, 10])
+
 const moodConfig = {
   mood: { label: 'Mood', color: 'var(--chart-mental)' },
   energy: { label: 'Energy', color: 'var(--chart-learning)' },
@@ -104,7 +107,7 @@ export function MoodDayChart({ moodLogs }: { moodLogs: MoodLog[] }) {
           <LineChart data={points} margin={{ left: 0, right: 12, top: 8 }}>
             <CartesianGrid vertical={false} />
             <XAxis dataKey="minute" type="number" domain={domain} ticks={hourTicks(domain)} tickFormatter={clock} {...AXIS} />
-            <YAxis {...AXIS} width={28} domain={[0, 10]} ticks={[0, 5, 10]} />
+            <YAxis {...AXIS} width={moodAxis.width} domain={moodAxis.domain} ticks={moodAxis.ticks} tickFormatter={moodAxis.format} />
             <ChartTooltip
               content={({ active, payload }) => {
                 const p = active ? (payload?.[0]?.payload as (typeof points)[number] | undefined) : undefined
@@ -158,6 +161,9 @@ export function ActivityDayChart({ snapshots }: { snapshots: HealthSnapshot[] })
   const domain = points.length > 0 ? hourDomain(points.map((p) => p.minute)) : ([0, 0] as [number, number])
   const hasSteps = points.some((p) => p.steps !== null)
   const hasKcal = points.some((p) => p.activeCalories !== null)
+  // Round ticks: steps in thousands ("8k"), calories in kcal
+  const stepsAxis = niceAxis({ max: Math.max(0, ...points.map((p) => p.steps ?? 0)), format: fmtSteps })
+  const kcalAxis = niceAxis({ max: Math.max(0, ...points.map((p) => p.activeCalories ?? 0)), format: fmtKcal, unit: 'kcal' })
 
   return (
     <DayChartCard
@@ -175,8 +181,25 @@ export function ActivityDayChart({ snapshots }: { snapshots: HealthSnapshot[] })
             <CartesianGrid vertical={false} />
             <XAxis dataKey="minute" type="number" domain={domain} ticks={hourTicks(domain)} tickFormatter={clock} {...AXIS} />
             {/* Steps on the left, calories on the right: their numbers are very different sizes */}
-            <YAxis yAxisId="steps" {...AXIS} width={40} hide={!hasSteps} tickFormatter={(v: number) => (v >= 1000 ? `${Math.round(v / 1000)}k` : String(v))} />
-            <YAxis yAxisId="kcal" orientation="right" {...AXIS} width={36} hide={!hasKcal} />
+            <YAxis
+              yAxisId="steps"
+              {...AXIS}
+              width={stepsAxis.width}
+              domain={stepsAxis.domain}
+              ticks={stepsAxis.ticks}
+              tickFormatter={stepsAxis.format}
+              hide={!hasSteps}
+            />
+            <YAxis
+              yAxisId="kcal"
+              orientation="right"
+              {...AXIS}
+              width={kcalAxis.width}
+              domain={kcalAxis.domain}
+              ticks={kcalAxis.ticks}
+              tickFormatter={kcalAxis.format}
+              hide={!hasKcal}
+            />
             <ChartTooltip
               content={
                 <ChartTooltipContent

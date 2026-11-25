@@ -156,6 +156,9 @@ export type SleepResponse = {
 }
 
 /** "19 Nov" — short dates for chart axes. */
+/** "Wed": for a week of days, where "Nov 19" ×7 wouldn't fit on a phone */
+export const weekdayShort = (date: string) => toLocalDate(date).toLocaleDateString(undefined, { weekday: 'short' })
+
 export const shortDate = (date: string) => toLocalDate(date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
 
 /** "Thu 19 Nov" — for tooltips. */

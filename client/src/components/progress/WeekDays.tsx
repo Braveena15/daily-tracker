@@ -18,6 +18,9 @@ import { MoodIcon } from '@/components/MoodFace'
 import { MoodDot } from '@/components/day/MoodDot'
 import { shortDate, tooltipDate, type ReviewDay } from '@/lib/progress'
 import { cn } from '@/lib/utils'
+import { fixedAxis } from '@/lib/chartAxis'
+
+const moodAxis = fixedAxis([0, 5, 10])
 
 const chartConfig = {
   mood: { label: 'Average mood', color: 'var(--chart-mental)' },
@@ -56,7 +59,7 @@ export function WeekMoodChart({ days }: { days: ReviewDay[] }) {
             <ComposedChart data={points} margin={{ left: 0, right: 8, top: 8 }}>
               <CartesianGrid vertical={false} />
               <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} tickFormatter={shortDate} minTickGap={8} />
-              <YAxis tickLine={false} axisLine={false} tickMargin={8} width={28} domain={[0, 10]} ticks={[0, 5, 10]} />
+              <YAxis tickLine={false} axisLine={false} tickMargin={8} width={moodAxis.width} domain={moodAxis.domain} ticks={moodAxis.ticks} tickFormatter={moodAxis.format} />
               <ChartTooltip
                 content={({ active, payload }) => {
                   const d = active ? (payload?.[0]?.payload as ReviewDay | undefined) : undefined
