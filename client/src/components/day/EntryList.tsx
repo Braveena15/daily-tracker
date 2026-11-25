@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { timeOf } from '@/lib/healthSync'
 import { cn } from '@/lib/utils'
 
-type Item = { id: string; loggedAt: string }
+type Item = { id: string; loggedAt?: string | null }
 
 export function EntryList<T extends Item>({
   items,
@@ -15,6 +15,7 @@ export function EntryList<T extends Item>({
   renderEdit,
   onDelete,
   label,
+  showTime = true,
 }: {
   items: T[]
   /** The main line and an optional second line */
@@ -25,6 +26,8 @@ export function EntryList<T extends Item>({
   onDelete: (item: T) => Promise<unknown>
   /** For screen readers, e.g. "workout" */
   label: string
+  /** False for entries without a time of day (learnings) */
+  showTime?: boolean
 }) {
   const [editing, setEditing] = useState<string | null>(null)
   if (items.length === 0) return null
@@ -41,6 +44,7 @@ export function EntryList<T extends Item>({
             {...describe(item)}
             note={readOnly?.(item) || null}
             label={label}
+            showTime={showTime}
             onEdit={() => setEditing(item.id)}
             onDelete={() => onDelete(item)}
           />
@@ -56,6 +60,7 @@ function Row({
   detail,
   note,
   label,
+  showTime,
   onEdit,
   onDelete,
 }: {
@@ -64,6 +69,7 @@ function Row({
   detail?: string
   note: ReactNode
   label: string
+  showTime: boolean
   onEdit: () => void
   onDelete: () => Promise<unknown>
 }) {
@@ -88,12 +94,16 @@ function Row({
     }
   }
 
-  const time = timeOf(item.loggedAt)
+  const time = showTime && item.loggedAt ? timeOf(item.loggedAt) : null
+  // "workout at 08:15", or "learning: React hooks" for entries without a time
+  const which = time ? `${label} at ${time}` : `${label}: ${typeof title === 'string' ? title : ''}`.replace(/: $/, '')
   return (
     <li className="flex animate-in items-start gap-3 rounded-xl bg-muted/60 p-3 duration-200 fade-in-0">
-      <time dateTime={item.loggedAt} className="mt-0.5 w-11 shrink-0 text-sm font-medium text-muted-foreground tabular-nums">
-        {time}
-      </time>
+      {time && (
+        <time dateTime={item.loggedAt!} className="mt-0.5 w-11 shrink-0 text-sm font-medium text-muted-foreground tabular-nums">
+          {time}
+        </time>
+      )}
       <div className="min-w-0 flex-1">
         <div className="text-sm font-medium break-words">{title}</div>
         {detail && <p className="mt-0.5 text-sm break-words text-muted-foreground">{detail}</p>}
@@ -103,14 +113,14 @@ function Row({
       </div>
       {!note && (
         <div className="-my-1 -mr-1 flex shrink-0">
-          <Button type="button" variant="ghost" size="icon" aria-label={`Edit ${label} at ${time}`} onClick={onEdit}>
+          <Button type="button" variant="ghost" size="icon" aria-label={`Edit ${which}`} onClick={onEdit}>
             <Pencil />
           </Button>
           <Button loading={deleting}
             type="button"
             variant="ghost"
             size={confirming ? 'sm' : 'icon'}
-            aria-label={confirming ? `Tap again to delete ${label} at ${time}` : `Delete ${label} at ${time}`}
+            aria-label={confirming ? `Tap again to delete ${which}` : `Delete ${which}`}
             onClick={remove}
             disabled={deleting}
             className={cn(

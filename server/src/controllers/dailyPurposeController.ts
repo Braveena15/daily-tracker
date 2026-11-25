@@ -1,5 +1,5 @@
-// The day's purposes: up to 5 a day, each with its own focus values, up to 5 intentions and an
-// evening rating, plus one evening note for the whole day.
+// "What matters to me today": up to 5 a day, each with how strongly it's felt (intensity 0–10) and
+// optional focus values and intentions, plus one evening note for the whole day.
 // Text is encrypted before it's stored and decrypted only for its owner. Every query filters by req.userId.
 import type { Request, Response } from "express";
 import { isValidObjectId, Types } from "mongoose";
@@ -8,7 +8,7 @@ import { DailyEntryModel } from "../models/DailyEntry";
 import { PurposeModel } from "../models/Mind";
 import { journeyStart } from "../services/journey";
 import { AppError } from "../utils/AppError";
-import { daysBetween, dayStatus, isValidDateString, todayInTimezone } from "../utils/dates";
+import { addDays, daysBetween, dayStatus, isValidDateString, todayInTimezone } from "../utils/dates";
 import {
   MAX_INTENTIONS,
   MAX_PURPOSES,
@@ -19,6 +19,8 @@ import {
   pickFocusValues,
   purposeDaysRange,
   purposeStats,
+  purposeSuggestions,
+  recurringPurposes,
   sealText,
   splitPurposeDays,
   toPurposeContent,
@@ -91,7 +93,15 @@ export async function addPurpose(req: Request, res: Response): Promise<void> {
   const body = purposeCreateSchema.parse(req.body ?? {});
   const focusValues = body.focusValues ? await checkFocusValues(req, body.focusValues) : [];
   const now = new Date();
-  const purpose = { _id: new Types.ObjectId(), text: fieldCrypto.encrypt(body.text), focusValues, intentions: [], createdAt: now, updatedAt: now };
+  const purpose = {
+    _id: new Types.ObjectId(),
+    text: fieldCrypto.encrypt(body.text),
+    intensity: body.intensity,
+    focusValues,
+    intentions: [],
+    createdAt: now,
+    updatedAt: now,
+  };
 
   const existing = await DailyEntryModel.exists({ userId: req.userId, date });
   // The limit is part of the update's filter, so two quick adds can't make a 6th
@@ -106,20 +116,18 @@ export async function addPurpose(req: Request, res: Response): Promise<void> {
   res.status(201).json(dayResponse(date, doc));
 }
 
-/** PATCH /api/entries/:date/purposes/:purposeId — change the text, focus values or rating. */
+/** PATCH /api/entries/:date/purposes/:purposeId — change the text, intensity or focus values. */
 export async function updatePurpose(req: Request, res: Response): Promise<void> {
   const date = purposeDate(req);
   const id = purposeId(req);
   const body = purposePatchSchema.parse(req.body ?? {});
 
   const $set: Record<string, unknown> = { "dailyPurposes.$.updatedAt": new Date() };
-  const $unset: Record<string, 1> = {};
   if (body.text !== undefined) $set["dailyPurposes.$.text"] = fieldCrypto.encrypt(body.text);
   if (body.focusValues !== undefined) $set["dailyPurposes.$.focusValues"] = await checkFocusValues(req, body.focusValues);
-  if (body.rating === null) $unset["dailyPurposes.$.rating"] = 1;
-  else if (body.rating !== undefined) $set["dailyPurposes.$.rating"] = body.rating;
+  if (body.intensity !== undefined) $set["dailyPurposes.$.intensity"] = body.intensity;
 
-  const doc = await update(req, date, { "dailyPurposes._id": id }, Object.keys($unset).length ? { $set, $unset } : { $set });
+  const doc = await update(req, date, { "dailyPurposes._id": id }, { $set });
   if (!doc) throw new AppError(404, "Purpose not found");
   res.json(dayResponse(date, doc));
 }
@@ -243,7 +251,37 @@ export async function listPurposeDays(req: Request, res: Response): Promise<void
     return hasDayPurposes(day) ? [{ date: r.date, ...day }] : [];
   });
   // days: every day, newest first; today/past/isEmpty/canSetToday: what the list shows (see splitPurposeDays)
-  res.json({ from, to, todayDate: today, journeyStartDate: start, days, ...splitPurposeDays(days, today), stats: purposeStats(days) });
+  res.json({
+    from,
+    to,
+    todayDate: today,
+    journeyStartDate: start,
+    days,
+    ...splitPurposeDays(days, today),
+    stats: purposeStats(days),
+    // What keeps coming back, most frequent first, with each one's last 30 days
+    recurring: recurringPurposes(days, today),
+  });
+}
+
+const SUGGESTION_DAYS = 365;
+
+/**
+ * GET /api/purpose/suggestions — wordings used on earlier days (one per normalized text, most used
+ * first), so the same thing can be reused while typing. Decrypted for the owner only.
+ */
+export async function purposeSuggestionList(req: Request, res: Response): Promise<void> {
+  const today = todayInTimezone();
+  const rows = await DailyEntryModel.find({
+    userId: req.userId,
+    date: { $gte: addDays(today, -SUGGESTION_DAYS), $lte: today },
+    "dailyPurposes.0": { $exists: true },
+  })
+    .select("date dailyPurposes")
+    .lean();
+  const days = rows.map((r) => ({ date: r.date, ...openDayPurposes(fieldCrypto, r) }));
+  res.set("Cache-Control", "no-store");
+  res.json({ suggestions: purposeSuggestions(days) });
 }
 
 /** GET /api/purpose/history — the current version, then earlier versions newest first. */

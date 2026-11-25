@@ -1,6 +1,6 @@
-// The day's purposes, matching the server's /api/entries/:date/purposes… and /api/purpose/days routes.
-// A day has up to 5 purposes, each with its own focus values, up to 5 intentions and an evening
-// rating, plus one evening note for the whole day.
+// "What matters to me today", matching the server's /api/entries/:date/purposes… and /api/purpose/*
+// routes. A day has up to 5, each with how strongly it's felt (intensity 0–10) and optional focus
+// values and intentions, plus one evening note for the whole day.
 import { dayOf, timeOf } from '@/lib/healthSync'
 import { journeyDate } from '@/lib/journey'
 
@@ -13,8 +13,8 @@ export type DayPurpose = {
   focusValues: string[]
   /** Up to 5 */
   intentions: Intention[]
-  /** "How well did I live this purpose today?" 1–5, null until rated */
-  rating: number | null
+  /** "How strongly do I feel this?" 0–10; null only on purposes from before intensity existed */
+  intensity: number | null
   createdAt: string | null
   updatedAt: string | null
 }
@@ -34,8 +34,8 @@ export type PurposeStats = {
   intentionsTotal: number
   intentionsDone: number
   intentionsDonePercent: number | null
-  /** Across every rated purpose */
-  avgRating: number | null
+  /** Across every purpose with an intensity */
+  avgIntensity: number | null
   topValues: { value: string; days: number }[]
 }
 
@@ -56,12 +56,26 @@ export type PurposeDaysResponse = {
   /** Today has no purpose yet */
   canSetToday: boolean
   stats: PurposeStats
+  /** What keeps coming back, most frequent first */
+  recurring: RecurringPurpose[]
+}
+
+export type RecurringPurpose = {
+  /** The most recent wording */
+  text: string
+  /** Days it appeared on */
+  count: number
+  avgIntensity: number | null
+  lastDate: string
+  /** Its intensity on each of the last 30 days (oldest first), null on days it didn't appear */
+  last30: (number | null)[]
 }
 export type PurposeVersion = { statement: string; coreValues: string[]; goals: { title: string; why: string }[]; savedAt: string }
 /** current: the saved purpose (null until something is saved); history: earlier versions, newest first */
 export type PurposeHistoryResponse = { current: PurposeVersion | null; history: PurposeVersion[] }
 
 export const MAX_INTENTIONS = 5
+export const DEFAULT_INTENSITY = 5
 export const MAX_PURPOSES = 5
 export const MAX_FOCUS_VALUES = 3
 
@@ -74,21 +88,38 @@ export const dayPurposesOf = (entry: { dailyPurposes?: DayPurpose[]; dailyReflec
 /** Counts for a day's summary. */
 export function dayCounts(d: Pick<DayPurposes, 'purposes'>) {
   const intentions = d.purposes.flatMap((p) => p.intentions)
-  return { purposes: d.purposes.length, intentions: intentions.length, done: intentions.filter((i) => i.done).length }
+  const intensities = d.purposes.flatMap((p) => (p.intensity === null ? [] : [p.intensity]))
+  return {
+    purposes: d.purposes.length,
+    intentions: intentions.length,
+    done: intentions.filter((i) => i.done).length,
+    /** 1 decimal, null without intensities */
+    avgIntensity: intensities.length ? Math.round((intensities.reduce((s, n) => s + n, 0) / intensities.length) * 10) / 10 : null,
+  }
 }
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
 
-/** "3 purposes · 5 of 8 intentions done" (the intentions part only when there are some). */
+/** "2 things · avg intensity 7/10" */
 export function daySummary(d: Pick<DayPurposes, 'purposes'>): string {
   const c = dayCounts(d)
-  return [plural(c.purposes, 'purpose'), c.intentions > 0 && `${c.done} of ${plural(c.intentions, 'intention')} done`].filter(Boolean).join(' · ')
+  return [plural(c.purposes, 'thing'), c.avgIntensity !== null && `avg intensity ${c.avgIntensity}/10`].filter(Boolean).join(' · ')
 }
 
-/** "3 purposes · 5/8" for small cards. */
+/** "2 things · avg 7/10" for small cards. */
 export function shortDaySummary(d: Pick<DayPurposes, 'purposes'>): string {
   const c = dayCounts(d)
-  return [plural(c.purposes, 'purpose'), c.intentions > 0 && `${c.done}/${c.intentions}`].filter(Boolean).join(' · ')
+  return [plural(c.purposes, 'thing'), c.avgIntensity !== null && `avg ${c.avgIntensity}/10`].filter(Boolean).join(' · ')
+}
+
+/** The same wording, ignoring case and extra spaces (same rule as the server). */
+export const normalizePurpose = (text: string) => text.trim().replace(/\s+/g, ' ').toLowerCase()
+
+/** Earlier wordings that match what's typed so far, leaving out an exact match. */
+export function matchSuggestions(suggestions: string[], typed: string, limit = 5): string[] {
+  const q = normalizePurpose(typed)
+  if (!q) return []
+  return suggestions.filter((s) => normalizePurpose(s).includes(q) && normalizePurpose(s) !== q).slice(0, limit)
 }
 
 /** Same text, ignoring case and surrounding spaces (e.g. a goal already added as an intention). */

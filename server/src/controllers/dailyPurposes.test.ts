@@ -1,7 +1,7 @@
 /// <reference types="vitest/globals" />
-// Several purposes a day, end to end against a real (in-memory) MongoDB: up to 5 purposes, each with
-// its own intentions and rating, one evening note, the midnight lock on every write route, text
-// encrypted at rest, and the migration from the older single purpose.
+// "What matters to me today", end to end against a real (in-memory) MongoDB: up to 5 purposes, each
+// with an intensity (0–10) and its own intentions, one evening note, the midnight lock on every write
+// route, text encrypted at rest, suggestions, recurring purposes, and the migrations from older data.
 import mongoose from "mongoose";
 import { startHarness, type Harness } from "../test/harness";
 import { addDays } from "../utils/dates";
@@ -30,17 +30,29 @@ const base = () => `/api/entries/${today}`;
 describe("today's purposes", () => {
   let first: string;
 
-  it("adds purposes with focus values, up to 5, and refuses a 6th kindly", async () => {
-    const res = await h.request("POST", `${base()}/purposes`, { text: "Be present with family", focusValues: ["family"] });
+  it("needs an intensity from 0 to 10 when adding", async () => {
+    const missing = await h.request("POST", `${base()}/purposes`, { text: "Be present with family" });
+    expect(missing.status).toBe(400);
+    expect(missing.body.message).toBe("Choose how strongly you feel this (0–10)");
+    for (const intensity of [-1, 11, 7.5, "8"]) {
+      expect((await h.request("POST", `${base()}/purposes`, { text: "Be present", intensity })).status, String(intensity)).toBe(400);
+    }
+    // There's no rating any more
+    expect((await h.request("POST", `${base()}/purposes`, { text: "Be present", intensity: 5, rating: 4 })).status).toBe(400);
+  });
+
+  it("adds purposes with an intensity and focus values, up to 5, and refuses a 6th kindly", async () => {
+    const res = await h.request("POST", `${base()}/purposes`, { text: "Be present with family", intensity: 8, focusValues: ["family"] });
     expect(res.status).toBe(201);
     expect(res.body.entry.dailyPurposes).toHaveLength(1);
-    expect(res.body.entry.dailyPurposes[0]).toMatchObject({ text: "Be present with family", focusValues: ["Family"], intentions: [], rating: null });
+    expect(res.body.entry.dailyPurposes[0]).toMatchObject({ text: "Be present with family", intensity: 8, focusValues: ["Family"], intentions: [] });
+    expect(res.body.entry.dailyPurposes[0]).not.toHaveProperty("rating");
     first = res.body.entry.dailyPurposes[0].id;
 
-    for (const text of ["Finish the report calmly", "Move my body", "Rest well", "Learn one thing"]) {
-      expect((await h.request("POST", `${base()}/purposes`, { text })).status).toBe(201);
+    for (const [text, intensity] of [["Finish the report calmly", 6], ["Move my body", 0], ["Rest well", 10], ["Learn one thing", 5]] as const) {
+      expect((await h.request("POST", `${base()}/purposes`, { text, intensity })).status).toBe(201);
     }
-    const sixth = await h.request("POST", `${base()}/purposes`, { text: "One too many" });
+    const sixth = await h.request("POST", `${base()}/purposes`, { text: "One too many", intensity: 5 });
     expect(sixth.status).toBe(400);
     expect(sixth.body.message).toMatch(/5 purposes/);
     expect((await h.request("GET", base())).body.entry.dailyPurposes).toHaveLength(5);
@@ -51,15 +63,15 @@ describe("today's purposes", () => {
     expect(res.status).toBe(400);
   });
 
-  it("edits text, focus values and the rating of one purpose only", async () => {
-    const res = await h.request("PATCH", `${base()}/purposes/${first}`, { text: "Be fully present with family", focusValues: ["Family", "Health"], rating: 4 });
+  it("edits the text, intensity and focus values of one purpose only — and has no rating", async () => {
+    const res = await h.request("PATCH", `${base()}/purposes/${first}`, { text: "Be fully present with family", intensity: 9, focusValues: ["Family", "Health"] });
     expect(res.status).toBe(200);
     const [p, second] = res.body.entry.dailyPurposes;
-    expect(p).toMatchObject({ text: "Be fully present with family", focusValues: ["Family", "Health"], rating: 4 });
-    expect(second.rating).toBeNull();
-    const cleared = await h.request("PATCH", `${base()}/purposes/${first}`, { rating: null });
-    expect(cleared.body.entry.dailyPurposes[0].rating).toBeNull();
-    expect((await h.request("PATCH", `${base()}/purposes/${first}`, { rating: 6 })).status).toBe(400);
+    expect(p).toMatchObject({ text: "Be fully present with family", intensity: 9, focusValues: ["Family", "Health"] });
+    expect(second.intensity).toBe(6);
+    expect((await h.request("PATCH", `${base()}/purposes/${first}`, { intensity: 11 })).status).toBe(400);
+    expect((await h.request("PATCH", `${base()}/purposes/${first}`, { intensity: null })).status).toBe(400);
+    expect((await h.request("PATCH", `${base()}/purposes/${first}`, { rating: 4 })).status).toBe(400);
   });
 
   it("keeps each purpose's intentions apart, up to 5 per purpose", async () => {
@@ -117,7 +129,10 @@ describe("today's purposes", () => {
     expect(res.status).toBe(200);
     expect(res.body.today.purposes).toHaveLength(5);
     expect(res.body.today.reflectionNote).toBe("A calm, good day");
-    expect(res.body.stats).toMatchObject({ daysWithPurpose: 1, purposesTotal: 5, intentionsTotal: 5, intentionsDone: 1 });
+    expect(res.body.stats).toMatchObject({ daysWithPurpose: 1, purposesTotal: 5, intentionsTotal: 5, intentionsDone: 1, avgIntensity: 6 });
+    // (9 + 6 + 0 + 10 + 5) / 5 = 6, and every purpose shows up once as a recurring one
+    expect(res.body.recurring).toHaveLength(5);
+    expect(res.body.recurring[0]).toMatchObject({ count: 1 });
   });
 
   it("shows the first 3 of today's purposes on Lift me up", async () => {
@@ -138,8 +153,8 @@ describe("today's purposes", () => {
 
 describe("the midnight lock", () => {
   const writes = (date: string, pid: string, iid: string): [string, string, unknown?][] => [
-    ["POST", `/api/entries/${date}/purposes`, { text: "Late purpose" }],
-    ["PATCH", `/api/entries/${date}/purposes/${pid}`, { rating: 5 }],
+    ["POST", `/api/entries/${date}/purposes`, { text: "Late purpose", intensity: 5 }],
+    ["PATCH", `/api/entries/${date}/purposes/${pid}`, { intensity: 7 }],
     ["DELETE", `/api/entries/${date}/purposes/${pid}`],
     ["POST", `/api/entries/${date}/purposes/${pid}/intentions`, { text: "Late intention" }],
     ["PATCH", `/api/entries/${date}/purposes/${pid}/intentions/${iid}`, { done: true }],
@@ -204,6 +219,7 @@ describe("migration from one purpose a day", () => {
 
     const first = await migrateDailyPurposes();
     expect(first).toEqual({ scanned: 1, days: 1, purposes: 1, intentions: 1, ratings: 1, notes: 1 });
+    expect((await entries().findOne({ userId, date }))!.dailyPurposes[0]).toMatchObject({ legacyRating: 4 });
     const second = await migrateDailyPurposes();
     expect(second).toEqual({ scanned: 0, days: 0, purposes: 0, intentions: 0, ratings: 0, notes: 0 });
 
@@ -218,11 +234,68 @@ describe("migration from one purpose a day", () => {
         text: "Be patient",
         focusValues: ["Family"],
         intentions: [{ id: expect.any(String), text: "Breathe first", done: true, doneAt: at.toISOString() }],
-        rating: 4,
+        // The old rating is kept (as legacyRating) but never shown; older purposes have no intensity
+        intensity: null,
         createdAt: at.toISOString(),
         updatedAt: at.toISOString(),
       },
     ]);
     expect(day.dailyReflectionNote).toBe("Mostly patient");
+  });
+});
+
+describe("suggestions and recurring purposes", () => {
+  it("suggests wordings used on earlier days, one per text ignoring case and spaces, most used first", async () => {
+    const { fieldCrypto } = await import("../config/encryption");
+    const purpose = (text: string, intensity: number | null) => ({
+      _id: new mongoose.Types.ObjectId(),
+      text: fieldCrypto.encrypt(text),
+      ...(intensity !== null && { intensity }),
+      focusValues: [],
+      intentions: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    // The days list starts at the journey start; begin it a month ago so these earlier days count
+    await h.request("PUT", "/api/profile", { journeyStartDate: addDays(today, -30) });
+    // Two earlier days: "Be patient" twice (written differently), "Walk outside" once. The migration
+    // test above also left "Be patient" (no intensity) three days ago, which is the latest wording.
+    await entries().insertMany([
+      { userId, date: addDays(today, -5), dailyPurposes: [purpose("Be patient", 6), purpose("Walk outside", 4)] },
+      { userId, date: addDays(today, -4), dailyPurposes: [purpose("  be   PATIENT ", 8)] },
+    ]);
+
+    const res = await h.request("GET", "/api/purpose/suggestions");
+    expect(res.status).toBe(200);
+    expect(res.body.suggestions[0]).toBe("Be patient");
+    expect(res.body.suggestions).toContain("Walk outside");
+    expect(res.body.suggestions.filter((t: string) => t.toLowerCase() === "be patient")).toHaveLength(1);
+    // Stored text stays encrypted
+    expect(JSON.stringify(await entries().findOne({ userId, date: addDays(today, -4) }))).not.toMatch(/PATIENT/);
+  });
+
+  it("groups recurring purposes by their wording, with times, average intensity and the last 30 days", async () => {
+    const res = await h.request("GET", "/api/purpose/days");
+    const patient = res.body.recurring.find((r: { text: string }) => r.text.toLowerCase().includes("patient"));
+    // Days −5 (6), −4 (8) and −3 (from before intensity existed: no number)
+    expect(patient).toMatchObject({ text: "Be patient", count: 3, avgIntensity: 7, lastDate: addDays(today, -3) });
+    expect(patient.last30).toHaveLength(30);
+    expect(patient.last30.slice(-6, -3)).toEqual([6, 8, null]);
+    expect(patient.last30.at(-1)).toBeNull();
+    expect(res.body.recurring[0].count).toBeGreaterThanOrEqual(res.body.recurring.at(-1).count);
+  });
+
+  it("migrates old evening ratings to legacyRating, safely twice", async () => {
+    const { migratePurposeRatings } = await import("../services/migrations");
+    const date = addDays(today, -8);
+    await entries().insertOne({ userId, date, dailyPurposes: [{ _id: new mongoose.Types.ObjectId(), text: "x", rating: 3, focusValues: [], intentions: [] }] });
+    expect(await migratePurposeRatings()).toMatchObject({ days: 1, ratings: 1 });
+    expect(await migratePurposeRatings()).toEqual({ days: 0, ratings: 0 });
+    const stored = (await entries().findOne({ userId, date }))!.dailyPurposes[0];
+    expect(stored).toMatchObject({ legacyRating: 3 });
+    expect(stored).not.toHaveProperty("rating");
+    const day = (await h.request("GET", `/api/entries/${date}`)).body.entry.dailyPurposes[0];
+    expect(day.intensity).toBeNull();
+    expect(day).not.toHaveProperty("legacyRating");
   });
 });

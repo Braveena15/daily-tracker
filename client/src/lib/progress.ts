@@ -144,7 +144,12 @@ export type WeeklyReviewResponse = {
   days: ReviewDay[]
   journeyStartDate: string
   /** This week's daily purposes, oldest first */
-  purpose: { days: PurposeDay[]; stats: PurposeStats }
+  purpose: {
+    days: PurposeDay[]
+    stats: PurposeStats
+    /** The week's most frequent item, when one came up on more than one day */
+    mostFrequent: { text: string; count: number; avgIntensity: number | null } | null
+  }
 }
 
 export type SleepResponse = {

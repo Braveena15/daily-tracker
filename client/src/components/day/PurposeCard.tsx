@@ -1,35 +1,46 @@
-// "Today's purposes" at the top of the Today page: up to 5 things today is about. Each purpose is
-// its own small block with up to 3 focus values from your core values, up to 5 intentions to tick
-// off and, in the evening, its own 1–5 rating. One evening note covers the whole day.
+// "What matters to me today" at the top of the Today page: up to 5 things today is about, each with
+// how strongly I feel it (intensity 0–10), optional focus values from my core values and optional
+// intentions to tick off (folded away until opened). One evening note covers the whole day.
 //
 // Editable only during that day (Asia/Colombo; the server enforces it too):
-// - a past day shows its purposes read-only, locked;
-// - today shows each purpose with Edit and Delete, intentions you can tick and the evening rating.
+// - a past day shows its items read-only, locked;
+// - today shows each item with Edit and Delete.
 // The card is given `isToday` from a clock, so it locks by itself at midnight.
-import { useState, type FormEvent } from 'react'
-import { Check, Copy, Moon, NotebookPen, Pencil, Plus, Star, Target, Trash2, X } from 'lucide-react'
+import { useId, useState, type FormEvent } from 'react'
+import { Check, ChevronDown, Copy, NotebookPen, Pencil, Plus, Target, Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Slider } from '@/components/ui/slider'
 import { Textarea } from '@/components/ui/textarea'
 import { Section } from '@/components/CheckinFields'
 import { useFetch } from '@/hooks/useFetch'
 import type { PurposeActions } from '@/hooks/useDay'
-import { EditableUntilLabel, FocusValueChips, LockedLabel, PurposeDayView } from '@/components/purpose/PurposeDayView'
+import { EditableUntilLabel, FocusValueChips, IntensityBadge, LockedLabel, PurposeDayView } from '@/components/purpose/PurposeDayView'
 import { useNow } from '@/hooks/useClock'
 import { hourInTimezone } from '@/lib/dates'
 import { timeOf } from '@/lib/healthSync'
 import type { Purpose } from '@/lib/mind'
-import { MAX_FOCUS_VALUES, MAX_INTENTIONS, MAX_PURPOSES, daySummary, type DayPurpose, type DayPurposes } from '@/lib/purpose'
+import {
+  DEFAULT_INTENSITY,
+  MAX_FOCUS_VALUES,
+  MAX_INTENTIONS,
+  MAX_PURPOSES,
+  daySummary,
+  matchSuggestions,
+  type DayPurpose,
+  type DayPurposes,
+} from '@/lib/purpose'
 import { toneChipOn } from '@/lib/tones'
 import { cn } from '@/lib/utils'
 
 const EVENING_HOUR = 18
 // From 23:00 there's one hour left before the day locks
 const LAST_HOUR = 23
+const TITLE = 'What matters to me today'
 
 type Actions = PurposeActions
 
@@ -50,8 +61,8 @@ export function PurposeCard({ day, isToday, actions }: { day: DayPurposes; isTod
     const empty = day.purposes.length === 0 && !day.reflectionNote
     return (
       <Section
-        title="Purposes"
-        hint={empty ? 'No purpose was set for this day.' : day.purposes.length > 0 ? daySummary(day) : undefined}
+        title="What mattered"
+        hint={empty ? 'Nothing was noted for this day.' : day.purposes.length > 0 ? daySummary(day) : undefined}
         icon={Target}
         tone="mental"
         aside={<LockedLabel />}
@@ -66,6 +77,8 @@ export function PurposeCard({ day, isToday, actions }: { day: DayPurposes; isTod
 function TodayPurposes({ day, actions }: { day: DayPurposes; actions: Actions }) {
   const [adding, setAdding] = useState(false)
   const { data } = useFetch<{ purpose: Purpose }>('/purpose')
+  // Wordings used on earlier days, offered while typing (the same thing, worded the same way)
+  const { data: earlier } = useFetch<{ suggestions: string[] }>('/purpose/suggestions')
   const main = data?.purpose
   const hour = hourInTimezone(undefined, useNow())
   const { purposes } = day
@@ -73,39 +86,26 @@ function TodayPurposes({ day, actions }: { day: DayPurposes; actions: Actions })
 
   if (purposes.length === 0 && !adding && !day.reflectionNote) {
     return (
-      <Section title="Today's purposes" hint="Optional: what today is about — one or several." icon={Target} tone="mental">
+      <Section title={TITLE} hint="Optional: one thing or several, and how strongly you feel each." icon={Target} tone="mental">
         <Button type="button" variant="outline" className="w-full border-dashed sm:w-auto" onClick={() => setAdding(true)}>
-          <Target aria-hidden /> Add today's purpose
+          <Target aria-hidden /> Add what matters today
         </Button>
       </Section>
     )
   }
 
-  const reminders = [
-    hour >= LAST_HOUR && "1 hour left to edit today's purposes",
-    hour >= EVENING_HOUR && purposes.some((p) => p.rating === null) && 'Rate each purpose before midnight',
-  ].filter((r): r is string => Boolean(r))
-
   return (
-    <Section
-      title={purposes.length === 1 ? "Today's purpose" : "Today's purposes"}
-      hint={purposes.length > 0 ? daySummary(day) : 'What do I want today to be about?'}
-      icon={Target}
-      tone="mental"
-    >
-      <EditableUntilLabel />
-      {reminders.length > 0 && (
-        <ul className="space-y-1 rounded-xl bg-mental-soft/50 px-3 py-2 text-sm text-mental-foreground" role="status">
-          {reminders.map((r) => (
-            <li key={r}>{r}</li>
-          ))}
-        </ul>
+    <Section title={TITLE} hint={purposes.length > 0 ? daySummary(day) : 'What do I want today to be about?'} icon={Target} tone="mental">
+      {hour >= LAST_HOUR && (
+        <p className="rounded-xl bg-mental-soft/50 px-3 py-2 text-sm text-mental-foreground" role="status">
+          1 hour left to edit today
+        </p>
       )}
 
       {purposes.length > 0 && (
-        <ul className="space-y-3" aria-label={`Today's purposes, ${purposes.length} of ${MAX_PURPOSES}`}>
+        <ul className="space-y-3" aria-label={`${TITLE}: ${purposes.length} of ${MAX_PURPOSES}`}>
           {purposes.map((p, i) => (
-            <PurposeBlock key={p.id} purpose={p} index={i} coreValues={main?.coreValues ?? []} hour={hour} actions={actions} />
+            <PurposeBlock key={p.id} purpose={p} index={i} coreValues={main?.coreValues ?? []} actions={actions} />
           ))}
         </ul>
       )}
@@ -115,13 +115,15 @@ function TodayPurposes({ day, actions }: { day: DayPurposes; actions: Actions })
           first={purposes.length === 0}
           statement={main?.purposeStatement ?? ''}
           coreValues={main?.coreValues ?? []}
+          // Today's own items aren't suggested back
+          suggestions={(earlier?.suggestions ?? []).filter((s) => !purposes.some((p) => p.text.trim().toLowerCase() === s.trim().toLowerCase()))}
           actions={actions}
           onDone={() => setAdding(false)}
         />
       ) : (
         !full && (
           <Button type="button" variant="outline" className="w-full border-dashed" onClick={() => setAdding(true)}>
-            <Plus aria-hidden /> Add another purpose
+            <Plus aria-hidden /> Add another
           </Button>
         )
       )}
@@ -131,31 +133,67 @@ function TodayPurposes({ day, actions }: { day: DayPurposes; actions: Actions })
   )
 }
 
-/** A new purpose: its text and (optionally) focus values. The first one can be your purpose statement. */
+/** "How strongly do I feel this?" 0–10, with the number shown. */
+function IntensitySlider({ value, onChange, disabled }: { value: number; onChange: (n: number) => void; disabled?: boolean }) {
+  const id = useId()
+  return (
+    <div className="space-y-2">
+      <div className="flex items-baseline justify-between gap-3">
+        <Label id={id}>How strongly do I feel this?</Label>
+        <span className="font-heading text-lg font-semibold text-mental-foreground tabular-nums" aria-hidden>
+          {value}/10
+        </span>
+      </div>
+      <Slider
+        aria-labelledby={id}
+        aria-valuetext={`${value} out of 10`}
+        min={0}
+        max={10}
+        step={1}
+        value={[value]}
+        onValueChange={([n]) => onChange(n ?? value)}
+        disabled={disabled}
+        className="py-2"
+      />
+      <div className="flex justify-between text-xs text-muted-foreground" aria-hidden>
+        <span>0 · barely</span>
+        <span>10 · very strongly</span>
+      </div>
+    </div>
+  )
+}
+
+/** A new item: its text (with earlier wordings offered while typing), intensity and optional focus values. */
 function NewPurposeForm({
   first,
   statement,
   coreValues,
+  suggestions,
   actions,
   onDone,
 }: {
   first: boolean
   statement: string
   coreValues: string[]
+  suggestions: string[]
   actions: Actions
   onDone: () => void
 }) {
   const [text, setText] = useState('')
+  const [intensity, setIntensity] = useState(DEFAULT_INTENSITY)
   const [values, setValues] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
+  const matches = matchSuggestions(suggestions, text)
 
   async function add(value: string) {
     if (!value.trim() || busy) return
     setBusy(true)
-    if (await attempt(() => actions.addPurpose({ text: value.trim(), ...(values.length > 0 && { focusValues: values }) }))) {
+    const body = { text: value.trim(), intensity, ...(values.length > 0 && { focusValues: values }) }
+    if (await attempt(() => actions.addPurpose(body))) {
       setText('')
+      setIntensity(DEFAULT_INTENSITY)
       setValues([])
-      toast.success('Purpose added')
+      toast.success('Added')
       onDone()
     }
     setBusy(false)
@@ -167,23 +205,41 @@ function NewPurposeForm({
   }
 
   return (
-    <form className="space-y-3 rounded-2xl border border-dashed p-3" onSubmit={submit} noValidate>
+    <form className="space-y-4 rounded-2xl border border-dashed p-3" onSubmit={submit} noValidate>
       <div className="space-y-1.5">
-        <Label htmlFor="new-purpose">{first ? 'What do I want today to be about?' : 'Another purpose for today'}</Label>
+        <Label htmlFor="new-purpose">{first ? 'What matters to me today?' : 'Something else that matters today'}</Label>
         <Input
           id="new-purpose"
           autoFocus={!first}
+          autoComplete="off"
           className="font-serif text-lg md:text-lg"
           maxLength={500}
           placeholder={first && statement ? `Inspired by your purpose: “${statement}”` : 'e.g. Be patient with the kids'}
           value={text}
           onChange={(e) => setText(e.target.value)}
+          aria-describedby={matches.length > 0 ? 'purpose-suggestions' : undefined}
         />
+        {matches.length > 0 && (
+          // Earlier wordings, so the same thing is written the same way (and counts as recurring)
+          <div id="purpose-suggestions" className="flex flex-wrap items-center gap-1.5 pt-1" role="group" aria-label="Used before">
+            <span className="text-xs text-muted-foreground">Used before:</span>
+            {matches.map((s) => (
+              <Badge key={s} asChild variant="outline" className="h-8 max-w-full rounded-full px-3 text-sm font-normal">
+                <button type="button" onClick={() => setText(s)} className="truncate">
+                  {s}
+                </button>
+              </Badge>
+            ))}
+          </div>
+        )}
       </div>
-      <FocusValuePicker chosen={values} coreValues={coreValues} onChange={setValues} />
+
+      <IntensitySlider value={intensity} onChange={setIntensity} disabled={busy} />
+      <FocusValuePicker chosen={values} coreValues={coreValues} onChange={setValues} optional />
+
       <div className="flex flex-wrap items-center justify-end gap-2">
         {first && statement && !text.trim() && (
-          // Your main purpose statement as today's first purpose
+          // Your main purpose statement as today's first item
           <Button type="button" variant="ghost" size="sm" disabled={busy} onClick={() => void add(statement)}>
             <Copy aria-hidden /> Use my purpose statement
           </Button>
@@ -194,70 +250,69 @@ function NewPurposeForm({
           </Button>
         )}
         <Button loading={busy} type="submit" disabled={busy || !text.trim()}>
-          <Plus aria-hidden /> Add purpose
+          <Plus aria-hidden /> Add
         </Button>
       </div>
     </form>
   )
 }
 
-/** One of today's purposes: view (tick intentions, rate it in the evening), edit, or delete (asks first). */
-function PurposeBlock({
-  purpose,
-  index,
-  coreValues,
-  hour,
-  actions,
-}: {
-  purpose: DayPurpose
-  index: number
-  coreValues: string[]
-  hour: number
-  actions: Actions
-}) {
+/** One item: view (with its intensity, and intentions to tick when opened), edit, or delete (asks first). */
+function PurposeBlock({ purpose, index, coreValues, actions }: { purpose: DayPurpose; index: number; coreValues: string[]; actions: Actions }) {
   const [editing, setEditing] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const label = purpose.text || `Purpose ${index + 1}`
+  const label = purpose.text || `Item ${index + 1}`
 
   async function remove() {
     setDeleting(true)
-    if (await attempt(() => actions.removePurpose(purpose.id))) toast.success('Purpose deleted')
+    if (await attempt(() => actions.removePurpose(purpose.id))) toast.success('Deleted')
     else setDeleting(false)
+  }
+
+  if (editing) {
+    return (
+      <li className="space-y-4 rounded-2xl bg-muted/40 p-3 ring-1 ring-foreground/5">
+        <PurposeEditor purpose={purpose} index={index} actions={actions} onDone={() => setEditing(false)} />
+        <FocusValuePicker
+          chosen={purpose.focusValues}
+          coreValues={coreValues}
+          onChange={(focusValues) => void attempt(() => actions.updatePurpose(purpose.id, { focusValues }))}
+          optional
+        />
+        <Intentions purpose={purpose} actions={actions} editable />
+      </li>
+    )
   }
 
   return (
     <li className="space-y-3 rounded-2xl bg-muted/40 p-3 ring-1 ring-foreground/5">
-      {editing ? (
-        <PurposeTextEditor purpose={purpose} index={index} actions={actions} />
-      ) : (
-        <div className="flex items-start gap-2">
-          <Target className="mt-1.5 size-4 shrink-0 text-mental" aria-hidden />
-          <p className={cn('min-w-0 flex-1 font-serif text-lg leading-snug break-words', !purpose.text && 'text-muted-foreground italic')}>
-            {purpose.text || 'Intentions for the day'}
-          </p>
-          <div className="-my-1 flex shrink-0">
-            <Button type="button" variant="ghost" size="icon" aria-label={`Edit "${label}"`} onClick={() => setEditing(true)}>
-              <Pencil />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="text-muted-foreground hover:text-destructive"
-              aria-label={`Delete "${label}"`}
-              aria-expanded={confirmDelete}
-              onClick={() => setConfirmDelete(true)}
-            >
-              <Trash2 />
-            </Button>
-          </div>
+      <div className="flex items-start gap-2">
+        <Target className="mt-1.5 size-4 shrink-0 text-mental" aria-hidden />
+        <p className={cn('min-w-0 flex-1 font-serif text-lg leading-snug break-words', !purpose.text && 'text-muted-foreground italic')}>
+          {purpose.text || 'Intentions for the day'}
+        </p>
+        <div className="-my-1 flex shrink-0">
+          <Button type="button" variant="ghost" size="icon" aria-label={`Edit "${label}"`} onClick={() => setEditing(true)}>
+            <Pencil />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="text-muted-foreground hover:text-destructive"
+            aria-label={`Delete "${label}"`}
+            aria-expanded={confirmDelete}
+            onClick={() => setConfirmDelete(true)}
+          >
+            <Trash2 />
+          </Button>
         </div>
-      )}
+      </div>
 
       {confirmDelete && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-destructive/10 px-3 py-2 text-sm" role="alert">
-          <span>Delete this purpose{purpose.intentions.length > 0 ? ' and its intentions' : ''}?</span>
+          <span>Delete this{purpose.intentions.length > 0 ? ' and its intentions' : ''}?</span>
           <span className="flex gap-2">
             <Button type="button" variant="ghost" size="sm" onClick={() => setConfirmDelete(false)} disabled={deleting}>
               Keep it
@@ -269,79 +324,79 @@ function PurposeBlock({
         </div>
       )}
 
-      {editing ? (
-        <FocusValuePicker
-          chosen={purpose.focusValues}
-          coreValues={coreValues}
-          onChange={(focusValues) => void attempt(() => actions.updatePurpose(purpose.id, { focusValues }))}
-        />
-      ) : (
-        <FocusValueChips values={purpose.focusValues} />
-      )}
-
-      <Intentions purpose={purpose} actions={actions} editable={editing} />
-
-      {editing ? (
-        <div className="flex justify-end">
-          <Button type="button" size="sm" onClick={() => setEditing(false)}>
-            <Check aria-hidden /> Done
-          </Button>
+      {/* Under the text, so the text keeps the full width on a phone */}
+      {(purpose.intensity !== null || purpose.focusValues.length > 0) && (
+        <div className="flex flex-wrap items-center gap-1.5 pl-6">
+          <IntensityBadge intensity={purpose.intensity} />
+          <FocusValueChips values={purpose.focusValues} />
         </div>
-      ) : (
-        <PurposeRating purpose={purpose} hour={hour} onRate={(rating) => actions.updatePurpose(purpose.id, { rating })} />
       )}
+      <Intentions purpose={purpose} actions={actions} editable={false} />
     </li>
   )
 }
 
-/** The purpose's text, saved when you leave the box or press Enter. */
-function PurposeTextEditor({ purpose, index, actions }: { purpose: DayPurpose; index: number; actions: Actions }) {
+/** The item's text and intensity, saved together. */
+function PurposeEditor({ purpose, index, actions, onDone }: { purpose: DayPurpose; index: number; actions: Actions; onDone: () => void }) {
   const [text, setText] = useState(purpose.text)
+  // Older items (from before intensity existed) start at the middle
+  const [intensity, setIntensity] = useState(purpose.intensity ?? DEFAULT_INTENSITY)
   const [busy, setBusy] = useState(false)
   const id = `purpose-${purpose.id}`
+  const changed = text.trim() !== purpose.text || intensity !== purpose.intensity
 
-  async function save() {
+  async function save(e: FormEvent) {
+    e.preventDefault()
     const value = text.trim()
-    if (busy || value === purpose.text) return
-    if (!value) return setText(purpose.text) // emptying the text doesn't delete it; use Delete
+    if (!value) return toast.error("It can't be empty — use Delete to remove it")
+    if (!changed) return onDone()
     setBusy(true)
-    if (await attempt(() => actions.updatePurpose(purpose.id, { text: value }))) toast.success('Purpose saved')
+    const body = { ...(value !== purpose.text && { text: value }), ...(intensity !== purpose.intensity && { intensity }) }
+    if (await attempt(() => actions.updatePurpose(purpose.id, body))) {
+      toast.success('Saved')
+      onDone()
+    }
     setBusy(false)
   }
 
   return (
-    <div className="space-y-1.5">
-      <Label htmlFor={id}>Purpose {index + 1}</Label>
-      <Input
-        id={id}
-        autoFocus
-        className="font-serif text-lg md:text-lg"
-        maxLength={500}
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onBlur={() => void save()}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault()
-            void save()
-          }
-        }}
-      />
-    </div>
+    <form className="space-y-4" onSubmit={save} noValidate>
+      <div className="space-y-1.5">
+        <Label htmlFor={id}>What matters ({index + 1})</Label>
+        <Input id={id} autoFocus className="font-serif text-lg md:text-lg" maxLength={500} value={text} onChange={(e) => setText(e.target.value)} />
+      </div>
+      <IntensitySlider value={intensity} onChange={setIntensity} disabled={busy} />
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="ghost" size="sm" onClick={onDone} disabled={busy}>
+          Cancel
+        </Button>
+        <Button type="submit" size="sm" loading={busy} disabled={busy}>
+          <Check aria-hidden /> Save
+        </Button>
+      </div>
+    </form>
   )
 }
 
-function FocusValuePicker({ chosen, coreValues, onChange }: { chosen: string[]; coreValues: string[]; onChange: (values: string[]) => void }) {
-  if (coreValues.length === 0) {
-    return <p className="text-sm text-muted-foreground">Add core values on the Purpose page to pick focus values.</p>
-  }
+function FocusValuePicker({
+  chosen,
+  coreValues,
+  onChange,
+  optional = false,
+}: {
+  chosen: string[]
+  coreValues: string[]
+  onChange: (values: string[]) => void
+  optional?: boolean
+}) {
+  if (coreValues.length === 0) return null
   const isOn = (v: string) => chosen.some((c) => c.toLowerCase() === v.toLowerCase())
   const full = chosen.length >= MAX_FOCUS_VALUES
 
   return (
     <div className="space-y-2">
       <p className="text-sm font-medium">
-        Focus values <span className="font-normal text-muted-foreground">(up to {MAX_FOCUS_VALUES})</span>
+        Focus values <span className="font-normal text-muted-foreground">({optional ? 'optional, ' : ''}up to {MAX_FOCUS_VALUES})</span>
       </p>
       <div className="flex flex-wrap gap-2">
         {coreValues.map((v) => {
@@ -369,12 +424,17 @@ function FocusValuePicker({ chosen, coreValues, onChange }: { chosen: string[]; 
   )
 }
 
-/** `editable`: add and remove intentions (edit mode); ticking works in both modes. */
+/**
+ * Optional intentions, folded away by default ("Intentions · 1 of 3 done"). Ticking works whenever
+ * they're open; `editable` (edit mode) also lets you add and remove them.
+ */
 function Intentions({ purpose, actions, editable }: { purpose: DayPurpose; actions: Actions; editable: boolean }) {
+  const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState('')
   const [busy, setBusy] = useState(false)
   const { intentions } = purpose
   const full = intentions.length >= MAX_INTENTIONS
+  const listId = useId()
   if (!editable && intentions.length === 0) return null
 
   async function add(e: FormEvent) {
@@ -385,107 +445,75 @@ function Intentions({ purpose, actions, editable }: { purpose: DayPurpose; actio
     setBusy(false)
   }
 
+  const done = intentions.filter((i) => i.done).length
+  const summary = intentions.length === 0 ? 'Add intentions (optional)' : `Intentions · ${done} of ${intentions.length} done`
+
   return (
     <div className="space-y-2">
-      {editable && (
-        <p className="text-sm font-medium">
-          Intentions <span className="font-normal text-muted-foreground">(up to {MAX_INTENTIONS})</span>
-        </p>
-      )}
-      {intentions.length > 0 && (
-        <ul className="space-y-1.5">
-          {intentions.map((i) => (
-            <li key={i.id} className="flex items-center gap-3 rounded-xl bg-card/80 px-3 py-2">
-              <Checkbox
-                id={`intention-${i.id}`}
-                checked={i.done}
-                // Ticking saves straight away, with the time
-                onCheckedChange={(checked) => attempt(() => actions.updateIntention(purpose.id, i.id, { done: checked === true }))}
-              />
-              <Label htmlFor={`intention-${i.id}`} className={cn('min-w-0 flex-1 font-normal break-words', i.done && 'text-muted-foreground line-through')}>
-                {i.text}
-              </Label>
-              {i.done && i.doneAt && <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{timeOf(i.doneAt)}</span>}
-              {editable && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="-my-1 shrink-0 text-muted-foreground hover:text-destructive"
-                  aria-label={`Remove "${i.text}"`}
-                  onClick={() => attempt(() => actions.removeIntention(purpose.id, i.id))}
-                >
-                  <X />
-                </Button>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-      {editable && !full && (
-        <form className="flex gap-2" onSubmit={add} noValidate>
-          <Input aria-label="Add an intention" placeholder="e.g. Go cycling, Call Amma, Study 1 hour" maxLength={200} value={draft} onChange={(e) => setDraft(e.target.value)} />
-          <Button loading={busy} type="submit" variant="secondary" disabled={busy || !draft.trim()}>
-            <Plus aria-hidden /> Add
-          </Button>
-        </form>
-      )}
-    </div>
-  )
-}
-
-/** "How well did I live this purpose today?" 1–5, saved on tap. Shown from 18:00, once rated, or with a tap. */
-function PurposeRating({ purpose, hour, onRate }: { purpose: DayPurpose; hour: number; onRate: (rating: number) => Promise<unknown> }) {
-  const [opened, setOpened] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const rating = purpose.rating
-  const show = opened || rating !== null || hour >= EVENING_HOUR
-
-  if (!show) {
-    return (
-      <Button type="button" variant="ghost" size="sm" className="-ml-2 text-muted-foreground" onClick={() => setOpened(true)}>
-        <Moon aria-hidden /> Rate this purpose now
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="-ml-2 text-muted-foreground"
+        aria-expanded={open}
+        aria-controls={listId}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <ChevronDown className={cn('transition-transform', open && 'rotate-180')} aria-hidden /> {summary}
       </Button>
-    )
-  }
-
-  async function rate(n: number) {
-    if (busy || n === rating) return
-    setBusy(true)
-    if (await attempt(() => onRate(n))) toast.success('Rating saved')
-    setBusy(false)
-  }
-
-  const question = 'How well did I live this purpose today?'
-  return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-      <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-        <Moon className="size-4 text-mental" aria-hidden /> {question}
-      </p>
-      <div role="radiogroup" aria-label={`${question} 1 to 5`} aria-busy={busy} className="flex">
-        {[1, 2, 3, 4, 5].map((n) => (
-          <button
-            key={n}
-            type="button"
-            role="radio"
-            aria-checked={rating === n}
-            aria-label={`${n} out of 5`}
-            disabled={busy}
-            onClick={() => void rate(n)}
-            className={cn(
-              'grid size-10 place-items-center rounded-lg transition-transform outline-none focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-90',
-              rating !== null && n <= rating ? 'text-learning' : 'text-muted-foreground/60',
-            )}
-          >
-            <Star className={cn('size-5', rating !== null && n <= rating && 'fill-current')} aria-hidden />
-          </button>
-        ))}
-      </div>
+      {open && (
+        <div id={listId} className="space-y-2">
+          {intentions.length > 0 && (
+            <ul className="space-y-1.5">
+              {intentions.map((i) => (
+                <li key={i.id} className="flex items-center gap-3 rounded-xl bg-card/80 px-3 py-2">
+                  <Checkbox
+                    id={`intention-${i.id}`}
+                    checked={i.done}
+                    // Ticking saves straight away, with the time
+                    onCheckedChange={(checked) => attempt(() => actions.updateIntention(purpose.id, i.id, { done: checked === true }))}
+                  />
+                  <Label htmlFor={`intention-${i.id}`} className={cn('min-w-0 flex-1 font-normal break-words', i.done && 'text-muted-foreground line-through')}>
+                    {i.text}
+                  </Label>
+                  {i.done && i.doneAt && <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{timeOf(i.doneAt)}</span>}
+                  {editable && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="-my-1 shrink-0 text-muted-foreground hover:text-destructive"
+                      aria-label={`Remove "${i.text}"`}
+                      onClick={() => attempt(() => actions.removeIntention(purpose.id, i.id))}
+                    >
+                      <X />
+                    </Button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          {editable && !full && (
+            <form className="flex gap-2" onSubmit={add} noValidate>
+              <Input
+                aria-label="Add an intention"
+                placeholder="e.g. Go cycling, Call Amma, Study 1 hour"
+                maxLength={200}
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+              />
+              <Button loading={busy} type="submit" variant="secondary" disabled={busy || !draft.trim()}>
+                <Plus aria-hidden /> Add
+              </Button>
+            </form>
+          )}
+        </div>
+      )}
     </div>
   )
 }
 
-/** One evening note for the whole day, below all the purposes. Shown from 18:00, once written, or with a tap. */
+/** One evening note for the whole day, below all the items. Shown from 18:00, once written, or with a tap. */
 function EveningNote({ saved, hour, onSave }: { saved: string; hour: number; onSave: Actions['saveReflectionNote'] }) {
   const [opened, setOpened] = useState(false)
   const [note, setNote] = useState(saved)
@@ -511,10 +539,12 @@ function EveningNote({ saved, hour, onSave }: { saved: string; hour: number; onS
 
   return (
     <form className="space-y-2 rounded-xl bg-mental-soft/50 p-3" onSubmit={submit} noValidate>
-      <Label htmlFor="evening-note" className="flex items-center gap-1.5">
-        <NotebookPen className="size-4 text-mental" aria-hidden /> Evening note
-        <span className="font-normal text-muted-foreground">(for the whole day, optional)</span>
-      </Label>
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <Label htmlFor="evening-note" className="flex items-center gap-1.5">
+          <NotebookPen className="size-4 text-mental" aria-hidden /> Evening note
+        </Label>
+        <EditableUntilLabel />
+      </div>
       <Textarea id="evening-note" placeholder="How did today go?" rows={2} maxLength={1000} value={note} onChange={(e) => setNote(e.target.value)} />
       <div className="flex justify-end">
         <Button loading={busy} type="submit" size="sm" disabled={busy || !dirty}>

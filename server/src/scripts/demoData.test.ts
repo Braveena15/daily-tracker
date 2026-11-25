@@ -104,7 +104,8 @@ describe("generateDemoData extras", () => {
     }
     const today = entries.at(-1)!;
     expect(today.dailyPurposes).toBeDefined();
-    expect(today.dailyPurposes!.every((p) => p.rating === undefined)).toBe(true);
+    // Every purpose has an intensity from 0 to 10
+    expect(withPurpose.flatMap((e) => e.dailyPurposes!).every((p) => Number.isInteger(p.intensity) && p.intensity >= 0 && p.intensity <= 10)).toBe(true);
     expect(today.dailyReflectionNote).toBeUndefined();
   });
 

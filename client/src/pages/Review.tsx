@@ -1,6 +1,6 @@
 import { Suspense, useState, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ArrowDown, ArrowUp, BookOpen, Brain, CalendarCheck, ChevronLeft, ChevronRight, Dumbbell, Flag, Gauge, GlassWater, LineChart as LineChartIcon, Moon, Smile, Sparkles, Target, Trophy, UtensilsCrossed, Wheat, type LucideIcon } from 'lucide-react'
+import { ArrowDown, ArrowUp, BookOpen, Brain, CalendarCheck, ChevronLeft, ChevronRight, Dumbbell, Flag, Gauge, GlassWater, LineChart as LineChartIcon, Moon, Repeat, Smile, Sparkles, Target, Trophy, UtensilsCrossed, Wheat, type LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/InfoTip'
 import { WeeklyGoalsCard, type GoalSuggestion } from '@/components/progress/WeeklyGoals'
@@ -359,20 +359,34 @@ function ReviewBody({ data, today }: { data: WeeklyReviewResponse; today: string
 
       <section aria-labelledby="purpose-heading" className="space-y-3">
         <h2 id="purpose-heading" className="text-xl font-semibold">
-          Purpose this week
+          What mattered this week
         </h2>
         <Card>
           <CardContent className="space-y-4">
             {data.purpose.days.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No daily purposes set this week.{' '}
-                <Link to="/today" className="font-medium text-primary underline-offset-4 hover:underline">
-                  Set today's purposes
+                Nothing noted this week.{' '}
+                <Link to="/today#purpose" className="font-medium text-primary underline-offset-4 hover:underline">
+                  Add what matters today
                 </Link>
               </p>
             ) : (
               <>
                 <PurposeStatsRow stats={data.purpose.stats} />
+                {data.purpose.mostFrequent && (
+                  // The thing that came up most often this week
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-mental-soft/60 px-4 py-3 ring-1 ring-mental/20">
+                    <Repeat className="size-4 shrink-0 text-mental" aria-hidden />
+                    <p className="min-w-0 flex-1">
+                      <span className="block text-xs font-medium text-mental-foreground">Most frequent this week</span>
+                      <span className="font-serif text-lg leading-snug break-words">{data.purpose.mostFrequent.text}</span>
+                    </p>
+                    <span className="text-sm text-muted-foreground tabular-nums">
+                      {data.purpose.mostFrequent.count} days
+                      {data.purpose.mostFrequent.avgIntensity !== null && ` · avg ${data.purpose.mostFrequent.avgIntensity}/10`}
+                    </span>
+                  </div>
+                )}
                 <ol className="space-y-3">
                   {[...data.purpose.days].reverse().map((day) => (
                     <li key={day.date} className="space-y-1.5 border-t pt-3 first:border-t-0 first:pt-0">

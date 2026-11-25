@@ -8,7 +8,7 @@ import { encouragement, summariseWeek, weekDifferences, weekRanges, type ReviewD
 import { mentalScore } from "../utils/scores";
 import { dayMood } from "../utils/timeline";
 import { fieldCrypto } from "../config/encryption";
-import { hasDayPurposes, openDayPurposes, purposeStats } from "../utils/dailyPurpose";
+import { hasDayPurposes, openDayPurposes, purposeStats, recurringPurposes } from "../utils/dailyPurpose";
 
 const minutes = (items: { durationMin?: number | null; minutes?: number | null }[]) =>
   items.reduce((s, i) => s + (i.durationMin ?? i.minutes ?? 0), 0);
@@ -88,7 +88,9 @@ async function weekPurpose(userId: string | undefined, from: string, to: string)
     const p = openDayPurposes(fieldCrypto, r);
     return hasDayPurposes(p) ? [{ date: r.date, ...p }] : [];
   });
-  return { days, stats: purposeStats(days) };
+  // The week's most frequent purpose, when one came up on more than one day
+  const top = recurringPurposes(days, to)[0];
+  return { days, stats: purposeStats(days), mostFrequent: top && top.count > 1 ? { text: top.text, count: top.count, avgIntensity: top.avgIntensity } : null };
 }
 
 const INSIGHT_DAYS = 180;

@@ -1,5 +1,5 @@
 /// <reference types="vitest/globals" />
-import { LoggedAtError, atTime, buildTimeline, clockTime, dayMood, isEntryKind, resolveLoggedAt, timeOfDay } from "./timeline";
+import { LoggedAtError, atTime, buildTimeline, clockTime, dayMood, isEntryKind, resolveLoggedAt, timeOfDay, learnedList } from "./timeline";
 
 describe("times", () => {
   it("turns HH:mm on a day into the right instant (Asia/Colombo, UTC+05:30)", () => {
@@ -57,6 +57,24 @@ describe("dayMood", () => {
   });
 });
 
+describe("learnedList", () => {
+  it("lists the day's learnings without a time, newest added first", () => {
+    const list = learnedList({
+      learnings: [
+        { _id: "l1", loggedAt: "2026-11-20T03:00:00.000Z", topic: "React hooks", minutes: 30 },
+        { _id: "l2", loggedAt: "2026-11-20T09:00:00.000Z", topic: "Spanish verbs" },
+        { _id: "l3", topic: "Old one without a time" },
+      ],
+    });
+    expect(list).toEqual([
+      { id: "l2", summary: "Spanish verbs" },
+      { id: "l1", summary: "React hooks · 30 min" },
+      { id: "l3", summary: "Old one without a time" },
+    ]);
+    expect(learnedList({})).toEqual([]);
+  });
+});
+
 describe("buildTimeline", () => {
   it("merges every kind of entry, oldest first", () => {
     const timeline = buildTimeline({
@@ -79,7 +97,7 @@ describe("buildTimeline", () => {
       ["moods", "Mood 6/10 · Energy 5/10 · After lunch"],
       // An older day's watch workout reads like any other (no sync labels)
       ["workouts", "Running · 20 min"],
-      ["learnings", "Recharts · 20 min"],
+      // (learnings have no time: they're listed apart, see learnedList)
       ["presentMoments", "Calm"],
     ]);
     expect(timeline[1]).toMatchObject({ id: "w1", time: "2026-11-20T02:45:00.000Z" });

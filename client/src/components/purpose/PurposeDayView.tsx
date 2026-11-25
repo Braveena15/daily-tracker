@@ -1,6 +1,6 @@
-// A day's purposes, read-only: each purpose as its own small block (text, focus value chips,
-// intentions done / not done and its evening rating), then the day's evening note.
-import { Check, Clock, Lock, Star, Target, X } from 'lucide-react'
+// "What matters to me today", read-only: each item as its own small block (text, its intensity,
+// focus value chips and any intentions done / not done), then the day's evening note.
+import { Check, Clock, Lock, Target, X } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { type DayPurpose, type DayPurposes } from '@/lib/purpose'
 import { cn } from '@/lib/utils'
@@ -18,15 +18,17 @@ export function FocusValueChips({ values }: { values: string[] }) {
   )
 }
 
-/** 1–5 stars, read-only. */
-export function RatingStars({ rating, className }: { rating: number; className?: string }) {
+/** "8/10" with a small bar: how strongly it's felt. Older purposes (no intensity) show nothing. */
+export function IntensityBadge({ intensity, className }: { intensity: number | null; className?: string }) {
+  if (intensity === null) return null
   return (
-    <p className={cn('flex items-center gap-0.5', className)}>
-      {[1, 2, 3, 4, 5].map((n) => (
-        <Star key={n} className={cn('size-4', n <= rating ? 'fill-current text-learning' : 'text-muted-foreground/60')} aria-hidden />
-      ))}
-      <span className="sr-only">Lived this purpose: {rating} out of 5</span>
-    </p>
+    <span className={cn('inline-flex shrink-0 items-center gap-1.5 rounded-full bg-mental-soft px-2 py-0.5 text-xs font-semibold text-mental-foreground tabular-nums', className)}>
+      <span aria-hidden className="h-1.5 w-8 overflow-hidden rounded-full bg-mental/20">
+        <span className="block h-full rounded-full bg-mental" style={{ width: `${intensity * 10}%` }} />
+      </span>
+      {intensity}/10
+      <span className="sr-only"> intensity</span>
+    </span>
   )
 }
 
@@ -34,12 +36,13 @@ export function RatingStars({ rating, className }: { rating: number; className?:
 export function PurposeBlockView({ purpose }: { purpose: DayPurpose }) {
   return (
     <div className="space-y-2">
-      <p className="flex items-start gap-2 font-serif text-lg leading-snug">
-        <Target className="mt-1 size-4 shrink-0 text-mental" aria-hidden />
-        <span className={cn('min-w-0 break-words whitespace-pre-line', !purpose.text && 'text-muted-foreground italic')}>
+      <div className="flex items-start gap-2">
+        <Target className="mt-1.5 size-4 shrink-0 text-mental" aria-hidden />
+        <p className={cn('min-w-0 flex-1 font-serif text-lg leading-snug break-words whitespace-pre-line', !purpose.text && 'text-muted-foreground italic')}>
           {purpose.text || 'Intentions for the day'}
-        </span>
-      </p>
+        </p>
+        <IntensityBadge intensity={purpose.intensity} className="mt-1" />
+      </div>
       <FocusValueChips values={purpose.focusValues} />
       {purpose.intentions.length > 0 && (
         <ul className="space-y-1 text-sm">
@@ -58,7 +61,6 @@ export function PurposeBlockView({ purpose }: { purpose: DayPurpose }) {
           ))}
         </ul>
       )}
-      {purpose.rating !== null && <RatingStars rating={purpose.rating} />}
     </div>
   )
 }
@@ -68,7 +70,7 @@ export function PurposeDayView({ day, className }: { day: DayPurposes; className
   return (
     <div className={cn('space-y-3', className)}>
       {day.purposes.length > 0 && (
-        <ul className="space-y-3" aria-label={`${day.purposes.length} ${day.purposes.length === 1 ? 'purpose' : 'purposes'}`}>
+        <ul className="space-y-3" aria-label={`What mattered: ${day.purposes.length} ${day.purposes.length === 1 ? 'thing' : 'things'}`}>
           {day.purposes.map((p) => (
             <li key={p.id} className={cn(day.purposes.length > 1 && 'rounded-xl bg-card/60 p-3 ring-1 ring-foreground/5')}>
               <PurposeBlockView purpose={p} />

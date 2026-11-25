@@ -113,7 +113,7 @@ export type TimelineSource = {
   mentalActivities?: Activity[];
   outdoorActivities?: Activity[];
   goodThings?: (Stamped & { text: string })[];
-  learnings?: (Stamped & { topic: string; minutes?: number | null })[];
+  learnings?: { _id?: unknown; loggedAt?: Date | string | null; topic: string; minutes?: number | null }[];
   presentMoments?: (Stamped & { text: string })[];
   waterLogs?: (Stamped & { amountMl: number })[];
   sleep?: { wakeTime: string; totalSleepMin: number } | null;
@@ -133,7 +133,18 @@ function duration(totalMin: number): string {
   return h > 0 ? `${h} h ${m} min` : `${m} min`;
 }
 
-/** Everything logged on the day, oldest first. Shown only to the day's owner. */
+/** "React hooks · 30 min": a learning without a time, for the timeline's "Learned today" group. */
+export type LearnedItem = { id: string; summary: string };
+
+/** The day's learnings, newest added first (by when they were added; the time is never shown). */
+export function learnedList(day: Pick<TimelineSource, "learnings">): LearnedItem[] {
+  const at = (l: { loggedAt?: Date | string | null }) => (l.loggedAt ? new Date(l.loggedAt).getTime() : 0);
+  return [...(day.learnings ?? [])]
+    .sort((a, b) => at(b) - at(a))
+    .map((l) => ({ id: String(l._id), summary: `${l.topic}${minutesText(l.minutes)}` }));
+}
+
+/** Everything logged at a time of day, oldest first (learnings are separate: see learnedList). Shown only to the day's owner. */
 export function buildTimeline(day: TimelineSource): TimelineItem[] {
   const items: TimelineItem[] = [];
   const add = (kind: TimelineKind, list: Stamped[] | undefined, summary: (item: never) => string) => {
@@ -151,7 +162,7 @@ export function buildTimeline(day: TimelineSource): TimelineItem[] {
   add("mental", day.mentalActivities, (a: Activity) => `${a.type}${minutesText(a.durationMin)}`);
   add("outdoor", day.outdoorActivities, (a: Activity) => `${a.type}${minutesText(a.durationMin)}`);
   add("goodThings", day.goodThings, (g: { text: string }) => clip(g.text));
-  add("learnings", day.learnings, (l: { topic: string; minutes?: number | null }) => `${l.topic}${minutesText(l.minutes)}`);
+  // Learnings have no time of day: they're listed apart, in learnedList()
   add("presentMoments", day.presentMoments, (p: { text: string }) => clip(p.text));
   // Water isn't on the timeline: it's shown as the day's total on the Water card
 

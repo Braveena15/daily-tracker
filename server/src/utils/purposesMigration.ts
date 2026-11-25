@@ -3,7 +3,8 @@
 // exactly as it was (ciphertext is moved, never decrypted).
 //
 // - the purpose text (or each of the day's purpose lines) → dailyPurposes[0], [1], …
-// - focus values, intentions and the reflection rating    → dailyPurposes[0]
+// - focus values, intentions and the reflection rating    → dailyPurposes[0] (the rating as legacyRating:
+//   purposes now have an intensity instead, which older ones don't have)
 // - the reflection note                                    → dailyReflectionNote
 import { Types } from "mongoose";
 import { atTime } from "./timeline";
@@ -64,7 +65,7 @@ export function planPurposesMigration(doc: Doc, newId: () => unknown = () => new
     text: line.text,
     focusValues: i === 0 ? focusValues : [],
     intentions: i === 0 ? intentions : [],
-    ...(i === 0 && rating !== null && { rating }),
+    ...(i === 0 && rating !== null && { legacyRating: rating }),
     createdAt: line.at ?? createdAt,
     updatedAt,
   }));
@@ -83,4 +84,28 @@ export function planPurposesMigration(doc: Doc, newId: () => unknown = () => new
     counts.notes = 1;
   }
   return { set, unset: ["dailyPurpose"], counts };
+}
+
+// ---------- Ratings → intensity ----------
+
+export type IntensityMigration = { set: { dailyPurposes: Record<string, unknown>[] }; moved: number };
+
+/**
+ * Purposes used to have an evening rating (1–5, "how well did I live it"); they now have an
+ * intensity (0–10, "how strongly do I feel this"), which can't be worked out from a rating. So the
+ * rating is kept as legacyRating (never shown) and the intensity is left empty. Safe to run twice:
+ * a day without any "rating" left produces no changes.
+ */
+export function planIntensityMigration(doc: Record<string, unknown>): IntensityMigration | null {
+  const purposes = Array.isArray(doc.dailyPurposes) ? (doc.dailyPurposes as Record<string, unknown>[]) : [];
+  if (!purposes.some((p) => p && "rating" in p)) return null;
+  let moved = 0;
+  const next = purposes.map((p) => {
+    if (!p || !("rating" in p)) return p;
+    const { rating, ...rest } = p;
+    if (typeof rating !== "number") return rest;
+    moved++;
+    return { ...rest, ...(rest.legacyRating === undefined && { legacyRating: rating }) };
+  });
+  return { set: { dailyPurposes: next }, moved };
 }

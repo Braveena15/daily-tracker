@@ -24,6 +24,7 @@ export const ENTRY_LIMITS = {
   intentionText: 200,
   intentions: 5,
   purposes: 5,
+  intensity: { min: 0, max: 10, default: 5 },
   reflectionNote: 1000,
   listItems: 50,
   waterMl: { min: 50, max: 2000 },
@@ -106,8 +107,9 @@ const moodLogSchema = new Schema({ loggedAt, mood: rating, energy: rating, note:
 
 const activitySchema = new Schema({ loggedAt, type: activityName, durationMin: minutes, notes });
 
+// Learnings have no time of day: loggedAt is when it was added, used only to sort (never shown)
 const learningSchema = new Schema({
-  loggedAt,
+  loggedAt: Date,
   topic: { type: String, required: true, trim: true, maxlength: L.learningTopic },
   details: { type: String, trim: true, maxlength: L.learningDetails },
   minutes,
@@ -131,15 +133,18 @@ const intentionSchema = new Schema({
   done: { type: Boolean, default: false },
   doneAt: Date,
 });
-// One of the day's purposes (up to 5 a day), each with its own focus values, intentions and rating.
+// "What matters to me today": one of the day's purposes (up to 5 a day), with how strongly it's felt
+// (intensity 0–10), and optional focus values and intentions.
 const dayPurposeSchema = new Schema({
   // Encrypted. Only empty for a purpose moved from an older day that had intentions but no text.
   text: { type: String, default: "" },
   // Words chosen from the user's core values
   focusValues: { type: [{ type: String, trim: true, maxlength: 40 }], default: [] },
   intentions: { type: [intentionSchema], default: [] },
-  // "How well did I live this purpose today?" 1–5
-  rating: { type: Number, min: 1, max: 5 },
+  // "How strongly do I feel this today?" 0–10. Null only on purposes from before intensity existed.
+  intensity: { type: Number, min: 0, max: 10 },
+  // The old evening rating (1–5, "how well did I live it"), kept but never shown (see services/migrations.ts)
+  legacyRating: { type: Number, min: 1, max: 5 },
   createdAt: { type: Date, required: true },
   updatedAt: { type: Date, required: true },
 });

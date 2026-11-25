@@ -14,6 +14,7 @@ import {
   atTime,
   buildTimeline,
   isEntryKind,
+  learnedList,
   resolveLoggedAt,
   type EntryKind,
   type TimelineSource,
@@ -112,6 +113,8 @@ export function dayResponse(date: string, doc: LeanDay | null) {
     entry: doc ? serializeEntry(doc) : null,
     logged: doc ? isCheckedIn(doc) : false,
     timeline: doc ? buildTimeline(doc) : [],
+    // Learnings have no time of day: the timeline lists them apart ("Learned today")
+    learned: doc ? learnedList(doc) : [],
     // Water is shown on its own; it isn't part of the scores
     waterTotalMl: waterTotal(doc?.waterLogs),
   };
@@ -169,7 +172,8 @@ export async function addEntry(req: Request, res: Response): Promise<void> {
 
   const item = {
     _id: new Types.ObjectId(),
-    loggedAt: loggedAt(date, time),
+    // A learning has no time of day: when it was added is kept only to sort the list (never shown)
+    loggedAt: kind === "learnings" ? new Date() : loggedAt(date, time),
     ...Object.fromEntries(Object.entries(values).filter(([, v]) => v !== undefined)),
     ...(kind === "workouts" && { source: "manual" }),
   };

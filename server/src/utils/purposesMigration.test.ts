@@ -1,5 +1,5 @@
 /// <reference types="vitest/globals" />
-import { planPurposesMigration } from "./purposesMigration";
+import { planIntensityMigration, planPurposesMigration } from "./purposesMigration";
 
 let counter = 0;
 const id = () => `id${++counter}`;
@@ -36,7 +36,7 @@ describe("planPurposesMigration", () => {
             { _id: "i1", text: "ENC(call)", done: true, doneAt: updatedAt },
             { _id: "i2", text: "ENC(walk)", done: false },
           ],
-          rating: 4,
+          legacyRating: 4,
           createdAt: setAt,
           updatedAt,
         },
@@ -66,8 +66,8 @@ describe("planPurposesMigration", () => {
       },
       id,
     )!;
-    const moved = plan.set.dailyPurposes as { _id: string; text: string; intentions: unknown[]; rating?: number; createdAt: Date }[];
-    expect(moved.map((p) => [p._id, p.text, p.intentions.length, p.rating])).toEqual([
+    const moved = plan.set.dailyPurposes as { _id: string; text: string; intentions: unknown[]; legacyRating?: number; createdAt: Date }[];
+    expect(moved.map((p) => [p._id, p.text, p.intentions.length, p.legacyRating])).toEqual([
       ["a", "ENC(a)", 1, 3],
       ["b", "ENC(b)", 0, undefined],
     ]);
@@ -97,5 +97,32 @@ describe("planPurposesMigration", () => {
     )!;
     expect((plan.set.dailyPurposes as { _id: string }[]).map((p) => p._id)).toEqual(["id1", "new"]);
     expect(plan.set).not.toHaveProperty("dailyReflectionNote");
+  });
+});
+
+describe("planIntensityMigration", () => {
+  it("keeps each old rating as legacyRating and leaves the intensity empty", () => {
+    const plan = planIntensityMigration({
+      dailyPurposes: [
+        { _id: "a", text: "ENC(a)", rating: 4, intentions: [] },
+        { _id: "b", text: "ENC(b)", intensity: 7 },
+      ],
+    })!;
+    expect(plan.set.dailyPurposes).toEqual([
+      { _id: "a", text: "ENC(a)", legacyRating: 4, intentions: [] },
+      { _id: "b", text: "ENC(b)", intensity: 7 },
+    ]);
+    expect(plan.moved).toBe(1);
+  });
+
+  it("is safe to run twice: nothing to do once no rating is left", () => {
+    expect(planIntensityMigration({ dailyPurposes: [{ _id: "a", legacyRating: 4 }] })).toBeNull();
+    expect(planIntensityMigration({ dailyPurposes: [] })).toBeNull();
+    expect(planIntensityMigration({})).toBeNull();
+  });
+
+  it("drops a rating that isn't a number, and never overwrites an existing legacyRating", () => {
+    const plan = planIntensityMigration({ dailyPurposes: [{ _id: "a", rating: null }, { _id: "b", rating: 2, legacyRating: 5 }] })!;
+    expect(plan.set.dailyPurposes).toEqual([{ _id: "a" }, { _id: "b", legacyRating: 5 }]);
   });
 });

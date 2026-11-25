@@ -1,5 +1,7 @@
-// Moves every day's single purpose into the list of purposes (several a day, each with its own
-// intentions and rating) and its reflection note into the day's evening note.
+// 1. Moves every day's single purpose into the list of purposes (several a day) and its reflection
+//    note into the day's evening note.
+// 2. Keeps each purpose's old evening rating as legacyRating (never shown): purposes now have an
+//    intensity (0–10) instead, left empty on older ones.
 //
 //   npm run migrate:purposes              move
 //   npm run migrate:purposes -- --dry-run  only count what would change
@@ -13,7 +15,7 @@ dns.setServers(["8.8.8.8", "1.1.1.1"]);
 
 import mongoose from "mongoose";
 import { env } from "../config/env";
-import { migrateDailyPurposes } from "../services/migrations";
+import { migrateDailyPurposes, migratePurposeRatings } from "../services/migrations";
 
 async function main(): Promise<void> {
   const dryRun = process.argv.includes("--dry-run");
@@ -30,6 +32,12 @@ async function main(): Promise<void> {
     console.log(`Ratings carried:          ${r.ratings}`);
     console.log(`Evening notes moved:      ${r.notes}`);
     if (r.scanned === 0) console.log("Nothing to do: every day already uses the list of purposes ✓");
+
+    // Ratings → intensity: old evening ratings are kept as legacyRating (not shown); intensity starts empty
+    const ratings = await migratePurposeRatings(dryRun);
+    console.log(`Days with old ratings:    ${ratings.days}`);
+    console.log(`Ratings kept as legacy:   ${ratings.ratings}`);
+    if (ratings.days === 0) console.log("Nothing to do: no purpose has an old rating ✓");
   } finally {
     await mongoose.disconnect();
   }

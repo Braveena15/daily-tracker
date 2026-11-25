@@ -7,9 +7,8 @@
 //   scores, mood/energy counts and averages, times of day ("afternoon"), sleep hours and sleep score
 //   (never raw sleep samples), activity types and minutes, feeling names and intensities,
 //   thinking-trap types, and counts. No free text written by the user — not even mood notes.
-//   For today's purpose: only whether one was set, how many intentions and how many done, the
-//   evening rating and the chosen value words (the app's own value words; others become
-//   "other value"). Never the purpose text, intention text or reflection notes.
+//   For "what matters to me today": only counts (purposes, intentions, done) and the intensity
+//   numbers (0–10). Never the purpose text, intention text, focus value words or evening notes.
 //   Even activity and feeling names are free text when the user types their own
 //   ("Walk with Sarah"), so only the app's built-in names are sent; anything else becomes "other".
 // - "full" mode may also send thought-log text — but never from a log marked private.
@@ -180,7 +179,7 @@ export function buildDailyContext(input: {
   scores: ScoresInput;
   nutrition: { eatenKcal: number; targetKcal: number | null } | null;
   today: string;
-  /** The day's purposes; only purposeFacts() of them is sent (counts and ratings, never text) */
+  /** The day's purposes; only purposeFacts() of them is sent (counts and intensities, never text) */
   purpose?: DayPurposes | null;
 }): AiContext {
   const { entry, scores, nutrition, today } = input;
@@ -190,7 +189,7 @@ export function buildDailyContext(input: {
     mode: "minimal",
     data: {
       ...entryFacts(entry, today),
-      purpose: purposeFacts(input.purpose ?? null, safeValueWord),
+      purpose: purposeFacts(input.purpose ?? null),
       scores,
       nutrition: nutrition
         ? {
@@ -256,7 +255,7 @@ export function buildWeeklyContext(input: {
   calorieTarget: number | null;
   insights: InsightInput[];
   today: string;
-  /** Only counts, the average rating and value words are sent */
+  /** Only counts and the average intensity are sent */
   purpose?: PurposeStats | null;
   /** This week's daily scores (days are sent as relative words, never dates) */
   days?: WeekDayScores[];
@@ -285,8 +284,7 @@ export function buildWeeklyContext(input: {
             purposes: input.purpose.purposesTotal,
             intentions: input.purpose.intentionsTotal,
             intentionsDone: input.purpose.intentionsDone,
-            avgRating: input.purpose.avgRating,
-            focusValues: [...new Set(input.purpose.topValues.map((v) => safeValueWord(v.value)))],
+            avgIntensity: input.purpose.avgIntensity,
           }
         : null,
       dailyScores: (input.days ?? [])

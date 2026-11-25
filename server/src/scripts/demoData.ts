@@ -104,12 +104,12 @@ export type DemoEntry = {
   dailyReflectionNote?: string;
 };
 
-/** One of the day's purposes, with its own intentions and rating */
+/** One of the day's purposes ("what matters to me today"), with its intensity and optional intentions */
 export type DemoDailyPurpose = {
   text: string;
   focusValues: string[];
   intentions: { text: string; done: boolean; doneAt?: Date }[];
-  rating?: number;
+  intensity: number;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -300,11 +300,13 @@ function addDailyExtras(entries: DemoEntry[], today: string, seed: number): void
     e.dailyPurposes = rnd.some(PURPOSES, rnd.pick([1, 1, 2, 3])).map((text) => ({
       text,
       focusValues: rnd.some(DEMO_PURPOSE.coreValues, rnd.int(1, 2)),
-      intentions: intentionPool.splice(0, rnd.int(1, 3)).map((intention) => {
+      // How strongly it's felt today (0–10)
+      intensity: rnd.pick([4, 5, 6, 6, 7, 7, 8, 8, 9, 10]),
+      // Intentions are optional: some purposes have none
+      intentions: intentionPool.splice(0, rnd.int(0, 2)).map((intention) => {
         const done = isToday ? rnd.chance(0.35) : rnd.chance(0.75);
         return { text: intention, done, ...(done && { doneAt: at(isToday ? rnd.int(8, 11) : rnd.int(9, 21)) }) };
       }),
-      ...(reflected && { rating: rnd.pick([3, 4, 4, 5]) }),
       createdAt: setAt,
       updatedAt: setAt,
     }));

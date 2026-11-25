@@ -207,13 +207,14 @@ function DayEditor({ date, today }: { date: string; today: string }) {
       </Section>
 
       <Section title="Learnings" hint="Anything new, big or small." icon={BookOpen} tone="learning" collapsedLabel={emptyLabel(entry?.learnings, 'Add a learning')}>
-        <LearningForm isToday={isToday} onSubmit={(body) => actions.add('learnings', body)} />
+        <LearningForm onSubmit={(body) => actions.add('learnings', body)} />
         <EntryList
           label="learning"
+          showTime={false}
           items={entry?.learnings ?? []}
           describe={(l) => ({ title: `${l.topic}${minutesText(l.minutes)}`, detail: l.details })}
           renderEdit={(l, close) => (
-            <LearningForm initial={l} isToday={isToday} onCancel={close} onSubmit={(body) => actions.update('learnings', l.id, body).then(close)} />
+            <LearningForm initial={l} onCancel={close} onSubmit={(body) => actions.update('learnings', l.id, body).then(close)} />
           )}
           onDelete={(l) => actions.remove('learnings', l.id)}
         />
@@ -249,7 +250,7 @@ function DayEditor({ date, today }: { date: string; today: string }) {
       </Section>
 
       <Section title={isToday ? "Today's timeline" : `Timeline · ${dayName}`} hint="Everything logged, in time order." icon={ListOrdered}>
-        <DayTimeline items={day.timeline} />
+        <DayTimeline items={day.timeline} learned={day.learned} learnedLabel={isToday ? 'Learned today' : 'Learned this day'} />
       </Section>
 
       <MoodDayChart moodLogs={entry?.moodLogs ?? []} />

@@ -282,29 +282,23 @@ export function TextForm({
 
 // ---------- Learnings ----------
 
-export function LearningForm({ initial, isToday, onSubmit, onCancel }: FormProps<Learning>) {
+/** A learning has no time of day: just the topic, optional minutes and details. */
+export function LearningForm({ initial, onSubmit, onCancel }: Omit<FormProps<Learning>, 'isToday'>) {
   const editing = initial !== undefined
   const [topic, setTopic] = useState(initial?.topic ?? '')
   const [minutes, setMinutes] = useState(initial?.minutes != null ? String(initial.minutes) : '')
   const [details, setDetails] = useState(initial?.details ?? '')
-  const time = useTimeInput({ isToday, initial: initial ? timeOf(initial.loggedAt) : undefined })
   const { busy, error, run } = useSubmit(onSubmit)
 
   function submit(e: FormEvent) {
     e.preventDefault()
-    const timeError = time.error()
-    if (timeError) return run(timeError, () => {})
     if (!topic.trim()) return run('Give the learning a topic', () => {})
-    void run(
-      { topic: topic.trim(), minutes: optionalNumber(minutes, editing), details: optionalText(details, editing), ...time.body(editing) },
-      () => {
-        if (editing) return
-        setTopic('')
-        setMinutes('')
-        setDetails('')
-        time.reset()
-      },
-    )
+    void run({ topic: topic.trim(), minutes: optionalNumber(minutes, editing), details: optionalText(details, editing) }, () => {
+      if (editing) return
+      setTopic('')
+      setMinutes('')
+      setDetails('')
+    })
   }
 
   return (
@@ -333,9 +327,7 @@ export function LearningForm({ initial, isToday, onSubmit, onCancel }: FormProps
         value={details}
         onChange={(e) => setDetails(e.target.value)}
       />
-      <FormFooter busy={busy} error={error} editing={editing} label="Add learning" onCancel={onCancel}>
-        <TimeField input={time} />
-      </FormFooter>
+      <FormFooter busy={busy} error={error} editing={editing} label="Add learning" onCancel={onCancel} />
     </form>
   )
 }

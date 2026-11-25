@@ -20,7 +20,8 @@ export type MoodLog = Stamped & { mood: number; energy: number; note?: string }
 export type Workout = Stamped & { type: string; durationMin: number; notes?: string; source?: WorkoutSource; calories?: number }
 export type Activity = Stamped & { type: string; durationMin?: number; notes?: string }
 export type GoodThing = Stamped & { text: string }
-export type Learning = Stamped & { topic: string; details?: string; minutes?: number }
+/** No time of day: loggedAt is only when it was added (used to sort, never shown) */
+export type Learning = { id: string; loggedAt?: string | null; topic: string; details?: string; minutes?: number }
 export type PresentMoment = Stamped & { text: string }
 /** One drink: 50–2000 ml. Not part of the scores. */
 export type WaterLog = Stamped & { amountMl: number }
@@ -123,6 +124,8 @@ export type DayResponse = {
   /** True once you've added anything yourself (not just sleep from the watch) */
   logged: boolean
   timeline: TimelineItem[]
+  /** The day's learnings, newest first, without a time ("React hooks · 30 min") */
+  learned?: { id: string; summary: string }[]
   /** The day's water in ml */
   waterTotalMl?: number
   profileWeightUpdated?: boolean

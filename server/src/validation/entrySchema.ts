@@ -103,8 +103,11 @@ export const CLEARABLE: Record<EntryKind, readonly string[]> = {
   water: [],
 };
 
+/** Learnings have no time of day, so they don't take one. */
+const withTime = (kind: string) => (kind === "learnings" ? {} : { time });
+
 export const entrySchemas = Object.fromEntries(
-  Object.entries(fields).map(([kind, shape]) => [kind, z.strictObject({ ...shape, time })]),
+  Object.entries(fields).map(([kind, shape]) => [kind, z.strictObject({ ...shape, ...withTime(kind) })]),
 ) as unknown as Record<EntryKind, z.ZodType<Record<string, unknown>>>;
 
 export const entryPatchSchemas = Object.fromEntries(
@@ -115,7 +118,7 @@ export const entryPatchSchemas = Object.fromEntries(
     );
     return [
       kind,
-      z.strictObject({ ...patchShape, time }).refine((v) => Object.values(v).some((x) => x !== undefined), "Nothing to change"),
+      z.strictObject({ ...patchShape, ...withTime(kind) }).refine((v) => Object.values(v).some((x) => x !== undefined), "Nothing to change"),
     ];
   }),
 ) as unknown as Record<EntryKind, z.ZodType<Record<string, unknown>>>;

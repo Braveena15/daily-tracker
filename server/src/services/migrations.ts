@@ -1,6 +1,6 @@
 // Small data migrations, run after the database connects. Each one is idempotent.
 import { DailyEntryModel } from "../models/DailyEntry";
-import { planPurposesMigration } from "../utils/purposesMigration";
+import { planIntensityMigration, planPurposesMigration } from "../utils/purposesMigration";
 
 /**
  * appleSleepScore → sleepScoreValue + sleepScoreSource.
@@ -53,6 +53,22 @@ export async function migrateDailyPurposes(dryRun = false): Promise<PurposesMigr
   return result;
 }
 
+export type IntensityMigrationResult = { days: number; ratings: number };
+
+/** Purposes' old evening ratings → legacyRating (intensity left empty). See utils/purposesMigration.ts. */
+export async function migratePurposeRatings(dryRun = false): Promise<IntensityMigrationResult> {
+  const collection = DailyEntryModel.collection;
+  const result: IntensityMigrationResult = { days: 0, ratings: 0 };
+  for await (const doc of collection.find({ "dailyPurposes.rating": { $exists: true } })) {
+    const plan = planIntensityMigration(doc as unknown as Record<string, unknown>);
+    if (!plan) continue;
+    result.days++;
+    result.ratings += plan.moved;
+    if (!dryRun) await collection.updateOne({ _id: doc._id }, { $set: plan.set });
+  }
+  return result;
+}
+
 export async function runMigrations(): Promise<void> {
   const changed = await migrateSleepScoreField();
   if (changed > 0) console.log(`🔧 Sleep score field: migrated ${changed} entries`);
@@ -60,4 +76,7 @@ export async function runMigrations(): Promise<void> {
   if (purposes.days > 0) {
     console.log(`🔧 Daily purposes: moved ${purposes.days} days (${purposes.purposes} purposes, ${purposes.intentions} intentions, ${purposes.ratings} ratings, ${purposes.notes} notes)`);
   }
+  // After the move above, so ratings it carried over are moved too
+  const ratings = await migratePurposeRatings();
+  if (ratings.days > 0) console.log(`🔧 Purpose ratings → legacyRating: ${ratings.ratings} on ${ratings.days} days`);
 }

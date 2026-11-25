@@ -39,7 +39,7 @@ export function useDay(date: string) {
     saveDaily: (body: DailyInput) => apply(api.put<DayResponse>(`/entries/${date}/daily`, body)),
     // Sets the day's water to exactly this total (replaces the day's drinks)
     setWaterTotal: (totalMl: number) => apply(api.put<DayResponse>(`/entries/${date}/water/total`, { totalMl })),
-    // Today's purposes (up to 5), each with its own intentions and rating, and the day's evening note
+    // What matters today (up to 5), each with its intensity and optional intentions, and the day's evening note
     ...purposeActions(date, apply),
   }
 }
@@ -50,8 +50,8 @@ export type DayActions = Omit<ReturnType<typeof useDay>, 'day' | 'error'>
 export function purposeActions(date: string, apply: (request: Promise<DayResponse>) => Promise<DayResponse>) {
   const base = `/entries/${date}/purposes`
   return {
-    addPurpose: (body: { text: string; focusValues?: string[] }) => apply(api.post<DayResponse>(base, body)),
-    updatePurpose: (id: string, body: { text?: string; focusValues?: string[]; rating?: number | null }) =>
+    addPurpose: (body: { text: string; intensity: number; focusValues?: string[] }) => apply(api.post<DayResponse>(base, body)),
+    updatePurpose: (id: string, body: { text?: string; intensity?: number; focusValues?: string[] }) =>
       apply(api.patch<DayResponse>(`${base}/${id}`, body)),
     removePurpose: (id: string) => apply(api.delete<DayResponse>(`${base}/${id}`)),
     addIntention: (purposeId: string, text: string) => apply(api.post<DayResponse>(`${base}/${purposeId}/intentions`, { text })),

@@ -29,7 +29,7 @@ import {
   listThoughts,
   updateThought,
 } from "../controllers/thoughtsController";
-import { getPurposeHistory, listPurposeDays } from "../controllers/dailyPurposeController";
+import { getPurposeHistory, listPurposeDays, purposeSuggestionList } from "../controllers/dailyPurposeController";
 import { requireAuth } from "../middleware/requireAuth";
 
 export const diaryRouter = Router().use(requireAuth);
@@ -51,6 +51,7 @@ export const purposeRouter = Router().use(requireAuth);
 purposeRouter.get("/", getPurpose);
 purposeRouter.put("/", savePurpose);
 purposeRouter.get("/days", listPurposeDays);
+purposeRouter.get("/suggestions", purposeSuggestionList);
 purposeRouter.get("/history", getPurposeHistory);
 
 export const quotesRouter = Router().use(requireAuth);

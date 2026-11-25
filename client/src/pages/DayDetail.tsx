@@ -102,7 +102,7 @@ function DayBody({ day }: { day: DayResponse }) {
 
       {entry && (entry.dailyPurposes?.length || entry.dailyReflectionNote) ? (
         <Section
-          title="Purposes"
+          title="What mattered"
           hint={entry.dailyPurposes?.length ? daySummary(dayPurposesOf(entry)) : undefined}
           icon={Target}
           tone="mental"
@@ -127,7 +127,7 @@ function DayBody({ day }: { day: DayResponse }) {
       ) : null}
 
       <Section title="Timeline" hint="Everything logged, in time order." icon={ListOrdered}>
-        <DayTimeline items={day.timeline} emptyText="Nothing was logged on this day." />
+        <DayTimeline items={day.timeline} learned={day.learned} learnedLabel="Learned this day" emptyText="Nothing was logged on this day." />
       </Section>
 
       <MoodDayChart moodLogs={entry?.moodLogs ?? []} />

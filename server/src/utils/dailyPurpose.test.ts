@@ -14,15 +14,18 @@ import {
   previousVersion,
   purposeChanged,
   toPurposeContent,
+  matchSuggestions,
+  normalizePurpose,
   purposeFacts,
   purposeStats,
+  purposeSuggestions,
   purposeText,
+  recurringPurposes,
   sealText,
   type DayPurpose,
   type DayPurposes,
 } from "./dailyPurpose";
 import { clampFrom } from "./journey";
-import { safeValueWord } from "../ai/buildContext";
 import { ENTRY_LIMITS } from "../models/DailyEntry";
 import { purposeSchema } from "../validation/mindSchema";
 import { intentionPatchSchema, intentionSchema, purposeCreateSchema, purposePatchSchema, reflectionNoteSchema } from "../validation/purposeSchema";
@@ -36,7 +39,7 @@ const purpose = (overrides: Partial<DayPurpose> = {}): DayPurpose => ({
   text: "Be present with family",
   focusValues: ["Family"],
   intentions: [],
-  rating: null,
+  intensity: null,
   createdAt: at.toISOString(),
   updatedAt: at.toISOString(),
   ...overrides,
@@ -59,11 +62,12 @@ describe("encryption", () => {
             { _id: "i1", text: crypto.encrypt("Call Amma"), done: true, doneAt: at },
             { _id: "i2", text: crypto.encrypt("Go cycling"), done: false },
           ],
-          rating: 4,
+          intensity: 8,
           createdAt: at,
           updatedAt: at,
         },
-        { _id: "b", text: crypto.encrypt("Finish the report calmly"), focusValues: [], intentions: [], createdAt: at, updatedAt: at },
+        // From before intensity existed: the old rating is never shown
+        { _id: "b", text: crypto.encrypt("Finish the report calmly"), focusValues: [], intentions: [], legacyRating: 4, createdAt: at, updatedAt: at },
       ],
       dailyReflectionNote: crypto.encrypt("A calm, good day"),
     };
@@ -80,11 +84,11 @@ describe("encryption", () => {
             { id: "i1", text: "Call Amma", done: true, doneAt: at.toISOString() },
             { id: "i2", text: "Go cycling", done: false, doneAt: null },
           ],
-          rating: 4,
+          intensity: 8,
           createdAt: at.toISOString(),
           updatedAt: at.toISOString(),
         },
-        { id: "b", text: "Finish the report calmly", focusValues: [], intentions: [], rating: null, createdAt: at.toISOString(), updatedAt: at.toISOString() },
+        { id: "b", text: "Finish the report calmly", focusValues: [], intentions: [], intensity: null, createdAt: at.toISOString(), updatedAt: at.toISOString() },
       ],
       reflectionNote: "A calm, good day",
     });
@@ -120,23 +124,28 @@ describe("limits", () => {
     expect(canAddIntention(5)).toBe(false);
   });
 
-  it("checks purpose text, focus values, intentions, the rating and the evening note", () => {
+  it("checks purpose text, intensity (0–10, required to add), focus values, intentions and the evening note", () => {
     expect(intentionSchema.safeParse({ text: "x".repeat(200) }).success).toBe(true);
     expect(intentionSchema.safeParse({ text: "x".repeat(201) }).success).toBe(false);
     expect(intentionSchema.safeParse({ text: "  " }).success).toBe(false);
     expect(intentionPatchSchema.safeParse({}).success).toBe(false);
     expect(intentionPatchSchema.parse({ done: true })).toEqual({ done: true });
 
-    expect(purposeCreateSchema.safeParse({ text: "Be kind", focusValues: ["A", "B", "C"] }).success).toBe(true);
-    expect(purposeCreateSchema.safeParse({ text: "Be kind", focusValues: ["A", "B", "C", "D"] }).success).toBe(false);
-    expect(purposeCreateSchema.safeParse({ text: "x".repeat(501) }).success).toBe(false);
-    expect(purposeCreateSchema.safeParse({ text: "  " }).success).toBe(false);
+    expect(purposeCreateSchema.safeParse({ text: "Be kind", intensity: 5, focusValues: ["A", "B", "C"] }).success).toBe(true);
+    expect(purposeCreateSchema.safeParse({ text: "Be kind", intensity: 5, focusValues: ["A", "B", "C", "D"] }).success).toBe(false);
+    expect(purposeCreateSchema.safeParse({ text: "x".repeat(501), intensity: 5 }).success).toBe(false);
+    expect(purposeCreateSchema.safeParse({ text: "  ", intensity: 5 }).success).toBe(false);
+    // Intensity: required, a whole number from 0 to 10
+    expect(purposeCreateSchema.safeParse({ text: "Be kind" }).error?.issues[0]?.message).toBe("Choose how strongly you feel this (0–10)");
+    for (const ok of [0, 5, 10]) expect(purposeCreateSchema.safeParse({ text: "Be kind", intensity: ok }).success).toBe(true);
+    for (const bad of [-1, 11, 6.5, "7", null]) expect(purposeCreateSchema.safeParse({ text: "Be kind", intensity: bad }).success).toBe(false);
+    // No rating any more
+    expect(purposeCreateSchema.safeParse({ text: "Be kind", intensity: 5, rating: 4 }).success).toBe(false);
 
     expect(purposePatchSchema.safeParse({}).success).toBe(false);
-    expect(purposePatchSchema.safeParse({ rating: 5 }).success).toBe(true);
-    expect(purposePatchSchema.safeParse({ rating: null }).success).toBe(true);
-    expect(purposePatchSchema.safeParse({ rating: 6 }).success).toBe(false);
-    expect(purposePatchSchema.safeParse({ rating: 3.5 }).success).toBe(false);
+    expect(purposePatchSchema.safeParse({ intensity: 0 }).success).toBe(true);
+    expect(purposePatchSchema.safeParse({ intensity: null }).success).toBe(false);
+    expect(purposePatchSchema.safeParse({ rating: 5 }).success).toBe(false);
 
     expect(reflectionNoteSchema.safeParse({ note: "x".repeat(1000) }).success).toBe(true);
     expect(reflectionNoteSchema.safeParse({ note: "x".repeat(1001) }).success).toBe(false);
@@ -210,14 +219,14 @@ describe("purpose history", () => {
 });
 
 describe("purposeStats", () => {
-  it("counts days, purposes, completed intentions, the average rating across purposes and top values", () => {
+  it("counts days, purposes, completed intentions, the average intensity across purposes and top values", () => {
     const stats = purposeStats([
       day([
-        { focusValues: ["Family", "Health"], intentions: [i(true), i(false)], rating: 4 },
-        { focusValues: ["Family"], intentions: [i(true)], rating: 3 },
+        { focusValues: ["Family", "Health"], intentions: [i(true), i(false)], intensity: 8 },
+        { focusValues: ["Family"], intentions: [i(true)], intensity: 4 },
       ]),
-      day([{ focusValues: ["Family"], intentions: [i(true), i(true)], rating: 5 }]),
-      day([{ focusValues: ["Growth"] }]),
+      day([{ focusValues: ["Family"], intentions: [i(true), i(true)], intensity: 9 }]),
+      day([{ focusValues: ["Growth"] }]), // from before intensity existed
       day([], "Only a note"),
       null,
     ]);
@@ -227,7 +236,7 @@ describe("purposeStats", () => {
       intentionsTotal: 5,
       intentionsDone: 4,
       intentionsDonePercent: 80,
-      avgRating: 4,
+      avgIntensity: 7,
       topValues: [
         { value: "Family", days: 2 },
         { value: "Growth", days: 1 },
@@ -236,34 +245,80 @@ describe("purposeStats", () => {
     });
   });
 
-  it("has nulls without intentions or ratings", () => {
-    expect(purposeStats([])).toMatchObject({ daysWithPurpose: 0, purposesTotal: 0, intentionsDonePercent: null, avgRating: null, topValues: [] });
+  it("has nulls without intentions or intensities", () => {
+    expect(purposeStats([])).toMatchObject({ daysWithPurpose: 0, purposesTotal: 0, intentionsDonePercent: null, avgIntensity: null, topValues: [] });
   });
 
-  it("sums a day for its header: 3 purposes · 5 of 8 intentions done", () => {
-    const d = day([
-      { intentions: [i(true), i(true), i(false)], rating: 4 },
-      { intentions: [i(true), i(false), i(false)] },
-      { intentions: [i(true), i(true)], rating: 5 },
+  it("sums a day for its header: 2 things · avg intensity 7/10", () => {
+    const d = day([{ intensity: 8, intentions: [i(true), i(false)] }, { intensity: 6 }]);
+    expect(daySummary(d)).toEqual({ purposes: 2, intentions: 2, intentionsDone: 1, intensities: [8, 6], avgIntensity: 7 });
+  });
+});
+
+describe("recurring purposes", () => {
+  const on = (date: string, ...purposes: Partial<DayPurpose>[]) => ({ date, ...day(purposes) });
+
+  it("groups by text ignoring case and extra spaces, most frequent first, with average intensity and 30 days", () => {
+    const list = recurringPurposes(
+      [
+        on("2026-11-20", { text: "Be patient", intensity: 6 }, { text: "Walk outside", intensity: 3 }),
+        on("2026-11-22", { text: "  be   PATIENT ", intensity: 8 }),
+        on("2026-11-24", { text: "Be patient", intensity: null }),
+        on("2026-11-24", { text: "Call Amma", intensity: 9 }),
+        on("2026-11-23", { text: "Call Amma", intensity: 7 }),
+      ],
+      "2026-11-25",
+    );
+    expect(list.map((r) => [r.text, r.count, r.avgIntensity, r.lastDate])).toEqual([
+      ["Be patient", 3, 7, "2026-11-24"],
+      ["Call Amma", 2, 8, "2026-11-24"],
+      ["Walk outside", 1, 3, "2026-11-20"],
     ]);
-    expect(daySummary(d)).toEqual({ purposes: 3, intentions: 8, intentionsDone: 5, ratings: [4, 5], avgRating: 4.5 });
+    expect(list[0]!.last30).toHaveLength(30);
+    expect(list[0]!.last30.slice(-6)).toEqual([6, null, 8, null, null, null]);
+  });
+
+  it("counts the same thing twice in one day once, at its stronger intensity", () => {
+    const [r] = recurringPurposes([on("2026-11-25", { text: "Rest", intensity: 3 }, { text: "rest", intensity: 7 })], "2026-11-25");
+    expect(r).toMatchObject({ count: 1, avgIntensity: 7 });
+  });
+
+  it("leaves out purposes without text, and is empty without days", () => {
+    expect(recurringPurposes([on("2026-11-25", { text: "  " })], "2026-11-25")).toEqual([]);
+    expect(recurringPurposes([], "2026-11-25")).toEqual([]);
+  });
+});
+
+describe("suggestions", () => {
+  it("offers earlier wordings once each, most used first, and matches what's typed ignoring case and spaces", () => {
+    const days = [
+      { date: "2026-11-20", ...day([{ text: "Be patient" }, { text: "Walk outside" }]) },
+      { date: "2026-11-22", ...day([{ text: "be  patient" }]) },
+    ];
+    const suggestions = purposeSuggestions(days);
+    expect(suggestions).toEqual(["be patient", "Walk outside"]);
+    expect(normalizePurpose("  Be   Patient ")).toBe("be patient");
+    expect(matchSuggestions(["Be patient with the kids", "Walk outside", "Be present"], "  BE  p")).toEqual(["Be patient with the kids", "Be present"]);
+    // An exact match isn't suggested back, and nothing is suggested before typing
+    expect(matchSuggestions(["Walk outside"], "walk  OUTSIDE")).toEqual([]);
+    expect(matchSuggestions(["Walk outside"], "  ")).toEqual([]);
   });
 });
 
 describe("AI facts", () => {
-  it("sends only counts, ratings and safe value words — never any text", () => {
+  it("sends only counts and intensity numbers — never any text or value words", () => {
     const d = day(
       [
-        { text: "SECRET_PURPOSE", focusValues: ["Family", "SECRET_VALUE Priya"], intentions: [i(true, "SECRET_INTENTION call Amma"), i(false, "SECRET_INTENTION 2")], rating: 4 },
-        { text: "SECRET_PURPOSE_2", focusValues: [], intentions: [i(true, "SECRET_INTENTION 3")], rating: 2 },
+        { text: "SECRET_PURPOSE", focusValues: ["Family", "SECRET_VALUE Priya"], intentions: [i(true, "SECRET_INTENTION call Amma"), i(false, "SECRET_INTENTION 2")], intensity: 8 },
+        { text: "SECRET_PURPOSE_2", focusValues: [], intentions: [i(true, "SECRET_INTENTION 3")], intensity: 4 },
       ],
       "SECRET_NOTE",
     );
-    const facts = purposeFacts(d, safeValueWord);
-    expect(facts).toEqual({ set: true, purposes: 2, intentions: 3, intentionsDone: 2, ratings: [4, 2], avgRating: 3, focusValues: ["family", "other value"] });
-    expect(JSON.stringify(facts)).not.toMatch(/SECRET|Amma|Priya/);
-    expect(purposeFacts(null, safeValueWord)).toEqual({ set: false });
-    expect(purposeFacts(day([], "SECRET_NOTE"), safeValueWord)).toEqual({ set: false });
+    const facts = purposeFacts(d);
+    expect(facts).toEqual({ set: true, purposes: 2, intentions: 3, intentionsDone: 2, intensities: [8, 4], avgIntensity: 6 });
+    expect(JSON.stringify(facts)).not.toMatch(/SECRET|Amma|Priya|Family/);
+    expect(purposeFacts(null)).toEqual({ set: false });
+    expect(purposeFacts(day([], "SECRET_NOTE"))).toEqual({ set: false });
   });
 
   it("still checks every purpose text for crisis language", () => {

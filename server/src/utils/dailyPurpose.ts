@@ -1,9 +1,9 @@
-// The day's purposes ("What do I want today to be about?"): up to 5 a day, each with its own focus
-// values, up to 5 intentions and an evening rating, plus one evening note for the whole day.
+// "What matters to me today": up to 5 things a day, each with how strongly it's felt (intensity 0–10),
+// optional focus values and up to 5 optional intentions, plus one evening note for the whole day.
 // Pure functions: the encrypter is passed in, so they can be tested with a test key.
 //
 // Stored: each purpose's text, each intention's text and the evening note are encrypted.
-// focusValues (words from the user's core values), done flags, times and ratings are not.
+// focusValues (words from the user's core values), done flags, times and intensities are not.
 import type { FieldCrypto } from "./crypto";
 import { addDays } from "./dates";
 
@@ -16,7 +16,7 @@ export type StoredDayPurpose = {
   text?: string | null;
   focusValues?: string[] | null;
   intentions?: StoredIntention[] | null;
-  rating?: number | null;
+  intensity?: number | null;
   createdAt?: StoredDate;
   updatedAt?: StoredDate;
 };
@@ -34,8 +34,8 @@ export type DayPurpose = {
   text: string;
   focusValues: string[];
   intentions: Intention[];
-  /** "How well did I live this purpose today?" 1–5, null until rated */
-  rating: number | null;
+  /** "How strongly do I feel this today?" 0–10; null only on purposes from before intensity existed */
+  intensity: number | null;
   createdAt: string | null;
   updatedAt: string | null;
 };
@@ -71,7 +71,7 @@ export function openDayPurposes(crypto: FieldCrypto, stored: StoredDayPurposes |
       text: open(p.text),
       focusValues: [...(p.focusValues ?? [])],
       intentions: (p.intentions ?? []).map((i) => ({ id: String(i._id), text: open(i.text), done: Boolean(i.done), doneAt: iso(i.doneAt) })),
-      rating: typeof p.rating === "number" ? p.rating : null,
+      intensity: typeof p.intensity === "number" ? p.intensity : null,
       createdAt: iso(p.createdAt),
       updatedAt: iso(p.updatedAt),
     })),
@@ -83,17 +83,19 @@ export function openDayPurposes(crypto: FieldCrypto, stored: StoredDayPurposes |
 export const hasDayPurposes = (d: DayPurposes | null | undefined): d is DayPurposes =>
   !!d && (d.purposes.length > 0 || d.reflectionNote.trim() !== "");
 
-/** "3 purposes · 5 of 8 intentions done": the counts behind every summary. */
+const intensitiesOf = (purposes: DayPurpose[]) => purposes.flatMap((p) => (p.intensity === null ? [] : [p.intensity]));
+
+/** "2 things · avg intensity 7/10": the counts behind every summary. */
 export function daySummary(d: DayPurposes) {
   const intentions = d.purposes.flatMap((p) => p.intentions);
-  const ratings = d.purposes.flatMap((p) => (p.rating === null ? [] : [p.rating]));
+  const intensities = intensitiesOf(d.purposes);
   return {
     purposes: d.purposes.length,
     intentions: intentions.length,
     intentionsDone: intentions.filter((i) => i.done).length,
-    ratings,
-    /** 1 decimal, null without ratings */
-    avgRating: average(ratings),
+    intensities,
+    /** 1 decimal, null without intensities */
+    avgIntensity: average(intensities),
   };
 }
 
@@ -236,8 +238,8 @@ export type PurposeStats = {
   intentionsDone: number;
   /** Whole-number percent, null without intentions */
   intentionsDonePercent: number | null;
-  /** Across every rated purpose; 1 decimal, null without ratings */
-  avgRating: number | null;
+  /** Across every purpose with an intensity; 1 decimal, null without any */
+  avgIntensity: number | null;
   /** Most-chosen focus values (counted once per day), most first (ties alphabetical), up to 3 */
   topValues: { value: string; days: number }[];
 };
@@ -247,7 +249,6 @@ export function purposeStats(days: (DayPurposes | null)[]): PurposeStats {
   const purposes = set.flatMap((d) => d.purposes);
   const intentions = purposes.flatMap((p) => p.intentions);
   const done = intentions.filter((i) => i.done).length;
-  const ratings = purposes.flatMap((p) => (p.rating === null ? [] : [p.rating]));
   const counts = new Map<string, number>();
   for (const d of set) for (const v of new Set(d.purposes.flatMap((p) => p.focusValues))) counts.set(v, (counts.get(v) ?? 0) + 1);
 
@@ -257,7 +258,7 @@ export function purposeStats(days: (DayPurposes | null)[]): PurposeStats {
     intentionsTotal: intentions.length,
     intentionsDone: done,
     intentionsDonePercent: intentions.length ? Math.round((done / intentions.length) * 100) : null,
-    avgRating: average(ratings),
+    avgIntensity: average(intensitiesOf(purposes)),
     topValues: [...counts]
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
       .slice(0, 3)
@@ -265,25 +266,83 @@ export function purposeStats(days: (DayPurposes | null)[]): PurposeStats {
   };
 }
 
+// ---------- Recurring purposes and suggestions ----------
+
+/** The same wording, ignoring case and extra spaces: "  Be  patient " and "be patient" match. */
+export const normalizePurpose = (text: string) => text.trim().replace(/\s+/g, " ").toLowerCase();
+
+export type RecurringPurpose = {
+  /** The most recent wording */
+  text: string;
+  /** Days it appeared on */
+  count: number;
+  /** 1 decimal, null when none of its days had an intensity */
+  avgIntensity: number | null;
+  lastDate: string;
+  /** Its intensity on each of the last 30 days (oldest first), null on days it didn't appear */
+  last30: (number | null)[];
+};
+
+/**
+ * What matters to you again and again: the days' purposes grouped by their normalized text, with
+ * how many days each appeared, its average intensity and its last 30 days ending on `today`.
+ * Most frequent first (then most recent). Purposes without text are left out.
+ */
+export function recurringPurposes(days: (DayPurposes & { date: string })[], today: string): RecurringPurpose[] {
+  const groups = new Map<string, { text: string; lastDate: string; byDate: Map<string, number | null> }>();
+  for (const day of [...days].sort((a, b) => a.date.localeCompare(b.date))) {
+    for (const p of day.purposes) {
+      const key = normalizePurpose(p.text);
+      if (!key) continue;
+      const wording = p.text.trim().replace(/\s+/g, " ");
+      const group = groups.get(key) ?? { text: wording, lastDate: day.date, byDate: new Map() };
+      // Days are oldest first, so the latest wording wins (extra spaces tidied, your capitals kept)
+      group.text = wording;
+      group.lastDate = day.date;
+      // The same thing twice in one day counts once, at its stronger intensity
+      const before = group.byDate.get(day.date);
+      const value = p.intensity ?? null;
+      group.byDate.set(day.date, before === undefined || before === null ? value : value === null ? before : Math.max(before, value));
+      groups.set(key, group);
+    }
+  }
+  const window = Array.from({ length: 30 }, (_, i) => addDays(today, i - 29));
+  return [...groups.values()]
+    .map((g) => ({
+      text: g.text,
+      count: g.byDate.size,
+      avgIntensity: average([...g.byDate.values()].filter((v): v is number => v !== null)),
+      lastDate: g.lastDate,
+      last30: window.map((d) => g.byDate.get(d) ?? null),
+    }))
+    .sort((a, b) => b.count - a.count || b.lastDate.localeCompare(a.lastDate) || a.text.localeCompare(b.text));
+}
+
+/** Wordings you've used before, to reuse while typing: one per normalized text, most used first (then most recent). */
+export function purposeSuggestions(days: (DayPurposes & { date: string })[], limit = 50): string[] {
+  return recurringPurposes(days, days.map((d) => d.date).sort().at(-1) ?? "1970-01-01")
+    .slice(0, limit)
+    .map((r) => r.text);
+}
+
+/** The suggestions that match what's typed so far (ignoring case and extra spaces), leaving out an exact match. */
+export function matchSuggestions(suggestions: string[], typed: string, limit = 5): string[] {
+  const q = normalizePurpose(typed);
+  if (!q) return [];
+  return suggestions.filter((s) => normalizePurpose(s).includes(q) && normalizePurpose(s) !== q).slice(0, limit);
+}
+
 // ---------- AI ----------
 
 /**
  * What the AI may know about a day's purposes: how many, how many intentions and how many done,
- * the ratings, and the chosen value words (only words the AI may see: `safeValue` turns anything
- * else into "other value"). Never a purpose's text, an intention's text or the evening note.
+ * and the intensity numbers. Never a purpose's text, an intention's text, the evening note or
+ * the focus value words.
  */
-export function purposeFacts(d: DayPurposes | null, safeValue: (value: string) => string) {
+export function purposeFacts(d: DayPurposes | null) {
   if (!d || d.purposes.length === 0) return { set: false };
-  const { purposes, intentions, intentionsDone, ratings, avgRating } = daySummary(d);
-  return {
-    set: true,
-    purposes,
-    intentions,
-    intentionsDone,
-    ratings,
-    avgRating,
-    focusValues: [...new Set(d.purposes.flatMap((p) => p.focusValues).map(safeValue))],
-  };
+  const { purposes, intentions, intentionsDone, intensities, avgIntensity } = daySummary(d);
+  return { set: true, purposes, intentions, intentionsDone, intensities, avgIntensity };
 }
 
 /** Every user-written purpose text, for the crisis check only (never sent anywhere). */

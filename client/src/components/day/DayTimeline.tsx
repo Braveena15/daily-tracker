@@ -1,5 +1,6 @@
-// Everything logged on a day, in time order: mood check-ins, workouts, good things, syncs…
-import { ListOrdered } from 'lucide-react'
+// Everything logged on a day, in time order: mood check-ins, workouts, good things… Learnings have
+// no time of day, so they're listed apart at the end ("Learned today").
+import { BookOpen, ListOrdered } from 'lucide-react'
 import { IconBubble } from '@/components/IconBubble'
 import { EmptyState } from '@/components/StatusViews'
 import { timeOf } from '@/lib/healthSync'
@@ -7,8 +8,21 @@ import { TIMELINE_STYLE, type TimelineItem } from '@/lib/entries'
 import { cn } from '@/lib/utils'
 import { moodBand } from '@/lib/mood'
 
-export function DayTimeline({ items, emptyText, className }: { items: TimelineItem[]; emptyText?: string; className?: string }) {
-  if (items.length === 0) {
+export function DayTimeline({
+  items,
+  learned = [],
+  learnedLabel = 'Learned today',
+  emptyText,
+  className,
+}: {
+  items: TimelineItem[]
+  /** The day's learnings, without a time */
+  learned?: { id: string; summary: string }[]
+  learnedLabel?: string
+  emptyText?: string
+  className?: string
+}) {
+  if (items.length === 0 && learned.length === 0) {
     return (
       <EmptyState icon={ListOrdered} title="Nothing logged yet" className="py-6">
         {emptyText ?? 'Entries you add show up here in time order.'}
@@ -17,7 +31,29 @@ export function DayTimeline({ items, emptyText, className }: { items: TimelineIt
   }
 
   return (
-    <ol className={cn('relative space-y-3', className)}>
+    <div className={cn('space-y-4', className)}>
+      {items.length > 0 && <TimeOrdered items={items} />}
+      {learned.length > 0 && (
+        <section aria-label={learnedLabel} className="space-y-2">
+          <h3 className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+            <BookOpen className="size-4 text-learning" aria-hidden /> {learnedLabel}
+          </h3>
+          <ul className="space-y-1.5">
+            {learned.map((l) => (
+              <li key={l.id} className="rounded-xl bg-learning-soft/50 px-3 py-2 text-sm break-words">
+                {l.summary}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </div>
+  )
+}
+
+function TimeOrdered({ items }: { items: TimelineItem[] }) {
+  return (
+    <ol className="relative space-y-3">
       {/* The line joining the icons */}
       <span className="absolute top-5 bottom-5 left-5 w-px bg-border" aria-hidden />
       {items.map((item, i) => {
