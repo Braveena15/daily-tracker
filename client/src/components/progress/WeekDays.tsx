@@ -1,8 +1,8 @@
-// The weekly review's day-by-day view: a chart of each day's average mood, every check-in and the range,
+// The weekly review's day-by-day view: a chart of each day's average mood (its check-ins on hover or tap),
 // and one row per day with its counts, steps, calories and sleep score. Each row opens that day's timeline.
 import { useState } from 'react'
 import { ChevronDown, Smile } from 'lucide-react'
-import { Bar, CartesianGrid, ComposedChart, Line, XAxis, YAxis, useXAxisScale, useYAxisScale } from 'recharts'
+import { CartesianGrid, ComposedChart, Line, XAxis, YAxis, useActiveTooltipLabel, useXAxisScale, useYAxisScale } from 'recharts'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ChartContainer, ChartTooltip, type ChartConfig } from '@/components/ui/chart'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -24,23 +24,23 @@ const moodAxis = fixedAxis([0, 5, 10])
 
 const chartConfig = {
   mood: { label: 'Daily average', color: 'var(--chart-mental)' },
-  range: { label: 'Range', color: 'var(--chart-mental)' },
 } satisfies ChartConfig
 
-type MoodPoint = ReviewDay & { range: [number, number] | null }
+type MoodPoint = ReviewDay
 
 /**
- * Every check-in as a small square at its value, in its mood colour. Check-ins with the same value
- * on the same day sit side by side instead of on top of each other. Drawn inside the chart with its
- * scales, so the squares line up with the axes.
+ * The hovered or tapped day's check-ins as small squares at their values, in their mood colour
+ * (hidden otherwise). Check-ins with the same value sit side by side. Drawn inside the chart with
+ * its scales, so the squares line up with the axes.
  */
 function CheckInSquares({ points }: { points: MoodPoint[] }) {
   const x = useXAxisScale()
   const y = useYAxisScale()
-  if (!x || !y) return null
+  const active = useActiveTooltipLabel()
+  if (!x || !y || active === undefined) return null
   return (
     <g aria-hidden>
-      {points.flatMap((d) => {
+      {points.filter((d) => d.date === active).flatMap((d) => {
         const cx = x(d.date, { position: 'middle' })
         if (cx === undefined) return []
         const checkins = d.moodCheckins ?? []
@@ -78,16 +78,12 @@ function moodSummary(days: ReviewDay[]): string {
     const checkins = (d.moodCheckins ?? []).map((c) => `${c.time} ${c.mood}`).join(', ')
     return `${tooltipDate(d.date)}: average ${d.mood} (${moodBand(d.mood).word})${checkins ? `, check-ins ${checkins}` : ''}`
   })
-  return `Mood through the week. ${parts.join('; ')}. Dashed lines bridge days without a check-in.`
+  return `Average mood each day this week. ${parts.join('; ')}.`
 }
 
 export function WeekMoodChart({ days }: { days: ReviewDay[] }) {
   const animate = !useMediaQuery('(prefers-reduced-motion: reduce)')
-  // The lowest–highest bar only when a day has 2 or more check-ins
-  const points: MoodPoint[] = days.map((d) => ({
-    ...d,
-    range: d.moodCount >= 2 && d.moodMin !== null && d.moodMax !== null ? [d.moodMin, d.moodMax] : null,
-  }))
+  const points: MoodPoint[] = days
   const withMood = days.filter((d) => d.mood !== null).length
 
   return (
@@ -97,7 +93,7 @@ export function WeekMoodChart({ days }: { days: ReviewDay[] }) {
           <IconBubble icon={Smile} tone="mental" />
           <div className="min-w-0">
             <CardTitle className="text-lg font-semibold">Mood through the week</CardTitle>
-            <CardDescription>Each day's average, every check-in, and the range when there were several</CardDescription>
+            <CardDescription>Each day's average mood — tap a day to see its check-ins</CardDescription>
           </div>
         </div>
       </CardHeader>
@@ -142,30 +138,13 @@ export function WeekMoodChart({ days }: { days: ReviewDay[] }) {
                     )
                   }}
                 />
-                {/* Lowest–highest, behind everything (2+ check-ins only) */}
-                <Bar dataKey="range" fill="var(--color-range)" fillOpacity={0.16} barSize={14} radius={4} isAnimationActive={false} />
-                {/* Faint dashed line across days without a check-in (no dots, tooltip or legend entry) */}
-                <Line
-                  dataKey="mood"
-                  type="monotone"
-                  stroke="var(--color-mood)"
-                  strokeOpacity={0.4}
-                  strokeWidth={1.5}
-                  strokeDasharray="4 4"
-                  connectNulls
-                  dot={false}
-                  activeDot={false}
-                  legendType="none"
-                  tooltipType="none"
-                  isAnimationActive={animate}
-                />
-                {/* The daily average: solid between consecutive days, a filled circle on each */}
+                {/* The daily average: a filled circle on each day with a check-in, joined by one solid line */}
                 <Line
                   dataKey="mood"
                   type="monotone"
                   stroke="var(--color-mood)"
                   strokeWidth={2}
-                  connectNulls={false}
+                  connectNulls
                   dot={MoodDot}
                   activeDot={{ r: 5 }}
                   isAnimationActive={animate}
@@ -173,16 +152,11 @@ export function WeekMoodChart({ days }: { days: ReviewDay[] }) {
                 <CheckInSquares points={points} />
               </ComposedChart>
             </ChartContainer>
-            <p className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-muted-foreground" aria-hidden>
-              <span className="flex items-center gap-1.5">
+            <p className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5" aria-hidden>
                 <span className="size-2.5 rounded-full bg-[var(--chart-mental)]" /> Daily average
               </span>
-              <span className="flex items-center gap-1.5">
-                <span className="size-2 rounded-[2px] bg-[var(--chart-mental)]" /> Check-in
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="h-3 w-2 rounded-sm bg-[var(--chart-mental)] opacity-25" /> Range
-              </span>
+              <span>Tap a day to see its check-ins</span>
             </p>
           </>
         )}
