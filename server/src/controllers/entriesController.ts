@@ -19,7 +19,8 @@ import {
   type EntryKind,
   type TimelineSource,
 } from "../utils/timeline";
-import { CLEARABLE, dailySchema, entryPatchSchemas, entrySchemas, waterTotalSchema } from "../validation/entrySchema";
+import { CLEARABLE, dailySchema, entryPatchSchemas, entrySchemas, missedReasonSchema, waterTotalSchema } from "../validation/entrySchema";
+import { canNoteMissedDay, openMissedReason, type StoredMissedReason } from "../utils/missedReason";
 import { UserModel } from "../models/User";
 import { goalNumbers } from "../services/dayData";
 import { waterTotal, waterTotalRange } from "../utils/water";
@@ -103,6 +104,8 @@ export function serializeEntry(doc: LeanDay) {
   delete out.dailyPurpose; // an older day not moved yet (see services/purposesMigration.ts)
   // Older days may still hold these from when the watch synced steps and calories; they're no longer used
   for (const legacy of ["healthSnapshots", "restingCalories", "exerciseMinutes"]) delete out[legacy];
+  // Why the day wasn't logged, with its note decrypted (only ever sent to its owner)
+  out.missedReason = openMissedReason(fieldCrypto, doc.missedReason as StoredMissedReason);
   return out;
 }
 
@@ -299,7 +302,45 @@ export async function listEntries(req: Request, res: Response): Promise<void> {
     .select("-healthSnapshots")
     .sort({ date: -1 })
     .lean()) as LeanDay[];
-  res.json({ from, to, journeyStartDate: start, entries: rows.map(serializeEntry) });
+  // Days that weren't logged but have a reason ("Not logged · busy")
+  const missed = await DailyEntryModel.find({ userId: req.userId, date: { $gte: clampFrom(from, start), $lte: to }, "missedReason.category": { $exists: true } })
+    .select("date missedReason")
+    .lean();
+  res.json({
+    from,
+    to,
+    journeyStartDate: start,
+    entries: rows.map(serializeEntry),
+    missed: missed.flatMap((m) => {
+      const reason = openMissedReason(fieldCrypto, m.missedReason as StoredMissedReason);
+      return reason && !rows.some((r) => r.date === m.date) ? [{ date: m.date, ...reason }] : [];
+    }),
+  });
+}
+
+/**
+ * PUT /api/entries/:date/missed-reason — why the day wasn't logged: a category and an optional
+ * note (encrypted). Only for today or yesterday. It doesn't make the day logged.
+ */
+export async function setMissedReason(req: Request, res: Response): Promise<void> {
+  const date = dateParam(req);
+  if (!canNoteMissedDay(date, today())) throw new AppError(400, "You can only note why for today or yesterday");
+  const { category, note } = missedReasonSchema.parse(req.body ?? {});
+  const sealed = note?.trim() ? fieldCrypto.encrypt(note.trim()) : undefined;
+  const doc = (await DailyEntryModel.findOneAndUpdate(
+    { userId: req.userId, date },
+    { $set: { missedReason: { category, createdAt: new Date(), ...(sealed && { note: sealed }) } } },
+    { upsert: true, returnDocument: "after", runValidators: true, setDefaultsOnInsert: true },
+  ).lean()) as LeanDay | null;
+  res.json(dayResponse(date, doc));
+}
+
+/** DELETE /api/entries/:date/missed-reason */
+export async function clearMissedReason(req: Request, res: Response): Promise<void> {
+  const date = dateParam(req);
+  if (!canNoteMissedDay(date, today())) throw new AppError(400, "You can only note why for today or yesterday");
+  const doc = (await DailyEntryModel.findOneAndUpdate({ userId: req.userId, date }, { $unset: { missedReason: 1 } }, { returnDocument: "after" }).lean()) as LeanDay | null;
+  res.json(dayResponse(date, doc));
 }
 
 export async function getStreak(req: Request, res: Response): Promise<void> {

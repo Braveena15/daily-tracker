@@ -1,10 +1,8 @@
-import { Suspense, useState, type ReactNode } from 'react'
+import { Suspense, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ArrowDown, ArrowUp, BookOpen, Brain, CalendarCheck, ChevronLeft, ChevronRight, Dumbbell, Flag, Gauge, GlassWater, LineChart as LineChartIcon, Moon, Repeat, Smile, Sparkles, Target, Trophy, UtensilsCrossed, Wheat, type LucideIcon } from 'lucide-react'
+import { CalendarCheck, ChevronLeft, ChevronRight, Flag, Repeat, Sparkles, Target, Trophy, LineChart as LineChartIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { InfoTip } from '@/components/InfoTip'
 import { WeeklyGoalsCard, type GoalSuggestion } from '@/components/progress/WeeklyGoals'
-import { SCORE_HELP, type ScoreKey } from '@/lib/scoreHelp'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AiMessageCard } from '@/components/ai/AiMessageCard'
@@ -19,13 +17,10 @@ import { EmptyState, ErrorNotice } from '@/components/StatusViews'
 import { useFetch } from '@/hooks/useFetch'
 import { addDays, formatDate, isValidDateString, relativeDay, todayInTimezone, toLocalDate } from '@/lib/dates'
 import { journeyDate } from '@/lib/journey'
-import { kcal } from '@/lib/meals'
 import type { WeeklyReviewResponse } from '@/lib/progress'
-import type { Tone } from '@/lib/tones'
-import { cn } from '@/lib/utils'
 import { lazyPage } from '@/lib/lazyPage'
 import { CardChevron } from '@/components/CardChevron'
-import { litres } from '@/lib/water'
+import { Delta, YourWeek } from '@/components/progress/YourWeek'
 
 // Recharts loads only when the charts are shown
 const DailyScoresChart = lazyPage(() => import('@/components/progress/WeekScoreCharts').then((m) => m.DailyScoresChart))
@@ -112,81 +107,6 @@ export function Review() {
   )
 }
 
-type Direction = 'higher-is-good' | 'neutral'
-
-function Delta({ diff, unit = '', direction = 'higher-is-good', digits = 0 }: { diff: number | null; unit?: string; direction?: Direction; digits?: number }) {
-  if (diff === null) return null
-  const rounded = Number(diff.toFixed(digits))
-  if (rounded === 0) return <span className="text-xs text-muted-foreground">Same as last week</span>
-
-  const up = rounded > 0
-  const Icon = up ? ArrowUp : ArrowDown
-  // Up on a "more is better" number is a soft green; down is shown calmly in grey, never red
-  const colour = direction === 'neutral' || !up ? 'bg-muted text-muted-foreground' : 'bg-success/15 text-success'
-  return (
-    <span className={cn('inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-medium tabular-nums', colour)}>
-      <Icon className="size-4" aria-hidden />
-      <span className="sr-only">{up ? 'up' : 'down'}</span>
-      {Math.abs(rounded).toFixed(digits)}
-      {unit}
-      <span className="max-sm:sr-only">&nbsp;vs last week</span>
-    </span>
-  )
-}
-
-function StatCard({
-  icon,
-  tone = 'primary',
-  label,
-  value,
-  previous,
-  delta,
-  emptyHint,
-  help,
-}: {
-  icon: LucideIcon
-  tone?: Tone
-  label: string
-  /** null: nothing logged this week (shows `emptyHint`) */
-  value: string | null
-  /** null: no data from last week */
-  previous: string | null
-  delta?: ReactNode
-  emptyHint?: string
-  /** Adds an ⓘ that explains the number */
-  help?: ScoreKey
-}) {
-  return (
-    <Card size="sm">
-      <CardContent className="space-y-2">
-        <div className="flex items-center gap-2">
-          <IconBubble icon={icon} tone={tone} className="size-8 shrink-0 rounded-lg [&_svg]:size-4" />
-          <p className="min-w-0 flex-1 text-sm leading-tight text-muted-foreground">{label}</p>
-          {help && <InfoTip title={SCORE_HELP[help].title}>{SCORE_HELP[help].text}</InfoTip>}
-        </div>
-        {value === null ? (
-          <p className="text-sm text-muted-foreground">
-            <span className="block font-heading text-xl font-semibold text-foreground/40 sm:text-2xl" aria-hidden>
-              —
-            </span>
-            {emptyHint ?? 'Nothing logged this week'}
-          </p>
-        ) : (
-          <p className="font-heading text-xl font-semibold text-balance tabular-nums sm:text-2xl">{value}</p>
-        )}
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          {value !== null && previous !== null && delta}
-          <span className="text-xs text-muted-foreground">{previous === null ? 'No data from last week yet' : `Last week: ${previous}`}</span>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
-const show = (n: number | null, suffix = '') => (n === null ? null : `${n.toLocaleString()}${suffix}`)
-/** Last week's figure, or null when last week had nothing logged (or was before the journey) */
-const before = (n: number | null, hasData: boolean, suffix = '') => (hasData ? show(n, suffix) : null)
-
 function ReviewBody({ data, today }: { data: WeeklyReviewResponse; today: string }) {
   const { thisWeek: w, lastWeek: p, differences: d } = data
   // Last week counts as "has data" only if something was logged (and it wasn't before the journey)
@@ -243,119 +163,9 @@ function ReviewBody({ data, today }: { data: WeeklyReviewResponse; today: string
         </Link>
       )}
 
-      <section aria-labelledby="scores-heading" className="space-y-3">
-        <div>
-          <h2 id="scores-heading" className="text-xl font-semibold">
-            Average scores
-          </h2>
-          <p className="text-sm text-muted-foreground">Out of 100, over the days you logged. Tap ⓘ to see what each one counts.</p>
-        </div>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <StatCard icon={Gauge} label="Overall" help="overall" value={show(w.avgOverall)} previous={before(p.avgOverall, hasLastWeek)} delta={<Delta diff={d.avgOverall} />} emptyHint="Log a day to see it" />
-          <StatCard icon={Dumbbell} tone="physical" label="Physical" help="physical" value={show(w.avgPhysical)} previous={before(p.avgPhysical, hasLastWeek)} delta={<Delta diff={d.avgPhysical} />} emptyHint="Log a day to see it" />
-          <StatCard icon={Brain} tone="mental" label="Mental" help="mental" value={show(w.avgMental)} previous={before(p.avgMental, hasLastWeek)} delta={<Delta diff={d.avgMental} />} emptyHint="Log a day to see it" />
-          <StatCard icon={BookOpen} tone="learning" label="Learning" help="learning" value={show(w.avgLearning)} previous={before(p.avgLearning, hasLastWeek)} delta={<Delta diff={d.avgLearning} />} emptyHint="Log a day to see it" />
-        </div>
-      </section>
+      <YourWeek data={data} today={today} />
 
       <ScoreCharts data={data} hasLastWeek={hasLastWeek} />
-
-      <section aria-labelledby="week-heading" className="space-y-3">
-        <h2 id="week-heading" className="text-xl font-semibold">
-          Your week
-        </h2>
-        {/* Two columns even on phones (one below 360px), so the page stays short */}
-        <div className="grid grid-cols-2 gap-3 max-[360px]:grid-cols-1 lg:grid-cols-3">
-          <StatCard
-            icon={Dumbbell}
-            tone="physical"
-            label="Workouts"
-            value={w.workouts > 0 ? `${w.workouts} · ${w.workoutMinutes} min` : null}
-            emptyHint="Add workouts on Today"
-            previous={hasLastWeek ? `${p.workouts} · ${p.workoutMinutes} min` : null}
-            delta={<Delta diff={d.workoutMinutes} unit=" min" />}
-          />
-          <StatCard
-            icon={BookOpen}
-            tone="learning"
-            label="Learning time"
-            value={w.learningMinutes > 0 ? `${w.learningMinutes} min` : null}
-            emptyHint="Add learnings with minutes on Today"
-            previous={hasLastWeek ? `${p.learningMinutes} min` : null}
-            delta={<Delta diff={d.learningMinutes} unit=" min" />}
-          />
-          <StatCard
-            icon={Moon}
-            tone="mental"
-            label="Average sleep"
-            value={show(w.avgSleepHours, ' h')}
-            emptyHint="Add sleep on the Today page"
-            previous={before(p.avgSleepHours, hasLastWeek, ' h')}
-            delta={<Delta diff={d.avgSleepHours} unit=" h" digits={1} direction="neutral" />}
-          />
-          <StatCard
-            icon={Moon}
-            tone="mental"
-            label="Average sleep score"
-            value={show(w.avgSleepScore, '/100')}
-            emptyHint="From your watch, or add your own score"
-            previous={before(p.avgSleepScore, hasLastWeek, '/100')}
-            delta={<Delta diff={d.avgSleepScore} />}
-          />
-          <StatCard icon={Smile} tone="mental" label="Average mood" value={show(w.avgMood, '/10')} previous={before(p.avgMood, hasLastWeek, '/10')} delta={<Delta diff={d.avgMood} digits={1} />} emptyHint="Do a quick mood check-in" />
-          <StatCard
-            icon={UtensilsCrossed}
-            label="Average calories"
-            value={w.avgKcal === null ? null : `${kcal(w.avgKcal)} kcal`}
-            emptyHint="Log your meals"
-            previous={hasLastWeek && p.avgKcal !== null ? `${kcal(p.avgKcal)} kcal` : null}
-            delta={
-              <span className="text-xs text-muted-foreground">
-                {data.calorieTarget === null
-                  ? 'No target set'
-                  : w.avgKcal === null
-                    ? `Target ${kcal(data.calorieTarget)}`
-                    : `${kcal(Math.abs(w.avgKcal - data.calorieTarget))} ${w.avgKcal >= data.calorieTarget ? 'over' : 'under'} target`}
-              </span>
-            }
-          />
-          <StatCard
-            icon={Wheat}
-            tone="outdoor"
-            label="Average fibre"
-            value={show(w.avgFiberG, ' g / day')}
-            emptyHint="Shows once your meals have fibre info"
-            previous={before(p.avgFiberG, hasLastWeek, ' g')}
-            delta={<Delta diff={d.avgFiberG} unit=" g" digits={1} />}
-          />
-          <StatCard
-            icon={GlassWater}
-            tone="outdoor"
-            label="Average water"
-            value={w.avgWaterMl === null ? null : `${litres(w.avgWaterMl)} / day`}
-            emptyHint="Tap “+1 glass” on Today"
-            previous={p.daysTracked > 0 && p.avgWaterMl !== null ? litres(p.avgWaterMl) : null}
-            delta={<Delta diff={d.avgWaterMl === null ? null : d.avgWaterMl / 1000} unit=" L" digits={2} />}
-          />
-          <StatCard
-            icon={GlassWater}
-            tone="outdoor"
-            label={`Water goal (${litres(data.waterGoalMl)})`}
-            // Out of the days water was actually logged
-            value={w.waterDays === 0 ? null : `${w.waterGoalDays} of ${w.waterDays} logged ${w.waterDays === 1 ? 'day' : 'days'}`}
-            emptyHint="No water logged yet this week"
-            previous={p.daysTracked > 0 && p.waterDays > 0 ? `${p.waterGoalDays} of ${p.waterDays}` : null}
-            delta={<Delta diff={d.waterGoalDays} unit={Math.abs(d.waterGoalDays ?? 0) === 1 ? ' day' : ' days'} />}
-          />
-          <StatCard
-            icon={CalendarCheck}
-            label="Days logged"
-            value={`${w.daysLogged} of ${w.daysTracked}`}
-            previous={p.daysTracked === 0 ? null : `${p.daysLogged} of ${p.daysTracked}`}
-            delta={<Delta diff={d.daysLogged} unit={Math.abs(d.daysLogged ?? 0) === 1 ? ' day' : ' days'} />}
-          />
-        </div>
-      </section>
 
       <section aria-labelledby="purpose-heading" className="space-y-3">
         <h2 id="purpose-heading" className="text-xl font-semibold">

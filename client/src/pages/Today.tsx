@@ -36,6 +36,7 @@ import { EnergyLabel, MoodBadge } from '@/components/MoodFace'
 import { SupportButton } from '@/components/mind/Support'
 import { WeeklyGoalReminder } from '@/components/day/WeeklyGoalReminder'
 import { WaterCard } from '@/components/day/WaterCard'
+import { MissedTodayControls, MissedYesterdayCard } from '@/components/day/MissedDay'
 
 export function Today() {
   // ?date=YYYY-MM-DD picks a past day; anything missing, invalid or in the future means today
@@ -82,11 +83,11 @@ function DayEditor({ date, today }: { date: string; today: string }) {
   const { hash } = useLocation()
   const loaded = day !== null
 
-  // /today#purpose (e.g. from the Purpose page) scrolls to the purpose card once the day has loaded
+  // /today#purpose, #workouts… (from the Purpose page or the weekly review) scrolls to that card once the day has loaded
   useEffect(() => {
-    if (!loaded || hash !== '#purpose') return
+    if (!loaded || !hash) return
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    document.getElementById('purpose')?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' })
+    document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' })
   }, [loaded, hash])
 
   if (error) return <ErrorNotice>{error}</ErrorNotice>
@@ -99,12 +100,15 @@ function DayEditor({ date, today }: { date: string; today: string }) {
 
   return (
     <div className="space-y-4 md:space-y-6">
+      {isToday && <MissedYesterdayCard today={today} />}
+      {isToday && <MissedTodayControls day={day} onSave={actions.setMissedReason} onClear={actions.clearMissedReason} />}
       <div id="purpose" className="scroll-mt-4 space-y-2">
         <PurposeCard day={dayPurposesOf(entry)} isToday={isToday} actions={actions} />
         {isToday && <WeeklyGoalReminder today={today} purposes={entry?.dailyPurposes ?? []} addIntention={actions.addIntention} />}
       </div>
 
       <Section
+        id="mood"
         title="Quick mood check-in"
         hint={
           mood ? `${mood.count} check-in${mood.count === 1 ? '' : 's'} · average ${mood.avg}/10` : 'How are you feeling right now?'
@@ -138,13 +142,18 @@ function DayEditor({ date, today }: { date: string; today: string }) {
         />
       </Section>
 
-      <WaterCard logs={entry?.waterLogs ?? []} isToday={isToday} actions={actions} />
+      <div id="water" className="scroll-mt-4">
+        <WaterCard logs={entry?.waterLogs ?? []} isToday={isToday} actions={actions} />
+      </div>
 
-      <SleepSection key={`sleep-${entry?.id ?? 'new'}`} entry={entry} onSave={actions.saveDaily} />
+      <div id="sleep" className="scroll-mt-4">
+        <SleepSection key={`sleep-${entry?.id ?? 'new'}`} entry={entry} onSave={actions.saveDaily} />
+      </div>
 
       <BodyCard key={entry?.id ?? 'new'} entry={entry} onSave={actions.saveDaily} />
 
       <ActivitySection
+        id="workouts"
         kind="workouts"
         title="Workouts"
         hint="Add each workout as you finish it."
@@ -206,7 +215,7 @@ function DayEditor({ date, today }: { date: string; today: string }) {
         />
       </Section>
 
-      <Section title="Learnings" hint="Anything new, big or small." icon={BookOpen} tone="learning" collapsedLabel={emptyLabel(entry?.learnings, 'Add a learning')}>
+      <Section id="learnings" title="Learnings" hint="Anything new, big or small." icon={BookOpen} tone="learning" collapsedLabel={emptyLabel(entry?.learnings, 'Add a learning')}>
         <LearningForm onSubmit={(body) => actions.add('learnings', body)} />
         <EntryList
           label="learning"
@@ -278,6 +287,7 @@ function DayEditor({ date, today }: { date: string; today: string }) {
 
 /** Workouts, mental strength or outdoor: chips + add form, then the day's entries. */
 function ActivitySection({
+  id,
   kind,
   title,
   hint,
@@ -291,6 +301,7 @@ function ActivitySection({
   isToday,
   actions,
 }: {
+  id?: string
   kind: Extract<EntryKind, 'workouts' | 'mental' | 'outdoor'>
   title: string
   hint: string
@@ -306,7 +317,7 @@ function ActivitySection({
 }): ReactNode {
   const form = { chips, tone, itemLabel, minutesRequired, isToday }
   return (
-    <Section title={title} hint={hint} icon={icon} tone={tone} collapsedLabel={emptyLabel(items, addLabel)}>
+    <Section id={id} title={title} hint={hint} icon={icon} tone={tone} collapsedLabel={emptyLabel(items, addLabel)}>
       <ActivityForm {...form} onSubmit={(body) => actions.add(kind, body)} />
       <EntryList
         label={itemLabel.toLowerCase()}

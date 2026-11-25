@@ -261,6 +261,8 @@ export function buildWeeklyContext(input: {
   days?: WeekDayScores[];
   /** This week's check-ins: only activity types are read (and only built-in names are sent) */
   activities?: WeekActivities[];
+  /** Why days weren't logged: categories and counts only, never the notes */
+  missedReasons?: Record<string, number>;
 }): AiContext {
   // Water isn't part of the reflection (or the scores): left out of what's sent, by name
   const week = ({ bestDay, ...all }: WeekNumbers & { avgWaterMl?: unknown; waterDays?: unknown; waterGoalDays?: unknown }) => {
@@ -287,6 +289,8 @@ export function buildWeeklyContext(input: {
             avgIntensity: input.purpose.avgIntensity,
           }
         : null,
+      // e.g. { busy: 2 }: the reason categories for unlogged days (the notes are never sent)
+      missedDays: input.missedReasons && Object.keys(input.missedReasons).length > 0 ? input.missedReasons : null,
       dailyScores: (input.days ?? [])
         .filter((d) => d.overall !== null)
         .map((d) => ({ day: relativeDay(d.date, input.today), physical: d.physical, mental: d.mental, learning: d.learning, overall: d.overall })),

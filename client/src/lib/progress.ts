@@ -113,10 +113,49 @@ export type ReviewDay = {
   fiberG: number | null
   /** ml, 0 without water */
   waterMl: number
+  /** The day's average energy (null without a check-in) */
+  energy?: number | null
+  /** Each check-in ("08:15"), for the drill-down */
+  moodCheckins?: { time: string; mood: number; energy: number }[]
+  workoutItems?: { type: string; minutes: number | null }[]
+  learningItems?: { topic: string; minutes: number | null }[]
+  bedtime?: string | null
+  wakeTime?: string | null
+  /** Something was logged by hand (a missed-day reason alone never counts) */
+  logged?: boolean
+  missedReason?: { category: string; note: string } | null
+}
+
+export type MetricKey =
+  | 'overall'
+  | 'physical'
+  | 'mental'
+  | 'learning'
+  | 'mood'
+  | 'energy'
+  | 'sleepHours'
+  | 'sleepScore'
+  | 'kcal'
+  | 'fiberG'
+  | 'waterMl'
+  | 'workouts'
+  | 'workoutMinutes'
+  | 'learnings'
+  | 'learningMinutes'
+  | 'daysLogged'
+
+/** One "Your week" figure: averages skip days without the data; workouts and learning are totals. */
+export type WeekMetric = {
+  value: number | null
+  daysWithData: number
+  daysInWeekSoFar: number
+  perDay: { date: string; value: number | null }[]
 }
 
 export type WeeklyReviewResponse = {
   weekEnding: string
+  metrics: Record<MetricKey, WeekMetric>
+  lastWeekMetrics: Record<MetricKey, WeekMetric>
   calorieTarget: number | null
   waterGoalMl: number
   thisWeek: WeekSummary

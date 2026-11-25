@@ -22,6 +22,7 @@ import { PurposeDayView } from '@/components/purpose/PurposeDayView'
 import type { Tone } from '@/lib/tones'
 import type { ReactNode } from 'react'
 import { litres } from '@/lib/water'
+import { notLoggedText } from '@/lib/missed'
 
 export function DayDetail() {
   const { date } = useParams()
@@ -74,6 +75,10 @@ function DayBody({ day }: { day: DayResponse }) {
 
   return (
     <>
+      {!day.logged && entry?.missedReason && (
+        // Why this day wasn't logged, as noted on the day or the day after
+        <p className="rounded-xl bg-muted/60 px-4 py-3 text-sm text-muted-foreground">{notLoggedText(entry.missedReason)}</p>
+      )}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <Stat
           icon={Smile}

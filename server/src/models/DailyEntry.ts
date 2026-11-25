@@ -30,6 +30,7 @@ export const ENTRY_LIMITS = {
   waterMl: { min: 50, max: 2000 },
   // A day's total (the safety cap; the real limit is 2 × the user's goal)
   waterTotalMl: 6000,
+  missedNote: 300,
 } as const;
 
 const L = ENTRY_LIMITS;
@@ -149,6 +150,19 @@ const dayPurposeSchema = new Schema({
   updatedAt: { type: Date, required: true },
 });
 
+// Why a day wasn't logged (only for today or yesterday). It doesn't make the day "logged".
+export const MISSED_CATEGORIES = ["busy", "unwell", "travelling", "forgot", "needed a break", "other"] as const;
+export type MissedCategory = (typeof MISSED_CATEGORIES)[number];
+const missedReasonSchema = new Schema(
+  {
+    category: { type: String, enum: MISSED_CATEGORIES, required: true },
+    // Encrypted (DIARY_ENCRYPTION_KEY); its length is checked on the plain text in validation/entrySchema.ts
+    note: String,
+    createdAt: { type: Date, required: true },
+  },
+  { _id: false },
+);
+
 const dailyEntrySchema = new Schema(
   {
     // Covered by the { userId, date } index below, since userId is its first key
@@ -191,6 +205,8 @@ const dailyEntrySchema = new Schema(
     dailyPurposes: { type: [dayPurposeSchema], default: undefined },
     // One evening note for the whole day (encrypted)
     dailyReflectionNote: String,
+    // "Not logged · busy": why the day wasn't logged. Never counts as logging the day.
+    missedReason: { type: missedReasonSchema, default: undefined },
   },
   {
     timestamps: true,

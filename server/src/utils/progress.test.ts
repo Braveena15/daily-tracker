@@ -7,6 +7,7 @@ import {
   sleepSeries,
   summariseWeek,
   weekDifferences,
+  weekMetrics,
   weekRanges,
   weeklyChangeFromAverage,
   weightSeries,
@@ -165,6 +166,60 @@ const reviewDay = (date: string, overrides: Partial<ReviewDay> = {}): ReviewDay 
 });
 const unlogged = (date: string): ReviewDay =>
   reviewDay(date, { physical: null, mental: null, learning: null, overall: null, mood: null, moodMin: null, moodMax: null, moodCount: 0, goodThings: 0, learnings: 0, presentMoments: 0, steps: null, activeCalories: null, sleepHours: null, sleepScore: null, workouts: 0, workoutMinutes: 0, learningMinutes: 0, kcal: null, fiberG: null, waterMl: 0 });
+
+/** A day with nothing logged, plus just what a test sets. */
+const blank = (date: string, overrides: Partial<ReviewDay> = {}): ReviewDay => ({ ...unlogged(date), ...overrides });
+
+describe("weekMetrics", () => {
+  it("averages only the days that have the data — a missing day is never 0", () => {
+    const m = weekMetrics([
+      blank("2026-11-19", { overall: 80, physical: 70, sleepHours: 8, kcal: 2000, waterMl: 1500 }),
+      blank("2026-11-20"), // nothing logged
+      blank("2026-11-21", { overall: 60, physical: 50, sleepHours: null, kcal: 1600, waterMl: 0 }),
+    ]);
+    expect(m.overall).toMatchObject({ value: 70, daysWithData: 2, daysInWeekSoFar: 3 });
+    expect(m.physical.value).toBe(60);
+    expect(m.sleepHours).toMatchObject({ value: 8, daysWithData: 1 });
+    expect(m.kcal).toMatchObject({ value: 1800, daysWithData: 2 });
+    // 0 ml means nothing was logged that day
+    expect(m.waterMl).toMatchObject({ value: 1500, daysWithData: 1 });
+    expect(m.overall.perDay).toEqual([
+      { date: "2026-11-19", value: 80 },
+      { date: "2026-11-20", value: null },
+      { date: "2026-11-21", value: 60 },
+    ]);
+  });
+
+  it("averages mood per day first, then across the days", () => {
+    // Day 1: check-ins 4 and 6 → 5. Day 2: one check-in of 9. Weekly: (5 + 9) / 2 = 7 — not (4 + 6 + 9) / 3
+    const m = weekMetrics([
+      blank("2026-11-19", { mood: 5, energy: 4, moodCount: 2 }),
+      blank("2026-11-20", { mood: 9, energy: 8, moodCount: 1 }),
+      blank("2026-11-21"),
+    ]);
+    expect(m.mood).toMatchObject({ value: 7, daysWithData: 2, daysInWeekSoFar: 3 });
+    expect(m.energy).toMatchObject({ value: 6, daysWithData: 2 });
+  });
+
+  it("totals workouts and learning for the week", () => {
+    const m = weekMetrics([
+      blank("2026-11-19", { workouts: 2, workoutMinutes: 50, learnings: 1, learningMinutes: 30 }),
+      blank("2026-11-20", { workouts: 1, workoutMinutes: 20 }),
+    ]);
+    expect(m.workouts).toMatchObject({ value: 3, daysWithData: 2 });
+    expect(m.workoutMinutes.value).toBe(70);
+    expect(m.learningMinutes).toMatchObject({ value: 30, daysWithData: 1 });
+  });
+
+  it("counts logged days only: a day with just a missed-day reason isn't logged", () => {
+    const m = weekMetrics([
+      blank("2026-11-19", { overall: 70, logged: true }),
+      blank("2026-11-20", { logged: false, missedReason: { category: "busy", note: "" } }),
+    ]);
+    expect(m.daysLogged).toMatchObject({ value: 1, daysWithData: 1, daysInWeekSoFar: 2 });
+    expect(weekMetrics([blank("2026-11-20")]).mood.value).toBeNull();
+  });
+});
 
 describe("summariseWeek", () => {
   it("averages only logged days and finds the best day", () => {

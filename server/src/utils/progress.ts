@@ -107,6 +107,10 @@ export type ReviewDay = {
   overall: number | null;
   /** The day's average mood over all check-ins (null without one) */
   mood: number | null;
+  /** The day's average energy over all check-ins (null without one) */
+  energy?: number | null;
+  /** Each check-in, for the drill-down ("08:15 · mood 7 · energy 6") */
+  moodCheckins?: { time: string; mood: number; energy: number }[];
   moodMin: number | null;
   moodMax: number | null;
   moodCount: number;
@@ -127,6 +131,15 @@ export type ReviewDay = {
   fiberG: number | null;
   /** The day's water in ml (0 without any); not part of the scores */
   waterMl: number;
+  /** Drill-down details: each workout and learning, and the night's times */
+  workoutItems?: { type: string; minutes: number | null }[];
+  learningItems?: { topic: string; minutes: number | null }[];
+  bedtime?: string | null;
+  wakeTime?: string | null;
+  /** True when something was logged by hand (a reason alone never counts) */
+  logged?: boolean;
+  /** Why the day wasn't logged, when noted (today or yesterday only) */
+  missedReason?: { category: string; note: string } | null;
 };
 
 export type WeekSummary = {
@@ -183,6 +196,77 @@ export function summariseWeek(days: ReviewDay[], from: string, to: string, water
     mealDays: days.filter((d) => d.kcal !== null).length,
     ...waterWeek(days.map((d) => d.waterMl), waterGoalMl),
     bestDay: best ? { date: best.date, overall: best.overall } : null,
+  };
+}
+
+// ---------- Per-metric figures (for the "Your week" cards and their day-by-day sheets) ----------
+
+export type MetricKey =
+  | "overall"
+  | "physical"
+  | "mental"
+  | "learning"
+  | "mood"
+  | "energy"
+  | "sleepHours"
+  | "sleepScore"
+  | "kcal"
+  | "fiberG"
+  | "waterMl"
+  | "workouts"
+  | "workoutMinutes"
+  | "learnings"
+  | "learningMinutes"
+  | "daysLogged";
+
+export type WeekMetric = {
+  /** An average over the days with data, or a weekly total; null when no day had any */
+  value: number | null;
+  /** Days that had this data (a missing day is never counted as 0) */
+  daysWithData: number;
+  /** Days of this week so far (from the journey start) */
+  daysInWeekSoFar: number;
+  /** Each day's value, oldest first (null on days without it) */
+  perDay: { date: string; value: number | null }[];
+};
+
+const round0 = (n: number) => Math.round(n);
+
+/**
+ * Every "Your week" figure, fairly: averages only use days that have that data (a day without a
+ * mood check-in isn't a mood of 0), mood and energy are averaged per day first and then across the
+ * days, and workouts and learning are weekly totals.
+ */
+export function weekMetrics(days: ReviewDay[]): Record<MetricKey, WeekMetric> {
+  const metric = (pick: (d: ReviewDay) => number | null, kind: "average" | "total", round: (n: number) => number = round0): WeekMetric => {
+    const perDay = days.map((d) => ({ date: d.date, value: pick(d) }));
+    const present = perDay.map((p) => p.value).filter((v): v is number => v !== null);
+    const sum = present.reduce((s, v) => s + v, 0);
+    return {
+      value: present.length === 0 ? null : round(kind === "average" ? sum / present.length : sum),
+      daysWithData: present.length,
+      daysInWeekSoFar: days.length,
+      perDay,
+    };
+  };
+  const positive = (n: number) => (n > 0 ? n : null);
+  return {
+    overall: metric((d) => d.overall, "average"),
+    physical: metric((d) => d.physical, "average"),
+    mental: metric((d) => d.mental, "average"),
+    learning: metric((d) => d.learning, "average"),
+    mood: metric((d) => d.mood, "average", round1),
+    energy: metric((d) => d.energy ?? null, "average", round1),
+    sleepHours: metric((d) => d.sleepHours, "average", round1),
+    sleepScore: metric((d) => d.sleepScore, "average"),
+    kcal: metric((d) => d.kcal, "average"),
+    fiberG: metric((d) => d.fiberG, "average", round1),
+    waterMl: metric((d) => positive(d.waterMl), "average"),
+    workouts: metric((d) => positive(d.workouts), "total"),
+    workoutMinutes: metric((d) => positive(d.workoutMinutes), "total"),
+    learnings: metric((d) => positive(d.learnings), "total"),
+    learningMinutes: metric((d) => positive(d.learningMinutes), "total"),
+    daysLogged: metric((d) => ((d.logged ?? d.overall !== null) ? 1 : null), "total"),
   };
 }
 

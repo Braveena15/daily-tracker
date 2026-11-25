@@ -94,8 +94,10 @@ function allMinimalPayloads() {
       insights: [{ key: "activity:secret_custom activity", daysWith: 6, daysWithout: 8, moodWith: 7.5, moodWithout: 6 }],
       today: TODAY,
       // Daily scores and this week's check-ins (with a custom workout name typed by the person)
-      days: [{ date: TODAY, physical: 70, mental: 60, learning: 50, overall: 60 }],
+      days: [{ date: TODAY, physical: 70, mental: 60, learning: 50, overall: 60, missedReason: { category: "busy", note: "SECRET_MISSED_NOTE" } } as never],
       activities: [entry],
+      // Categories and counts only
+      missedReasons: { busy: 1 },
     }),
     buildBoostContext({
       recentScores: [{ date: TODAY, physical: 70, mental: 60, learning: 50, overall: 60 }],

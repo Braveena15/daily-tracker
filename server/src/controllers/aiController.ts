@@ -20,6 +20,7 @@ import { aiConfigured, aiDeps, aiMode } from "../config/ai";
 import { env } from "../config/env";
 import { fieldCrypto } from "../config/encryption";
 import { openDayPurposes, purposeText } from "../utils/dailyPurpose";
+import { missedCategoryCounts } from "../utils/missedReason";
 import { CHECKED_IN, DailyEntryModel } from "../models/DailyEntry";
 import { PurposeModel, ThoughtLogModel } from "../models/Mind";
 import { UserModel } from "../models/User";
@@ -179,7 +180,13 @@ export async function weeklyReflection(req: Request, res: Response): Promise<voi
     date: weekEnding,
     userEnabled,
     lowMood,
-    safetyText: [...review.entriesThisWeek.flatMap(entryText), ...review.purpose.days.flatMap(purposeText), ...thoughtWords],
+    // Notes on missed days are only checked for crisis language here; they're never sent to the AI
+    safetyText: [
+      ...review.entriesThisWeek.flatMap(entryText),
+      ...review.purpose.days.flatMap(purposeText),
+      ...thoughtWords,
+      ...review.days.flatMap((d) => (d.missedReason?.note ? [d.missedReason.note] : [])),
+    ],
     buildContext: () =>
       buildWeeklyContext({
         purpose: review.purpose.stats,
@@ -190,6 +197,7 @@ export async function weeklyReflection(req: Request, res: Response): Promise<voi
         today: today(),
         days: review.days,
         activities: review.entriesThisWeek,
+        missedReasons: missedCategoryCounts(review.days.map((d) => d.missedReason ?? null).map((r) => r && { ...r, createdAt: null })),
       }),
     // JSON { reflection, focus }; the focus can become next week's goal
     structured: { fromReply: parseWeeklyReply, fromFallback: (text) => weeklyFallbackContent(text) },

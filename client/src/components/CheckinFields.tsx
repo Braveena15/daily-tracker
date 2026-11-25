@@ -16,6 +16,7 @@ export function Section({
   tone = 'primary',
   aside,
   collapsedLabel,
+  id,
   children,
 }: {
   title: string
@@ -29,6 +30,8 @@ export function Section({
    * opens on a tap. Leave it out (or pass undefined once there are entries) to always show it.
    */
   collapsedLabel?: string
+  /** For links like /today#workouts */
+  id?: string
   children: ReactNode
 }) {
   const headingId = useId()
@@ -43,7 +46,7 @@ export function Section({
 
   if (collapsedLabel && !opened) {
     return (
-      <Card role="group" aria-labelledby={headingId} size="sm" className="relative">
+      <Card id={id} role="group" aria-labelledby={headingId} size="sm" className="relative scroll-mt-4">
         <div className="flex items-center gap-3 px-(--card-spacing)">
           <IconBubble icon={icon} tone={tone} />
           <div className="min-w-0 flex-1">
@@ -68,7 +71,7 @@ export function Section({
   }
 
   return (
-    <Card role="group" aria-labelledby={headingId} className="gap-5">
+    <Card id={id} role="group" aria-labelledby={headingId} className="scroll-mt-4 gap-5">
       <div className="flex flex-wrap items-center gap-3 px-(--card-spacing)">
         <IconBubble icon={icon} tone={tone} />
         <div className="min-w-0">

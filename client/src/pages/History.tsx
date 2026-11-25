@@ -20,6 +20,7 @@ import { toneSoft } from '@/lib/tones'
 import { cn } from '@/lib/utils'
 import { CardChevron } from '@/components/CardChevron'
 import { litres, waterTotalOf } from '@/lib/water'
+import { notLoggedText } from '@/lib/missed'
 
 const PAGE_DAYS = 30
 // The entries route returns at most this many days at once
@@ -34,6 +35,8 @@ export function History() {
   const [shown, setShown] = useState(PAGE_DAYS)
   const [start, setStart] = useState<string | null>(null)
   const [entries, setEntries] = useState<Map<string, DailyEntry> | null>(null)
+  // Unlogged days that have a reason ("Not logged · Busy")
+  const [missed, setMissed] = useState<Map<string, { category: string; note: string }>>(new Map())
   const [error, setError] = useState<string | null>(null)
 
   // History begins on the journey start: no empty days before it
@@ -51,7 +54,10 @@ export function History() {
     if (!from) return
     api
       .get<EntriesListResponse>(`/entries?from=${from}&to=${today}`)
-      .then((data) => setEntries(new Map(data.entries.map((e) => [e.date, e]))))
+      .then((data) => {
+        setEntries(new Map(data.entries.map((e) => [e.date, e])))
+        setMissed(new Map((data.missed ?? []).map((m) => [m.date, m])))
+      })
       .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Could not load your history'))
   }, [from, today])
 
@@ -104,7 +110,7 @@ export function History() {
                   {entry ? (
                     <DayCard date={date} today={today} entry={entry} isStart={date === start} />
                   ) : (
-                    <EmptyDay date={date} today={today} isStart={date === start} />
+                    <EmptyDay date={date} today={today} isStart={date === start} reason={missed.get(date) ?? null} />
                   )}
                 </li>
               )
@@ -243,7 +249,7 @@ function DayCard({ date, today, entry, isStart }: { date: string; today: string;
   )
 }
 
-function EmptyDay({ date, today, isStart }: { date: string; today: string; isStart: boolean }) {
+function EmptyDay({ date, today, isStart, reason }: { date: string; today: string; isStart: boolean; reason: { category: string; note: string } | null }) {
   return (
     <Link
       to={`/today?date=${date}`}
@@ -256,9 +262,13 @@ function EmptyDay({ date, today, isStart }: { date: string; today: string; isSta
         <DayHeading date={date} today={today} />
         {isStart && <StartMarker />}
       </div>
-      <p className="flex items-center gap-1.5 text-sm">
-        <Plus className="size-4" aria-hidden /> Nothing logged · tap to add
-      </p>
+      {reason ? (
+        <p className="text-sm break-words">{notLoggedText(reason)}</p>
+      ) : (
+        <p className="flex items-center gap-1.5 text-sm">
+          <Plus className="size-4" aria-hidden /> Nothing logged · tap to add
+        </p>
+      )}
     </Link>
   )
 }

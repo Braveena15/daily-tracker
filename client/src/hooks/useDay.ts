@@ -37,6 +37,9 @@ export function useDay(date: string) {
       apply(api.patch<DayResponse>(`/entries/${date}/${kind}/${id}`, body)),
     remove: (kind: EntryKind, id: string) => apply(api.delete<DayResponse>(`/entries/${date}/${kind}/${id}`)),
     saveDaily: (body: DailyInput) => apply(api.put<DayResponse>(`/entries/${date}/daily`, body)),
+    // Why the day wasn't logged (today or yesterday only)
+    setMissedReason: (body: { category: string; note?: string | null }) => apply(api.put<DayResponse>(`/entries/${date}/missed-reason`, body)),
+    clearMissedReason: () => apply(api.delete<DayResponse>(`/entries/${date}/missed-reason`)),
     // Sets the day's water to exactly this total (replaces the day's drinks)
     setWaterTotal: (totalMl: number) => apply(api.put<DayResponse>(`/entries/${date}/water/total`, { totalMl })),
     // What matters today (up to 5), each with its intensity and optional intentions, and the day's evening note

@@ -6,6 +6,7 @@ import type { LucideIcon } from 'lucide-react'
 import { BookOpen, Brain, Dumbbell, Feather, GlassWater, Moon, Smile, Sparkles, Sun } from 'lucide-react'
 import type { Tone } from '@/lib/tones'
 import type { DayPurpose } from '@/lib/purpose'
+import type { MissedReason } from '@/lib/missed'
 
 export type WorkoutSource = 'manual' | 'watch'
 /** 'auto': calculated from the watch's sleep; 'manual': entered on the Today page */
@@ -72,6 +73,8 @@ export type DailyEntry = {
   dailyPurposes?: DayPurpose[]
   /** The day's evening note ("" when none) */
   dailyReflectionNote?: string
+  /** Why the day wasn't logged (today or yesterday only); never counts as logging it */
+  missedReason?: MissedReason | null
   createdAt: string
   updatedAt: string
 }
@@ -139,7 +142,14 @@ export type DailyInput = {
   sleepHours?: number | null
   sleepScoreValue?: number | null
 }
-export type EntriesListResponse = { from: string; to: string; journeyStartDate: string; entries: DailyEntry[] }
+export type EntriesListResponse = {
+  from: string
+  to: string
+  journeyStartDate: string
+  entries: DailyEntry[]
+  /** Unlogged days that have a reason */
+  missed?: (MissedReason & { date: string })[]
+}
 /** Counting only days since the journey started */
 export type StreakResponse = { today: string; journeyStartDate: string; current: number; longest: number }
 

@@ -9,6 +9,8 @@ import {
   listEntries,
   saveDaily,
   setWaterTotal,
+  setMissedReason,
+  clearMissedReason,
   updateEntry,
 } from "../controllers/entriesController";
 import {
@@ -37,6 +39,9 @@ entriesRouter.delete("/:date", deleteByDate);
 entriesRouter.put("/:date/daily", saveDaily);
 // The day's water total, typed in (replaces the day's drinks with one entry)
 entriesRouter.put("/:date/water/total", setWaterTotal);
+// Why a day wasn't logged (today or yesterday only); it never counts as logging the day
+entriesRouter.put("/:date/missed-reason", setMissedReason);
+entriesRouter.delete("/:date/missed-reason", clearMissedReason);
 // What matters today (up to 5), each with its intensity and optional intentions, and the day's evening note.
 // Before "/:date/:kind…" so "purposes" isn't treated as a kind of entry.
 entriesRouter.post("/:date/purposes", addPurpose);

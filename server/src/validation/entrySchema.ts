@@ -4,7 +4,7 @@
 // - POST /:date/:kind          entrySchemas[kind]: one new timestamped entry
 // - PATCH /:date/:kind/:id     entryPatchSchemas[kind]: change some fields of one entry
 import { z } from "zod";
-import { ENTRY_LIMITS as L } from "../models/DailyEntry";
+import { ENTRY_LIMITS as L, MISSED_CATEGORIES } from "../models/DailyEntry";
 import type { EntryKind } from "../utils/timeline";
 import { parseWaterAmount } from "../utils/water";
 
@@ -142,4 +142,10 @@ export const waterTotalSchema = z.strictObject({
       return ml;
     })
     .pipe(z.number().int().min(0, "Water can't be negative").max(L.waterTotalMl, `Water can be at most ${L.waterTotalMl} ml a day`)),
+});
+
+/** PUT /:date/missed-reason — why a day (today or yesterday) wasn't logged. */
+export const missedReasonSchema = z.strictObject({
+  category: z.enum(MISSED_CATEGORIES, { error: `Choose one of: ${MISSED_CATEGORIES.join(", ")}` }),
+  note: text("Note", L.missedNote).nullable().optional(),
 });
