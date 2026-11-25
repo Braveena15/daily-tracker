@@ -69,7 +69,6 @@ describe("buildTimeline", () => {
       goodThings: [{ _id: "g1", loggedAt: atTime("2026-11-20", "09:00"), text: "Sunrise ride" }],
       learnings: [{ _id: "l1", loggedAt: atTime("2026-11-20", "21:00"), topic: "Recharts", minutes: 20 }],
       presentMoments: [{ _id: "p1", loggedAt: atTime("2026-11-20", "22:00"), text: "Calm" }],
-      healthSnapshots: [{ time: atTime("2026-11-20", "12:00"), steps: 5230, activeCalories: 320 }],
       sleep: { wakeTime: "06:30", totalSleepMin: 434 },
     });
 
@@ -77,9 +76,9 @@ describe("buildTimeline", () => {
       ["sleep", "Woke up · slept 7 h 14 min"],
       ["workouts", "Cycling · 30 min"],
       ["goodThings", "Sunrise ride"],
-      ["sync", "Synced from Apple Watch · 5,230 steps · 320 active kcal"],
       ["moods", "Mood 6/10 · Energy 5/10 · After lunch"],
-      ["workouts", "Running · 20 min · from Apple Watch"],
+      // An older day's watch workout reads like any other (no sync labels)
+      ["workouts", "Running · 20 min"],
       ["learnings", "Recharts · 20 min"],
       ["presentMoments", "Calm"],
     ]);

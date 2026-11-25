@@ -24,10 +24,16 @@ describe("dailySchema (PUT /:date/daily)", () => {
   });
 
   it("rejects an empty body and unknown fields", () => {
-    expect(errorOf(dailySchema, {})).toBe("Send weightKg, steps or activeCalories");
+    expect(errorOf(dailySchema, {})).toBe("Send weightKg, steps, activeCalories, sleepHours or sleepScoreValue");
     expect(errorOf(dailySchema, { steps: 10, userId: "x" })).toBeDefined();
-    // The sleep score is automatic now; it can't be typed in
-    expect(errorOf(dailySchema, { sleepScoreValue: 80 })).toBeDefined();
+  });
+
+  it("takes manual sleep hours and an optional 0–100 sleep score", () => {
+    expect(dailySchema.parse({ sleepHours: 7.5, sleepScoreValue: 82 })).toEqual({ sleepHours: 7.5, sleepScoreValue: 82 });
+    expect(dailySchema.parse({ sleepHours: null, sleepScoreValue: null })).toEqual({ sleepHours: null, sleepScoreValue: null });
+    expect(errorOf(dailySchema, { sleepHours: 25 })).toBe("Hours slept must be between 0 and 24 hours");
+    expect(errorOf(dailySchema, { sleepScoreValue: 101 })).toBe("Sleep score must be between 0 and 100");
+    expect(errorOf(dailySchema, { sleepScoreValue: 80.5 })).toBe("Sleep score must be a whole number");
   });
 });
 

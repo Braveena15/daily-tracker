@@ -9,6 +9,8 @@ import mongoose from "mongoose";
 import { MongoMemoryServer } from "mongodb-memory-server-core";
 
 export type Harness = {
+  /** The server's address, e.g. "http://127.0.0.1:53123", for requests that need their own headers */
+  base: string;
   request: (method: string, path: string, body?: unknown) => Promise<{ status: number; body: any; cookie: string | null }>;
   /** The login cookie from the last response that set one */
   cookie: string | null;
@@ -43,6 +45,7 @@ export async function startHarness(env: Record<string, string>): Promise<Harness
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 
   const harness: Harness = {
+    base,
     cookie: null,
     setCookie: (cookie) => {
       harness.cookie = cookie;

@@ -93,12 +93,12 @@ export type DemoEntry = {
   goodThings: (Stamped & { text: string })[];
   learnings: (Stamped & { topic: string; details?: string; minutes?: number })[];
   presentMoments: (Stamped & { text: string })[];
-  healthSnapshots: { time: Date; steps?: number; activeCalories?: number }[];
   waterLogs: (Stamped & { amountMl: number })[];
   /** Last night's sleep as Apple Health sync would store it, with the calculated score */
   sleep?: NightSummary & { score: number; breakdown: ScoreLine[]; source: "watch" };
   sleepScoreValue?: number;
   sleepScoreSource?: "auto";
+  sleepHoursSource?: "watch";
   /** Plain text here; the seed encrypts it the way the API does */
   dailyPurposes?: DemoDailyPurpose[];
   dailyReflectionNote?: string;
@@ -118,19 +118,6 @@ export type DemoMealItem = { mealType: MealType; foodName: FoodName; servings: n
 export type DemoMealDay = { date: string; items: DemoMealItem[] };
 
 const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n));
-
-/** Hourly totals from 07:00 to 21:00 that grow to the day's final steps and calories. */
-function snapshots(date: string, steps: number | undefined, activeCalories: number | undefined): DemoEntry["healthSnapshots"] {
-  if (steps === undefined && activeCalories === undefined) return [];
-  return Array.from({ length: 15 }, (_, i) => {
-    const share = Math.sqrt((i + 1) / 15); // more movement earlier in the day
-    return {
-      time: atTime(date, `${String(7 + i).padStart(2, "0")}:00`),
-      ...(steps !== undefined && { steps: Math.round(steps * share) }),
-      ...(activeCalories !== undefined && { activeCalories: Math.round(activeCalories * share) }),
-    };
-  });
-}
 
 /**
  * `days` days ending on `today`: some days skipped, a gentle weight-loss trend (~0.5 kg/week)
@@ -204,7 +191,6 @@ export function generateDemoData(today: string, days = 60, seed = 2026): { entri
         goodThings: rnd.some(GOOD_THINGS, rnd.int(0, 3)).map((text) => ({ text, loggedAt: at(rnd.int(10, 21)) })),
         learnings: learnings.map((l) => ({ ...l, loggedAt: at(rnd.int(9, 22)) })),
         presentMoments: rnd.chance(0.6) ? [{ text: rnd.pick(REFLECTIONS), loggedAt: at(21) }] : [],
-        healthSnapshots: snapshots(date, steps, activeCalories),
         waterLogs: [],
       });
     }
@@ -300,6 +286,7 @@ function addDailyExtras(entries: DemoEntry[], today: string, seed: number): void
     const { score, breakdown } = sleepScore(night, bedtimes.slice(-14));
     bedtimes.push(night.bedtime);
     e.sleepHours = sleepHoursFrom(totalSleepMin);
+    e.sleepHoursSource = "watch";
     e.sleep = { ...night, score, breakdown, source: "watch" };
     e.sleepScoreValue = score;
     e.sleepScoreSource = "auto";

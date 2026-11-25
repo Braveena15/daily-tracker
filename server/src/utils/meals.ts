@@ -74,7 +74,8 @@ export function totalsByMeal(items: MealItemLike[]): Record<MealType, Totals> {
   ) as Record<MealType, Totals>;
 }
 
-export type BurnSource = "watch" | "estimate";
+/** "entry": from the active calories you entered for the day; "estimate": from your TDEE */
+export type BurnSource = "entry" | "estimate";
 
 const MINUTES_PER_DAY = 24 * 60;
 
@@ -106,9 +107,9 @@ export type Burn = {
   /** Burned so far (the whole day for a past day) */
   burn: number;
   source: BurnSource;
-  /** The resting part of `burn` (with the watch); the TDEE share without it */
+  /** The resting part of `burn` (BMR, with entered active calories); the TDEE share without them */
   resting: number;
-  /** Active calories from the watch (null without watch data) */
+  /** The active calories you entered for the day (null without them) */
   active: number | null;
   /** The expected burn for the whole day */
   projected: number;
@@ -118,11 +119,10 @@ export type Burn = {
 
 /**
  * Calories burned in a day, using only that day's own data.
- * - With the watch's active calories: resting + active. For a past day, resting is the watch's
- *   resting calories (or BMR when it didn't send them). For today it's BMR × the share of the
- *   day gone by (06:00 → 25% of BMR), because the body has only been "at rest" since midnight;
- *   the expected full-day burn is BMR + the active calories so far.
- * - Without watch data: TDEE (BMR × an activity multiplier), or for today the same share of it.
+ * - With active calories you entered for the day: resting + active. For a past day, resting is BMR.
+ *   For today it's BMR × the share of the day gone by (06:00 → 25% of BMR), because the body has
+ *   only been "at rest" since midnight; the expected full-day burn is BMR + the active calories.
+ * - Without them: TDEE (BMR × an activity multiplier), estimated, or for today the same share of it.
  * Never both: TDEE already includes an estimate of activity, so adding active calories
  * to it would count your movement twice.
  * Leave out `date` for a whole day.
@@ -131,19 +131,18 @@ export function estimatedBurn(input: {
   bmr: number;
   tdee: number;
   activeCalories?: number | null;
-  restingCalories?: number | null;
   /** The day the burn is for ("YYYY-MM-DD", Asia/Colombo) */
   date?: string;
   now?: Date;
 }): Burn {
-  const { bmr, tdee, activeCalories, restingCalories } = input;
+  const { bmr, tdee, activeCalories } = input;
   const fraction = input.date === undefined ? 1 : dayFraction(input.date, input.now ?? new Date());
   const soFar = fraction < 1;
 
   if (activeCalories !== undefined && activeCalories !== null) {
-    const resting = Math.round(soFar ? bmr * fraction : (restingCalories ?? bmr));
-    const projected = Math.round(soFar ? bmr + activeCalories : resting + activeCalories);
-    return { burn: resting + Math.round(activeCalories), source: "watch", resting, active: Math.round(activeCalories), projected, soFar };
+    const resting = Math.round(soFar ? bmr * fraction : bmr);
+    const projected = Math.round(bmr + activeCalories);
+    return { burn: resting + Math.round(activeCalories), source: "entry", resting, active: Math.round(activeCalories), projected, soFar };
   }
   const resting = Math.round(tdee * fraction);
   return { burn: resting, source: "estimate", resting, active: null, projected: Math.round(tdee), soFar };

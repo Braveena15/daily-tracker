@@ -53,15 +53,14 @@ async function findItems(userId: string | undefined, date: string): Promise<Stor
 async function buildDaySummary(userId: string | undefined, date: string, items: StoredItem[]) {
   const [user, entry] = await Promise.all([
     UserModel.findById(userId).lean(),
-    DailyEntryModel.findOne({ userId, date }).select("activeCalories restingCalories").lean(),
+    DailyEntryModel.findOne({ userId, date }).select("activeCalories").lean(),
   ]);
   const profile = user ? buildSummary(user) : null;
   const totals = dayTotals(items);
   const activeCalories = entry?.activeCalories ?? null;
 
-  const restingCalories = entry?.restingCalories ?? null;
-  // Only this date's own watch data is used; a day without a sync has none (never another day's)
-  const burn = profile ? estimatedBurn({ bmr: profile.bmr, tdee: profile.tdee, activeCalories, restingCalories, date }) : null;
+  // The active calories you entered for this date (never another day's); without them, the TDEE estimate
+  const burn = profile ? estimatedBurn({ bmr: profile.bmr, tdee: profile.tdee, activeCalories, date }) : null;
   const balance =
     profile && burn
       ? calorieBalance({ eaten: totals.kcal, target: profile.calorieTarget, burn: burn.burn, projectedBurn: burn.projected })

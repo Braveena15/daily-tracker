@@ -41,11 +41,14 @@ export const dailySchema = z
       .int("Active calories must be a whole number")
       .nullable()
       .optional(),
+    // Entered on the Sleep card when the watch has no sleep for the day, or to correct it
+    sleepHours: numberIn("Hours slept", L.sleepHours.min, L.sleepHours.max, " hours").nullable().optional(),
+    sleepScoreValue: numberIn("Sleep score", L.score.min, L.score.max).int("Sleep score must be a whole number").nullable().optional(),
   })
-  .refine((v) => Object.keys(v).length > 0, "Send weightKg, steps or activeCalories");
+  .refine((v) => Object.keys(v).length > 0, "Send weightKg, steps, activeCalories, sleepHours or sleepScoreValue");
 
 export type DailyInput = z.infer<typeof dailySchema>;
-export const DAILY_FIELDS = ["weightKg", "steps", "activeCalories"] as const;
+export const DAILY_FIELDS = ["weightKg", "steps", "activeCalories", "sleepHours", "sleepScoreValue"] as const;
 
 // ---------- Timestamped entries ----------
 

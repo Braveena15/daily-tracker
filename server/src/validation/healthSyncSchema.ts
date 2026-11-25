@@ -6,7 +6,6 @@ import { ENTRY_LIMITS as L } from "../models/DailyEntry";
 import { addDays, isValidDateString, todayInTimezone } from "../utils/dates";
 
 export const MAX_SYNC_AGE_DAYS = 14;
-export const MAX_SYNC_WORKOUTS = 20;
 export const MAX_SLEEP_SAMPLES_LENGTH = 200_000;
 
 /**
@@ -45,35 +44,10 @@ function numberIn(label: string, min: number, max: number, decimals: number, uni
     .pipe(z.number().min(min, range).max(max, range));
 }
 
-/** A required number (text is coerced, then rounded to `decimals`). */
-function num(label: string, min: number, max: number, decimals: number, unit = "") {
-  return z.preprocess(looseNumber, numberIn(label, min, max, decimals, unit));
-}
-
-/** Like num(), but missing, null or "" means "not sent". */
+/** A number (text is coerced, then rounded to `decimals`), where missing, null or "" means "not sent". */
 function optNum(label: string, min: number, max: number, decimals: number, unit = "") {
   return z.preprocess(looseNumber, numberIn(label, min, max, decimals, unit).optional());
 }
-
-const workoutSchema = z.object({
-  type: z
-    .string({ error: "Each workout needs a type, e.g. \"Running\"" })
-    .trim()
-    .min(1, "Each workout needs a type, e.g. \"Running\"")
-    .max(L.activityName, `Workout type must be ${L.activityName} characters or less`),
-  // At least 1 minute after rounding: the app doesn't store 0-minute workouts
-  durationMin: num("Workout durationMin", 1, L.minutes.max, 0, " minutes"),
-  calories: optNum("Workout calories", L.workoutCalories.min, L.workoutCalories.max, 0, " kcal"),
-  // Optional: when the workout started (ISO date-time), so it lands at the right place on the timeline
-  startTime: z.preprocess(
-    (v) => (v === null || v === "" ? undefined : v),
-    z
-      .string({ error: "Workout startTime must be an ISO date-time" })
-      .refine((v) => !Number.isNaN(Date.parse(v)), "Workout startTime must be an ISO date-time, e.g. 2026-11-20T07:30:00+05:30")
-      .transform((v) => new Date(v))
-      .optional(),
-  ),
-});
 
 /**
  * The calendar day of a Shortcut's date. A date-time with a UTC offset or "Z" is converted to the
@@ -86,21 +60,14 @@ export function syncDay(value: string): string {
   return value.slice(0, 10);
 }
 
+// Only sleep is taken from the watch. Steps, calories, exercise, workouts and weight are entered by hand
+// on the Today page, so a Shortcut that still sends them gets them back in "ignoredFields" (no error).
 export const healthSyncSchema = z.object({
   // "YYYY-MM-DD". An ISO date-time ("2026-11-20T21:00:00+05:30") is accepted too; only the date part is used.
   date: z.preprocess(
     (v) => (typeof v === "string" ? (v.trim() === "" ? undefined : syncDay(v.trim())) : v),
     z.string({ error: 'date must be text in "YYYY-MM-DD" format' }).optional(),
   ),
-  activeCalories: optNum("activeCalories", L.activeCalories.min, L.activeCalories.max, 0, " kcal"),
-  restingCalories: optNum("restingCalories", L.restingCalories.min, L.restingCalories.max, 0, " kcal"),
-  steps: optNum("steps", L.steps.min, L.steps.max, 0),
-  // Steps counted by the watch and by the phone separately. When either is sent, the larger one is
-  // stored as steps and the plain "steps" field is ignored (see planHealthMerge).
-  stepsWatch: optNum("stepsWatch", L.steps.min, L.steps.max, 0),
-  stepsPhone: optNum("stepsPhone", L.steps.min, L.steps.max, 0),
-  exerciseMinutes: optNum("exerciseMinutes", L.minutes.min, L.minutes.max, 0, " minutes"),
-  weightKg: optNum("weightKg", L.weightKg.min, L.weightKg.max, 1, " kg"),
   sleepHours: optNum("sleepHours", L.sleepHours.min, L.sleepHours.max, 2, " hours"),
   // One sample per line: "startISO;endISO;stage" (see utils/sleep.ts). A list of lines is accepted too.
   sleepSamples: z.preprocess(
@@ -113,11 +80,19 @@ export const healthSyncSchema = z.object({
       .max(MAX_SLEEP_SAMPLES_LENGTH, "sleepSamples is too long: send one night at a time")
       .optional(),
   ),
-  workouts: z
-    .array(workoutSchema, { error: "workouts must be a list" })
-    .max(MAX_SYNC_WORKOUTS, `You can sync up to ${MAX_SYNC_WORKOUTS} workouts a day`)
-    .optional(),
 });
+
+/** Fields older Shortcuts send that are now entered by hand instead: accepted, never stored. */
+export const IGNORED_SYNC_FIELDS = [
+  "steps",
+  "stepsWatch",
+  "stepsPhone",
+  "activeCalories",
+  "restingCalories",
+  "exerciseMinutes",
+  "workouts",
+  "weightKg",
+] as const;
 
 export type HealthSyncInput = z.infer<typeof healthSyncSchema>;
 

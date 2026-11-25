@@ -446,8 +446,8 @@ export function Profile() {
           <CardContent className="flex items-start gap-3 text-sm text-muted-foreground">
             <Watch className="mt-0.5 size-5 shrink-0" aria-hidden />
             <p>
-              Apple Watch sync and deleting data are turned off in this demo. In your own copy of Daily Tracker, steps, workouts
-              and sleep arrive here automatically from an iOS Shortcut.
+              Apple Watch sync and deleting data are turned off in this demo. In your own copy of Daily Tracker, your sleep
+              arrives automatically from an iOS Shortcut.
             </p>
           </CardContent>
         </Card>

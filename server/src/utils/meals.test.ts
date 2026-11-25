@@ -126,7 +126,7 @@ describe("estimatedBurn so far", () => {
   it("counts 25% of BMR at 06:00, plus today's active calories", () => {
     expect(estimatedBurn({ ...base, activeCalories: 28, date: "2026-11-21", now: at("2026-11-21", "06:00") })).toEqual({
       burn: 323 + 28, // 1290 × 0.25 = 322.5 → 323
-      source: "watch",
+      source: "entry",
       resting: 323,
       active: 28,
       projected: 1290 + 28,
@@ -140,7 +140,7 @@ describe("estimatedBurn so far", () => {
     expect(burn.projected).toBe(1318);
   });
 
-  it("uses the same share of TDEE without watch data", () => {
+  it("uses the same share of TDEE without entered active calories", () => {
     expect(estimatedBurn({ ...base, date: "2026-11-21", now: at("2026-11-21", "12:00") })).toEqual({
       burn: 1000,
       source: "estimate",
@@ -151,13 +151,9 @@ describe("estimatedBurn so far", () => {
     });
   });
 
-  it("uses full-day values for a past day, with the watch's resting calories", () => {
+  it("uses full-day values for a past day: BMR + the active calories you entered", () => {
     const now = at("2026-11-21", "06:00");
-    expect(estimatedBurn({ ...base, activeCalories: 160, date: "2026-11-20", now })).toMatchObject({ burn: 1450, resting: 1290, soFar: false });
-    expect(estimatedBurn({ ...base, activeCalories: 160, restingCalories: 1650, date: "2026-11-20", now })).toMatchObject({
-      burn: 1810,
-      projected: 1810,
-    });
+    expect(estimatedBurn({ ...base, activeCalories: 160, date: "2026-11-20", now })).toMatchObject({ burn: 1450, resting: 1290, projected: 1450, soFar: false });
     expect(estimatedBurn({ ...base, date: "2026-11-20", now })).toMatchObject({ burn: 2000, source: "estimate", soFar: false });
   });
 
@@ -171,29 +167,18 @@ describe("estimatedBurn so far", () => {
 });
 
 describe("estimatedBurn", () => {
-  it("uses BMR + the watch's active calories when given", () => {
+  it("uses BMR + the active calories you entered", () => {
     expect(estimatedBurn({ bmr: 1700, tdee: 2635, activeCalories: 450 })).toMatchObject({
       burn: 2150,
-      source: "watch",
+      source: "entry",
     });
   });
 
-  it("uses the watch's resting calories instead of BMR when both are synced", () => {
-    expect(estimatedBurn({ bmr: 1700, tdee: 2635, activeCalories: 450, restingCalories: 1550 })).toMatchObject({
-      burn: 2000,
-      source: "watch",
-    });
+  it("treats 0 active calories as a real entry", () => {
+    expect(estimatedBurn({ bmr: 1700, tdee: 2635, activeCalories: 0 })).toMatchObject({ burn: 1700, source: "entry" });
   });
 
-  it("ignores resting calories without active calories (TDEE already covers the day)", () => {
-    expect(estimatedBurn({ bmr: 1700, tdee: 2635, restingCalories: 1550 })).toMatchObject({ burn: 2635, source: "estimate" });
-  });
-
-  it("treats 0 active calories as a real watch reading", () => {
-    expect(estimatedBurn({ bmr: 1700, tdee: 2635, activeCalories: 0 })).toMatchObject({ burn: 1700, source: "watch" });
-  });
-
-  it("falls back to TDEE without a watch reading", () => {
+  it("falls back to the TDEE estimate without an entry", () => {
     expect(estimatedBurn({ bmr: 1700, tdee: 2635 })).toMatchObject({ burn: 2635, source: "estimate" });
     expect(estimatedBurn({ bmr: 1700, tdee: 2635, activeCalories: null })).toMatchObject({
       burn: 2635,

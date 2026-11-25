@@ -132,7 +132,7 @@ export function AppleWatchSync() {
           <div>
             <CardTitle className="text-lg font-semibold">Apple Watch sync</CardTitle>
             <CardDescription>
-              An iOS Shortcut sends your steps, calories, workouts, weight and sleep from Apple Health.
+              An iOS Shortcut sends your sleep from Apple Health. Steps, calories, workouts and weight are entered on the Today page.
             </CardDescription>
           </div>
         </div>
@@ -208,7 +208,7 @@ export function AppleWatchSync() {
             Setting up the Shortcut
           </h3>
           <ol className="list-decimal space-y-1.5 pl-5 text-sm text-muted-foreground">
-            <li>In the Shortcuts app, add "Find Health Samples" actions for the values you want (e.g. today's steps).</li>
+            <li>In the Shortcuts app, add a "Find Health Samples" action for last night's Sleep Analysis.</li>
             <li>Add "Get Contents of URL" with the URL below, method POST, request body JSON.</li>
             <li>Add the Authorization header and the fields from the example. Leave out anything you don't track.</li>
             <li>Optional: run it every evening with a Personal Automation (e.g. at 21:00).</li>
@@ -233,8 +233,8 @@ export function AppleWatchSync() {
           <ul className="space-y-1 text-xs text-muted-foreground">
             <li>• Every field is optional. "date" defaults to today and can go back up to 14 days.</li>
             <li>• Numbers can be sent as text ("8234", "72.4 kg") — they're rounded sensibly.</li>
-            <li>• Steps, calories and exercise minutes are replaced on each sync. Weight and sleep only fill empty days.</li>
-            <li>• Watch workouts replace the previous watch workouts for that day; your own workouts are never touched.</li>
+            <li>• Only sleep is used: sleepSamples (or sleepHours). Anything else the Shortcut sends is ignored, without an error.</li>
+            <li>• Sleep hours or a score you entered yourself on the Today page are never overwritten by a sync.</li>
             <li>• Up to 30 syncs an hour. Errors come back as {'{ "message": "…" }'} so you can see what went wrong.</li>
           </ul>
         </section>

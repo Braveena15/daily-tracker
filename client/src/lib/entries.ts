@@ -3,17 +3,20 @@
 // A day holds a few single values (weight, steps, active calories, sleep) and many timestamped
 // entries added through the day: mood check-ins, workouts, good things, learnings…
 import type { LucideIcon } from 'lucide-react'
-import { BookOpen, Brain, Dumbbell, Feather, GlassWater, Moon, Smile, Sparkles, Sun, Watch } from 'lucide-react'
+import { BookOpen, Brain, Dumbbell, Feather, GlassWater, Moon, Smile, Sparkles, Sun } from 'lucide-react'
 import type { Tone } from '@/lib/tones'
 import type { DayPurpose } from '@/lib/purpose'
 
 export type WorkoutSource = 'manual' | 'watch'
+/** 'auto': calculated from the watch's sleep; 'manual': entered on the Today page */
 export type SleepScoreSource = 'auto' | 'manual'
+/** Where the day's hours slept came from */
+export type SleepHoursSource = 'watch' | 'manual'
 
 type Stamped = { id: string; loggedAt: string }
 
 export type MoodLog = Stamped & { mood: number; energy: number; note?: string }
-// source "watch": added by Apple Health sync, and replaced on the next sync
+// source "watch": added by a watch sync on older days (syncs no longer send workouts); editable like any other
 export type Workout = Stamped & { type: string; durationMin: number; notes?: string; source?: WorkoutSource; calories?: number }
 export type Activity = Stamped & { type: string; durationMin?: number; notes?: string }
 export type GoodThing = Stamped & { text: string }
@@ -21,15 +24,6 @@ export type Learning = Stamped & { topic: string; details?: string; minutes?: nu
 export type PresentMoment = Stamped & { text: string }
 /** One drink: 50–2000 ml. Not part of the scores. */
 export type WaterLog = Stamped & { amountMl: number }
-
-export type HealthSyncField =
-  | 'activeCalories'
-  | 'restingCalories'
-  | 'steps'
-  | 'exerciseMinutes'
-  | 'weightKg'
-  | 'sleepHours'
-  | 'workouts'
 
 export type SleepScoreLine = { label: string; points: number; max: number; reason: string }
 
@@ -49,24 +43,21 @@ export type SleepSummary = {
   source: 'watch'
 }
 
-export type HealthSnapshot = { time: string; steps?: number; activeCalories?: number }
-
 /** A stored day. Every list is newest first. */
 export type DailyEntry = {
   id: string
   date: string
   weightKg?: number | null
+  /** Entered on the Today page */
   steps?: number | null
   activeCalories?: number | null
-  restingCalories?: number | null
-  exerciseMinutes?: number | null
+  /** From the watch's sleep, or entered on the Sleep card ("manual") */
   sleepHours?: number | null
-  /** Only set by Apple Health sync */
+  sleepHoursSource?: SleepHoursSource | null
+  /** The watch's night (stages, timings, our score); only set by a sync */
   sleep?: SleepSummary | null
   sleepScoreValue?: number | null
   sleepScoreSource?: SleepScoreSource | null
-  /** fields: which values currently come from the watch */
-  healthSync?: { source: 'apple-health'; syncedAt: string; fields: HealthSyncField[] } | null
   moodLogs: MoodLog[]
   workouts: Workout[]
   mentalActivities: Activity[]
@@ -82,6 +73,14 @@ export type DailyEntry = {
   dailyReflectionNote?: string
   createdAt: string
   updatedAt: string
+}
+
+/** The day's own hours and score, when you entered them (each null when the watch's is used). */
+export function manualSleep(entry: DailyEntry | null | undefined): { hours: number | null; score: number | null } {
+  return {
+    hours: entry?.sleepHoursSource === 'manual' ? (entry.sleepHours ?? null) : null,
+    score: entry?.sleepScoreSource === 'manual' ? (entry.sleepScoreValue ?? null) : null,
+  }
 }
 
 // ---------- Kinds of timestamped entries ----------
@@ -100,7 +99,7 @@ export const KIND_FIELD = {
   water: 'waterLogs',
 } as const satisfies Record<EntryKind, keyof DailyEntry>
 
-export type TimelineKind = EntryKind | 'sync' | 'sleep'
+export type TimelineKind = EntryKind | 'sleep'
 export type TimelineItem = { time: string; kind: TimelineKind; summary: string; id?: string }
 
 export const TIMELINE_STYLE: Record<TimelineKind, { label: string; icon: LucideIcon; tone: Tone }> = {
@@ -112,7 +111,6 @@ export const TIMELINE_STYLE: Record<TimelineKind, { label: string; icon: LucideI
   learnings: { label: 'Learning', icon: BookOpen, tone: 'learning' },
   presentMoments: { label: 'Present moment', icon: Feather, tone: 'primary' },
   water: { label: 'Water', icon: GlassWater, tone: 'outdoor' },
-  sync: { label: 'Apple Watch sync', icon: Watch, tone: 'physical' },
   sleep: { label: 'Sleep', icon: Moon, tone: 'mental' },
 }
 
@@ -122,16 +120,22 @@ export const TIMELINE_STYLE: Record<TimelineKind, { label: string; icon: LucideI
 export type DayResponse = {
   date: string
   entry: DailyEntry | null
-  /** True once you've added anything yourself (not just synced from the watch) */
+  /** True once you've added anything yourself (not just sleep from the watch) */
   logged: boolean
   timeline: TimelineItem[]
-  healthSnapshots: HealthSnapshot[]
   /** The day's water in ml */
   waterTotalMl?: number
   profileWeightUpdated?: boolean
 }
 
-export type DailyInput = { weightKg?: number | null; steps?: number | null; activeCalories?: number | null }
+export type DailyInput = {
+  weightKg?: number | null
+  steps?: number | null
+  activeCalories?: number | null
+  /** null goes back to the watch's value for the night, when there is one */
+  sleepHours?: number | null
+  sleepScoreValue?: number | null
+}
 export type EntriesListResponse = { from: string; to: string; journeyStartDate: string; entries: DailyEntry[] }
 /** Counting only days since the journey started */
 export type StreakResponse = { today: string; journeyStartDate: string; current: number; longest: number }

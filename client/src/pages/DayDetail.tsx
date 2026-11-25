@@ -9,11 +9,12 @@ import { PageHeader } from '@/components/PageHeader'
 import { SleepCard } from '@/components/SleepCard'
 import { Section } from '@/components/CheckinFields'
 import { ErrorNotice } from '@/components/StatusViews'
-import { ActivityDayChart, MoodDayChart } from '@/components/day/LazyDayCharts'
+import { MoodDayChart } from '@/components/day/LazyDayCharts'
+
 import { DayTimeline } from '@/components/day/DayTimeline'
 import { useDay } from '@/hooks/useDay'
 import { formatLongDate, isValidDateString, relativeDay, todayInTimezone } from '@/lib/dates'
-import { dayMood, type DayResponse } from '@/lib/entries'
+import { dayMood, manualSleep, type DayResponse } from '@/lib/entries'
 import { moodBand } from '@/lib/mood'
 import { MoodIcon } from '@/components/MoodFace'
 import { dayPurposesOf, daySummary } from '@/lib/purpose'
@@ -111,20 +112,25 @@ function DayBody({ day }: { day: DayResponse }) {
         </Section>
       ) : null}
 
-      {entry?.sleep && (
+      {entry?.sleep ? (
         <Section title="Sleep" icon={Moon} tone="mental">
-          <SleepCard sleep={entry.sleep} />
+          <SleepCard sleep={entry.sleep} override={manualSleep(entry).hours !== null || manualSleep(entry).score !== null ? manualSleep(entry) : undefined} />
         </Section>
-      )}
+      ) : entry?.sleepHours != null || entry?.sleepScoreValue != null ? (
+        <Section title="Sleep" icon={Moon} tone="mental">
+          <p className="text-sm tabular-nums">
+            {[entry.sleepHours != null && `${entry.sleepHours} h slept`, entry.sleepScoreValue != null && `sleep score ${entry.sleepScoreValue}/100`]
+              .filter(Boolean)
+              .join(' · ')}
+          </p>
+        </Section>
+      ) : null}
 
       <Section title="Timeline" hint="Everything logged, in time order." icon={ListOrdered}>
         <DayTimeline items={day.timeline} emptyText="Nothing was logged on this day." />
       </Section>
 
-      <div className="grid gap-4 md:gap-6 lg:grid-cols-2">
-        <MoodDayChart moodLogs={entry?.moodLogs ?? []} />
-        <ActivityDayChart snapshots={day.healthSnapshots} />
-      </div>
+      <MoodDayChart moodLogs={entry?.moodLogs ?? []} />
     </>
   )
 }

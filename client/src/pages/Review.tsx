@@ -289,7 +289,7 @@ function ReviewBody({ data, today }: { data: WeeklyReviewResponse; today: string
             tone="mental"
             label="Average sleep"
             value={show(w.avgSleepHours, ' h')}
-            emptyHint="Sync your watch or add sleep hours"
+            emptyHint="Add sleep on the Today page"
             previous={before(p.avgSleepHours, hasLastWeek, ' h')}
             delta={<Delta diff={d.avgSleepHours} unit=" h" digits={1} direction="neutral" />}
           />
@@ -298,7 +298,7 @@ function ReviewBody({ data, today }: { data: WeeklyReviewResponse; today: string
             tone="mental"
             label="Average sleep score"
             value={show(w.avgSleepScore, '/100')}
-            emptyHint="Comes from your Apple Watch sleep"
+            emptyHint="From your watch, or add your own score"
             previous={before(p.avgSleepScore, hasLastWeek, '/100')}
             delta={<Delta diff={d.avgSleepScore} />}
           />

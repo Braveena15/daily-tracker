@@ -2,20 +2,20 @@
 // Each form saves on its own and clears for the next entry; nothing is overwritten.
 import { useEffect, type ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { BookOpen, Brain, Dumbbell, Feather, ListOrdered, Moon, Smile, Sparkles, Sun, type LucideIcon } from 'lucide-react'
+import { BookOpen, Brain, Dumbbell, Feather, ListOrdered, Smile, Sparkles, Sun, type LucideIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AiMessageCard } from '@/components/ai/AiMessageCard'
 import { DateBar } from '@/components/DateBar'
-import { SleepCard } from '@/components/SleepCard'
 import { PageHeader } from '@/components/PageHeader'
 import { Section } from '@/components/CheckinFields'
 import { ErrorNotice } from '@/components/StatusViews'
 import { BodyCard } from '@/components/day/BodyCard'
+import { SleepSection } from '@/components/day/SleepSection'
 import { PurposeCard } from '@/components/day/PurposeCard'
 import { dayPurposesOf } from '@/lib/purpose'
-import { ActivityDayChart, MoodDayChart } from '@/components/day/LazyDayCharts'
+import { MoodDayChart } from '@/components/day/LazyDayCharts'
 import { DayTimeline } from '@/components/day/DayTimeline'
 import { ActivityForm, LearningForm, MoodForm, TextForm } from '@/components/day/EntryForms'
 import { EntryList } from '@/components/day/EntryList'
@@ -29,7 +29,6 @@ import {
   WORKOUT_CHIPS,
   dayMood,
   type Activity,
-  type DailyEntry,
   type EntryKind,
 } from '@/lib/entries'
 import type { Tone } from '@/lib/tones'
@@ -141,18 +140,9 @@ function DayEditor({ date, today }: { date: string; today: string }) {
 
       <WaterCard logs={entry?.waterLogs ?? []} isToday={isToday} actions={actions} />
 
-      <Section title="Sleep" icon={Moon} tone="mental">
-        {entry?.sleep ? (
-          <SleepCard sleep={entry.sleep} />
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            {entry?.sleepHours != null ? `${entry.sleepHours} h slept. ` : ''}
-            Your sleep score and stages appear here automatically after your Apple Watch syncs.
-          </p>
-        )}
-      </Section>
+      <SleepSection key={`sleep-${entry?.id ?? 'new'}`} entry={entry} onSave={actions.saveDaily} />
 
-      <BodyCard key={entry?.id ?? 'new'} date={date} today={today} entry={entry} onSave={actions.saveDaily} />
+      <BodyCard key={entry?.id ?? 'new'} entry={entry} onSave={actions.saveDaily} />
 
       <ActivitySection
         kind="workouts"
@@ -262,10 +252,7 @@ function DayEditor({ date, today }: { date: string; today: string }) {
         <DayTimeline items={day.timeline} />
       </Section>
 
-      <div className="grid gap-4 md:gap-6 lg:grid-cols-2">
-        <MoodDayChart moodLogs={entry?.moodLogs ?? []} />
-        <ActivityDayChart snapshots={day.healthSnapshots} />
-      </div>
+      <MoodDayChart moodLogs={entry?.moodLogs ?? []} />
 
       {/* Once the day has entries: a short note for tomorrow (saved per date, so it's only written once) */}
       {day.logged && (
@@ -312,7 +299,7 @@ function ActivitySection({
   itemLabel: string
   addLabel: string
   minutesRequired?: boolean
-  items: (Activity & Partial<Pick<DailyEntry['workouts'][number], 'source' | 'calories'>>)[]
+  items: Activity[]
   isToday: boolean
   actions: DayActions
 }): ReactNode {
@@ -324,9 +311,6 @@ function ActivitySection({
         label={itemLabel.toLowerCase()}
         items={items}
         describe={(a) => ({ title: `${a.type}${minutesText(a.durationMin)}`, detail: a.notes })}
-        readOnly={(a) =>
-          a.source === 'watch' && `From Apple Watch${a.calories != null ? ` · ${a.calories.toLocaleString()} kcal` : ''} · updated by each sync`
-        }
         renderEdit={(a, close) => <ActivityForm {...form} initial={a} onCancel={close} onSubmit={(body) => actions.update(kind, a.id, body).then(close)} />}
         onDelete={(a) => actions.remove(kind, a.id)}
       />

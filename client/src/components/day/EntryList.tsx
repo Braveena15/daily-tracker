@@ -3,7 +3,6 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { Pencil, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { WatchMark } from '@/components/CheckinFields'
 import { timeOf } from '@/lib/healthSync'
 import { cn } from '@/lib/utils'
 
@@ -20,7 +19,7 @@ export function EntryList<T extends Item>({
   items: T[]
   /** The main line and an optional second line */
   describe: (item: T) => { title: ReactNode; detail?: string }
-  /** Items that can't be changed here, e.g. workouts from the watch (shown with a note instead) */
+  /** Items that can't be changed here (shown with a note instead of Edit and Delete) */
   readOnly?: (item: T) => ReactNode | false
   renderEdit: (item: T, close: () => void) => ReactNode
   onDelete: (item: T) => Promise<unknown>
@@ -99,9 +98,7 @@ function Row({
         <div className="text-sm font-medium break-words">{title}</div>
         {detail && <p className="mt-0.5 text-sm break-words text-muted-foreground">{detail}</p>}
         {note && (
-          <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-            <WatchMark /> {note}
-          </p>
+          <p className="mt-1 text-xs text-muted-foreground">{note}</p>
         )}
       </div>
       {!note && (

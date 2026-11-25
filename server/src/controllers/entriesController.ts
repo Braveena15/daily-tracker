@@ -4,7 +4,6 @@ import { fieldCrypto } from "../config/encryption";
 import { openDayPurposes, type StoredDayPurposes } from "../utils/dailyPurpose";
 import { CHECKED_IN, DailyEntryModel, ENTRY_LIMITS, isCheckedIn } from "../models/DailyEntry";
 import { updateProfileWeightIfLatest } from "../services/profileWeight";
-import { fieldsStillFromWatch } from "../utils/healthSyncMerge";
 import { AppError } from "../utils/AppError";
 import { addDays, daysBetween, isValidDateString, todayInTimezone } from "../utils/dates";
 import { journeyStart } from "../services/journey";
@@ -19,10 +18,11 @@ import {
   type EntryKind,
   type TimelineSource,
 } from "../utils/timeline";
-import { CLEARABLE, DAILY_FIELDS, dailySchema, entryPatchSchemas, entrySchemas, waterTotalSchema } from "../validation/entrySchema";
+import { CLEARABLE, dailySchema, entryPatchSchemas, entrySchemas, waterTotalSchema } from "../validation/entrySchema";
 import { UserModel } from "../models/User";
 import { goalNumbers } from "../services/dayData";
 import { waterTotal, waterTotalRange } from "../utils/water";
+import { planDailySave } from "../utils/dailySave";
 
 const MAX_RANGE_DAYS = 366;
 const LISTS = Object.values(KIND_FIELDS);
@@ -100,6 +100,8 @@ export function serializeEntry(doc: LeanDay) {
   out.dailyPurposes = purposes;
   out.dailyReflectionNote = reflectionNote;
   delete out.dailyPurpose; // an older day not moved yet (see services/purposesMigration.ts)
+  // Older days may still hold these from when the watch synced steps and calories; they're no longer used
+  for (const legacy of ["healthSnapshots", "restingCalories", "exerciseMinutes"]) delete out[legacy];
   return out;
 }
 
@@ -112,7 +114,6 @@ export function dayResponse(date: string, doc: LeanDay | null) {
     timeline: doc ? buildTimeline(doc) : [],
     // Water is shown on its own; it isn't part of the scores
     waterTotalMl: waterTotal(doc?.waterLogs),
-    healthSnapshots: doc?.healthSnapshots ?? [],
   };
 }
 
@@ -138,21 +139,8 @@ export async function saveDaily(req: Request, res: Response): Promise<void> {
   const date = writableDate(req);
   const body = dailySchema.parse(req.body ?? {});
 
-  const $set: Record<string, unknown> = {};
-  const $unset: Record<string, 1> = {};
-  for (const key of DAILY_FIELDS) {
-    if (body[key] === undefined) continue;
-    if (body[key] === null) $unset[key] = 1;
-    else $set[key] = body[key];
-  }
-
-  // A watch value you changed by hand loses its ⌚ mark (see utils/healthSyncMerge.ts)
-  const before = await DailyEntryModel.findOne({ userId: req.userId, date }).select("weightKg steps activeCalories healthSync").lean();
-  const marked = before?.healthSync?.fields ?? [];
-  if (marked.length > 0) {
-    const after = { ...before, ...Object.fromEntries(DAILY_FIELDS.filter((k) => k in body).map((k) => [k, body[k] ?? null])) };
-    $set["healthSync.fields"] = fieldsStillFromWatch(marked, before ?? {}, after);
-  }
+  const before = await DailyEntryModel.findOne({ userId: req.userId, date }).select("sleep").lean();
+  const { $set, $unset } = planDailySave(body, before?.sleep ?? null);
 
   const doc = (await DailyEntryModel.findOneAndUpdate(
     { userId: req.userId, date },
@@ -231,10 +219,7 @@ async function findItem(req: Request, date: string, kind: EntryKind, id: string)
   const list = ((doc as Record<string, { _id: unknown; source?: string }[] | undefined> | null)?.[field] ?? []);
   const item = list.find((i) => String(i._id) === id);
   if (!item) throw new AppError(404, "Entry not found");
-  if (kind === "workouts" && item.source === "watch") {
-    throw new AppError(400, "Workouts from Apple Watch are updated by the next sync, so they can't be changed here");
-  }
-  return field;
+  return { field, item };
 }
 
 /** PATCH /api/entries/:date/:kind/:id — changes some fields of one entry (null clears an optional one). */
@@ -243,9 +228,11 @@ export async function updateEntry(req: Request, res: Response): Promise<void> {
   const kind = kindParam(req);
   const id = idParam(req);
   const { time, ...values } = entryPatchSchemas[kind].parse(req.body ?? {}) as Record<string, unknown> & { time?: string };
-  const field = await findItem(req, date, kind, id);
+  const { field, item } = await findItem(req, date, kind, id);
 
   const $set: Record<string, unknown> = {};
+  // An older day's workout from a watch sync becomes your own once you change it
+  if (kind === "workouts" && item.source === "watch") $set[`${field}.$.source`] = "manual";
   const $unset: Record<string, 1> = {};
   for (const [key, value] of Object.entries(values)) {
     if (value === undefined) continue;
@@ -272,7 +259,7 @@ export async function deleteEntry(req: Request, res: Response): Promise<void> {
   const date = dateParam(req);
   const kind = kindParam(req);
   const id = idParam(req);
-  const field = await findItem(req, date, kind, id);
+  const { field } = await findItem(req, date, kind, id);
 
   const doc = (await DailyEntryModel.findOneAndUpdate(
     { userId: req.userId, date },

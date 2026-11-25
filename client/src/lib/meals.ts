@@ -37,11 +37,12 @@ export type DaySummary = {
   activeCalories: number | null
   /**
    * burn is "so far" for today (soFar: true): resting = BMR × the share of the day gone by, plus the
-   * watch's active calories; projected is the expected full-day burn. For past days both are the full day.
+   * active calories you entered; projected is the expected full-day burn. For past days both are the full day.
    */
   estimatedBurn: {
     burn: number
-    source: 'watch' | 'estimate'
+    /** 'entry': BMR + the active calories you entered; 'estimate': from your TDEE */
+    source: 'entry' | 'estimate'
     resting: number
     active: number | null
     projected: number

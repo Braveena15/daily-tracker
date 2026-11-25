@@ -1,8 +1,7 @@
 // The day's "Sleep score" field (sleepScoreValue) and where it came from (sleepScoreSource).
 //
 // - "auto": Daily Tracker's calculated score (sleep.score). A sync refreshes it.
-// - "manual": typed in by hand on older days (e.g. Apple's own score). A sync never overwrites it.
-// The Today page no longer has a sleep score input; the field is kept for history.
+// - "manual": entered on the Today page's Sleep card. A sync never overwrites it.
 // Pure functions, so the rules are easy to test.
 import { SLEEP_SCORE_SOURCES } from "../models/DailyEntry";
 

@@ -463,7 +463,7 @@ export function SleepChartCard() {
         <ChartSkeleton />
       ) : nights === 0 ? (
         <EmptyState icon={Moon} title="No sleep logged yet" className="py-10">
-          Log your hours in the check-in, or sync sleep from Apple Health.
+          Add your sleep on the Today page, or let your watch fill it in.
         </EmptyState>
       ) : (
         <>
@@ -526,7 +526,7 @@ export function SleepChartCard() {
           </ChartContainer>
           <p className="text-xs text-muted-foreground">
             {nights} of {data.days.length} {data.days.length === 1 ? 'night' : 'nights'} logged
-            {scored ? ' · the score is calculated by Daily Tracker from Apple Health sleep' : ' · sync sleep from Apple Health to see a sleep score'}
+            {scored ? '' : ' · add a sleep score on the Today page to see it here'}
           </p>
         </>
       )}

@@ -1,13 +1,11 @@
-// The day's single values: weight, steps and active calories (one value each).
-// Steps and calories usually come from the watch (⌚); typing a value always replaces it.
+// The day's single values: weight, steps and active calories (one value each), typed in by hand.
+// Saving replaces the stored value; clearing a box clears it.
 import { useState, type FormEvent } from 'react'
 import { Check, Ruler } from 'lucide-react'
 import { toast } from 'sonner'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { NumberField, Section, WatchMark } from '@/components/CheckinFields'
-import { dayOf, formatSyncTime, timeOf } from '@/lib/healthSync'
-import type { DailyEntry, DailyInput, DayResponse, HealthSyncField } from '@/lib/entries'
+import { NumberField, Section } from '@/components/CheckinFields'
+import type { DailyEntry, DailyInput, DayResponse } from '@/lib/entries'
 import { FormError } from '@/components/StatusViews'
 
 type Field = 'weightKg' | 'steps' | 'activeCalories'
@@ -17,13 +15,9 @@ const str = (n: number | null | undefined) => (n == null ? '' : String(n))
 const fromEntry = (entry: DailyEntry | null) => Object.fromEntries(FIELDS.map((f) => [f, str(entry?.[f])])) as Record<Field, string>
 
 export function BodyCard({
-  date,
-  today,
   entry,
   onSave,
 }: {
-  date: string
-  today: string
   entry: DailyEntry | null
   onSave: (body: DailyInput) => Promise<DayResponse>
 }) {
@@ -31,7 +25,7 @@ export function BodyCard({
   const [values, setValues] = useState(stored)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  // A new sync (or save) replaces what's shown, unless you're in the middle of editing
+  // A save from another tab or device replaces what's shown, unless you're in the middle of editing
   const [lastStored, setLastStored] = useState(stored)
   if (FIELDS.some((f) => stored[f] !== lastStored[f])) {
     setLastStored(stored)
@@ -39,16 +33,6 @@ export function BodyCard({
   }
 
   const changed = FIELDS.filter((f) => values[f].trim() !== stored[f])
-  const synced = new Set<HealthSyncField>(entry?.healthSync?.fields ?? [])
-  const fromWatch = (f: Field) => synced.has(f) && values[f] === stored[f]
-  const sync = entry?.healthSync
-  const syncLabel = sync ? (dayOf(sync.syncedAt) === date ? timeOf(sync.syncedAt) : formatSyncTime(sync.syncedAt, today)) : null
-  // Watch totals belong to this date only: a day without a sync shows 0, never yesterday's numbers
-  const noSyncToday = date === today && !sync
-  const extras = [
-    entry?.restingCalories != null && `Resting ${entry.restingCalories.toLocaleString()} kcal`,
-    entry?.exerciseMinutes != null && `Exercise ${entry.exerciseMinutes} min`,
-  ].filter(Boolean)
 
   async function submit(e: FormEvent) {
     e.preventDefault()
@@ -83,17 +67,10 @@ export function BodyCard({
       hint="One value each for the day."
       icon={Ruler}
       tone="physical"
-      aside={
-        syncLabel && (
-          <Badge variant="outline" className="gap-1 bg-card text-physical-foreground">
-            <span aria-hidden>⌚</span> Synced · {syncLabel}
-          </Badge>
-        )
-      }
     >
       <form className="space-y-4" onSubmit={submit} noValidate>
         <div className="grid gap-4 sm:grid-cols-3">
-          <NumberField label="Weight" unit="kg" step="0.1" min={30} max={300} value={values.weightKg} onChange={set('weightKg')} fromWatch={fromWatch('weightKg')} />
+          <NumberField label="Weight" unit="kg" step="0.1" min={30} max={300} value={values.weightKg} onChange={set('weightKg')} />
           <NumberField
             label="Steps"
             unit="steps"
@@ -103,7 +80,6 @@ export function BodyCard({
             placeholder="0"
             value={values.steps}
             onChange={set('steps')}
-            fromWatch={fromWatch('steps')}
           />
           <NumberField
             label="Active calories"
@@ -114,21 +90,9 @@ export function BodyCard({
             placeholder="0"
             value={values.activeCalories}
             onChange={set('activeCalories')}
-            fromWatch={fromWatch('activeCalories')}
           />
         </div>
-        {noSyncToday && (
-          <p className="flex items-center gap-1.5 text-sm text-muted-foreground" role="status">
-            <WatchMark /> No sync yet today: steps and active calories start at 0 each midnight.
-          </p>
-        )}
-        {extras.length > 0 && (
-          <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <WatchMark /> {extras.join(' · ')}
-          </p>
-        )}
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-xs text-muted-foreground">Watch syncs only ever raise steps and calories. A value you type replaces them.</p>
+        <div className="flex justify-end">
           <Button loading={busy} type="submit" variant="secondary" disabled={busy || changed.length === 0} className="ml-auto">
             <Check aria-hidden />
             Save

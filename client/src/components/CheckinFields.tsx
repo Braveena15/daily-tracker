@@ -1,6 +1,6 @@
 // Building blocks for the Today page's cards and fields.
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
-import { Plus, Watch, type LucideIcon } from 'lucide-react'
+import { Plus, type LucideIcon } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { IconBubble } from '@/components/IconBubble'
@@ -153,7 +153,6 @@ export function NumberField({
   min,
   max,
   placeholder,
-  fromWatch = false,
   hint,
 }: {
   label: string
@@ -164,8 +163,6 @@ export function NumberField({
   min?: number
   max?: number
   placeholder?: string
-  /** Shows a ⌚: the value came from Apple Health (it can still be edited) */
-  fromWatch?: boolean
   /** A small line under the input */
   hint?: string
 }) {
@@ -175,7 +172,6 @@ export function NumberField({
     <div className="space-y-2">
       <Label htmlFor={id}>
         {label}
-        {fromWatch && <WatchMark />}
       </Label>
       <InputWithUnit
         id={id}
@@ -196,15 +192,5 @@ export function NumberField({
         </p>
       )}
     </div>
-  )
-}
-
-/** A small ⌚ for values that came from Apple Health. */
-export function WatchMark({ className }: { className?: string }) {
-  return (
-    <span className={cn('text-physical-foreground', className)} title="From Apple Watch">
-      <Watch className="inline size-4 align-[-2px]" aria-hidden />
-      <span className="sr-only">(from Apple Watch)</span>
-    </span>
   )
 }

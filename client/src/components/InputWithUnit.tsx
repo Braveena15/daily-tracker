@@ -14,7 +14,7 @@ export function InputWithUnit({ unit, className, ...props }: ComponentProps<'inp
         className="h-full w-full min-w-0 bg-transparent px-3 text-base outline-none placeholder:text-muted-foreground md:text-sm"
         {...props}
       />
-      {unit && <span className="pr-3 text-sm text-muted-foreground select-none">{unit}</span>}
+      {unit && <span className="pr-3 text-sm whitespace-nowrap text-muted-foreground select-none">{unit}</span>}
     </div>
   )
 }

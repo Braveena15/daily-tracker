@@ -116,14 +116,12 @@ export type TimelineSource = {
   learnings?: (Stamped & { topic: string; minutes?: number | null })[];
   presentMoments?: (Stamped & { text: string })[];
   waterLogs?: (Stamped & { amountMl: number })[];
-  healthSnapshots?: { time: Date | string; steps?: number | null; activeCalories?: number | null }[];
   sleep?: { wakeTime: string; totalSleepMin: number } | null;
 };
 
-export type TimelineKind = EntryKind | "sync" | "sleep";
+export type TimelineKind = EntryKind | "sleep";
 export type TimelineItem = { time: string; kind: TimelineKind; summary: string; id?: string };
 
-const fmt = (n: number) => Math.round(n).toLocaleString("en-US");
 const clip = (text: string, max = 80) => (text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text);
 const iso = (at: Date | string) => new Date(at).toISOString();
 const minutesText = (min: number | null | undefined) => (min ? ` · ${min} min` : "");
@@ -148,7 +146,7 @@ export function buildTimeline(day: TimelineSource): TimelineItem[] {
     `Mood ${m.mood}/10 · Energy ${m.energy}/10${m.note ? ` · ${clip(m.note, 60)}` : ""}`,
   );
   add("workouts", day.workouts, (w: Activity & { calories?: number | null }) =>
-    `${w.type}${minutesText(w.durationMin)}${w.source === "watch" ? " · from Apple Watch" : ""}`,
+    `${w.type}${minutesText(w.durationMin)}`,
   );
   add("mental", day.mentalActivities, (a: Activity) => `${a.type}${minutesText(a.durationMin)}`);
   add("outdoor", day.outdoorActivities, (a: Activity) => `${a.type}${minutesText(a.durationMin)}`);
@@ -157,10 +155,6 @@ export function buildTimeline(day: TimelineSource): TimelineItem[] {
   add("presentMoments", day.presentMoments, (p: { text: string }) => clip(p.text));
   // Water isn't on the timeline: it's shown as the day's total on the Water card
 
-  for (const s of day.healthSnapshots ?? []) {
-    const parts = [s.steps != null && `${fmt(s.steps)} steps`, s.activeCalories != null && `${fmt(s.activeCalories)} active kcal`].filter(Boolean);
-    items.push({ time: iso(s.time), kind: "sync", summary: `Synced from Apple Watch${parts.length ? ` · ${parts.join(" · ")}` : ""}` });
-  }
   if (day.sleep) {
     items.push({ time: iso(atTime(day.date, day.sleep.wakeTime)), kind: "sleep", summary: `Woke up · slept ${duration(day.sleep.totalSleepMin)}` });
   }

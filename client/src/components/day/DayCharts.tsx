@@ -1,19 +1,19 @@
-// How a day progressed: mood & energy through the day, and steps & active calories from the watch syncs.
+// How a day progressed: mood & energy through the day.
 // The x-axis is the time of day (minutes since midnight, Asia/Colombo).
-import { Activity, Smile } from 'lucide-react'
+import { Smile } from 'lucide-react'
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart'
+import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, type ChartConfig } from '@/components/ui/chart'
 import { MoodDot } from '@/components/day/MoodDot'
 import { energyBand, moodBand } from '@/lib/mood'
 import { IconBubble } from '@/components/IconBubble'
 import { EmptyState } from '@/components/StatusViews'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { timeOf } from '@/lib/healthSync'
-import type { HealthSnapshot, MoodLog } from '@/lib/entries'
+import type { MoodLog } from '@/lib/entries'
 import type { LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { fixedAxis, fmtKcal, fmtSteps, niceAxis } from '@/lib/chartAxis'
+import { fixedAxis } from '@/lib/chartAxis'
 
 const CHART_CLASS = 'aspect-auto h-52 w-full sm:h-60'
 const AXIS = { tickLine: false, axisLine: false, tickMargin: 8 } as const
@@ -67,15 +67,6 @@ function moodSummary(points: { minute: number; mood: number; energy: number }[])
   const last = points.at(-1)!
   const range = lo === hi ? `Mood ${moodBand(lo).word} ${lo}` : `Mood from ${moodBand(lo).word} ${lo} to ${moodBand(hi).word} ${hi}`
   return `${points.length} check-in${points.length === 1 ? '' : 's'}. ${range}; latest ${moodBand(last.mood).word} ${last.mood} at ${clock(last.minute)}, ${energyBand(last.energy).word.toLowerCase()} (${last.energy}/10).`
-}
-
-/** "By 18:30: 8,712 steps and 194 active kcal, over 6 syncs." */
-function activitySummary(points: { minute: number; steps: number | null; activeCalories: number | null }[]): string {
-  const last = points.at(-1)!
-  const steps = [...points].reverse().find((p) => p.steps !== null)?.steps
-  const kcal = [...points].reverse().find((p) => p.activeCalories !== null)?.activeCalories
-  const parts = [steps != null && `${steps.toLocaleString()} steps`, kcal != null && `${kcal.toLocaleString()} active kcal`].filter(Boolean)
-  return `By ${clock(last.minute)}: ${parts.join(' and ')}, over ${points.length} syncs.`
 }
 
 const moodAxis = fixedAxis([0, 5, 10])
@@ -139,96 +130,6 @@ export function MoodDayChart({ moodLogs }: { moodLogs: MoodLog[] }) {
                 isAnimationActive={animate}
               />
             ))}
-          </LineChart>
-        </ChartContainer>
-      )}
-    </DayChartCard>
-  )
-}
-
-// ---------- Steps & active calories ----------
-
-const activityConfig = {
-  steps: { label: 'Steps', color: 'var(--chart-physical)' },
-  activeCalories: { label: 'Active kcal', color: 'var(--chart-learning)' },
-} satisfies ChartConfig
-
-export function ActivityDayChart({ snapshots }: { snapshots: HealthSnapshot[] }) {
-  const animate = !useMediaQuery('(prefers-reduced-motion: reduce)')
-  const points = snapshots
-    .map((s) => ({ minute: minuteOfDay(s.time), steps: s.steps ?? null, activeCalories: s.activeCalories ?? null }))
-    .sort((a, b) => a.minute - b.minute)
-  const domain = points.length > 0 ? hourDomain(points.map((p) => p.minute)) : ([0, 0] as [number, number])
-  const hasSteps = points.some((p) => p.steps !== null)
-  const hasKcal = points.some((p) => p.activeCalories !== null)
-  // Round ticks: steps in thousands ("8k"), calories in kcal
-  const stepsAxis = niceAxis({ max: Math.max(0, ...points.map((p) => p.steps ?? 0)), format: fmtSteps })
-  const kcalAxis = niceAxis({ max: Math.max(0, ...points.map((p) => p.activeCalories ?? 0)), format: fmtKcal, unit: 'kcal' })
-
-  return (
-    <DayChartCard
-      icon={Activity}
-      title="Steps & active calories"
-      description={points.length === 0 ? 'From your Apple Watch syncs' : `${points.length} ${points.length === 1 ? 'sync' : 'syncs'} from your Apple Watch`}
-    >
-      {points.length < 2 ? (
-        <EmptyState icon={Activity} tone="physical" title="Not enough syncs yet" className="py-6">
-          Each Apple Watch sync adds a point here, so you can see how your day built up.
-        </EmptyState>
-      ) : (
-        <ChartContainer config={activityConfig} className={CHART_CLASS} summary={activitySummary(points)}>
-          <LineChart data={points} margin={{ left: 0, right: 0, top: 8 }}>
-            <CartesianGrid vertical={false} />
-            <XAxis dataKey="minute" type="number" domain={domain} ticks={hourTicks(domain)} tickFormatter={clock} {...AXIS} />
-            {/* Steps on the left, calories on the right: their numbers are very different sizes */}
-            <YAxis
-              yAxisId="steps"
-              {...AXIS}
-              width={stepsAxis.width}
-              domain={stepsAxis.domain}
-              ticks={stepsAxis.ticks}
-              tickFormatter={stepsAxis.format}
-              hide={!hasSteps}
-            />
-            <YAxis
-              yAxisId="kcal"
-              orientation="right"
-              {...AXIS}
-              width={kcalAxis.width}
-              domain={kcalAxis.domain}
-              ticks={kcalAxis.ticks}
-              tickFormatter={kcalAxis.format}
-              hide={!hasKcal}
-            />
-            <ChartTooltip
-              content={
-                <ChartTooltipContent
-                  labelFormatter={(_, p) => clock(Number(p[0]?.payload.minute))}
-                  formatter={(value, name) => (
-                    <div className="flex w-full justify-between gap-4">
-                      <span className="text-muted-foreground">{activityConfig[name as keyof typeof activityConfig]?.label}</span>
-                      <span className="font-medium tabular-nums">{Number(value).toLocaleString()}</span>
-                    </div>
-                  )}
-                />
-              }
-            />
-            <ChartLegend content={<ChartLegendContent />} />
-            {hasSteps && (
-              <Line yAxisId="steps" dataKey="steps" type="monotone" stroke="var(--color-steps)" strokeWidth={2} dot={false} connectNulls isAnimationActive={animate} />
-            )}
-            {hasKcal && (
-              <Line
-                yAxisId="kcal"
-                dataKey="activeCalories"
-                type="monotone"
-                stroke="var(--color-activeCalories)"
-                strokeWidth={2}
-                dot={false}
-                connectNulls
-                isAnimationActive={animate}
-              />
-            )}
           </LineChart>
         </ChartContainer>
       )}

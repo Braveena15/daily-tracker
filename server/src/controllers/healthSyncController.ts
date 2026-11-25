@@ -8,7 +8,6 @@ import { AppError } from "../utils/AppError";
 import { addDays } from "../utils/dates";
 import { planHealthMerge, type StoredSleep } from "../utils/healthSyncMerge";
 import { formatDuration, parseSleepSamples, sleepScore, summariseNight } from "../utils/sleep";
-import { updateProfileWeightIfLatest } from "../services/profileWeight";
 import { generateSyncToken, hashSyncToken } from "../utils/syncToken";
 import {
   HEALTH_SYNC_KEYS,
@@ -59,22 +58,28 @@ function invalid(res: Response, message: string, logNote: string = message): App
   return new AppError(400, message);
 }
 
-/** POST /api/health-sync — merges Apple Health data into one day's entry. */
+/**
+ * POST /api/health-sync — merges the watch's sleep into one day's entry. Only date, sleepSamples and
+ * sleepHours are used; anything else a Shortcut sends (steps, calories, workouts…) is accepted but
+ * not stored, and listed in ignoredFields.
+ */
 export async function healthSync(req: Request, res: Response): Promise<void> {
   const raw: unknown = req.body;
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
-    throw invalid(res, 'Send a JSON object, e.g. {"steps": 8234}, with header "Content-Type: application/json"', "body is not a JSON object");
+    throw invalid(res, 'Send a JSON object, e.g. {"sleepSamples": "…"}, with header "Content-Type: application/json"', "body is not a JSON object");
   }
 
-  const parsed = healthSyncSchema.safeParse(raw);
+  // Only the sleep fields are read (and validated); everything else is ignored without an error
+  const body = raw as Record<string, unknown>;
+  const used = Object.fromEntries(HEALTH_SYNC_KEYS.filter((k) => k in body).map((k) => [k, body[k]]));
+  const parsed = healthSyncSchema.safeParse(used);
   if (!parsed.success) {
     // The response shows the first problem; the dev log lists every field that failed and why
     const problems = parsed.error.issues.map((i) => `${i.path.length ? `${i.path.join(".")}: ` : ""}${i.message}`);
     throw invalid(res, problems[0] ?? "Invalid body", problems.join(" | "));
   }
   const input = parsed.data;
-  // Unknown keys are ignored but reported back, which helps spot typos in the Shortcut
-  const ignoredFields = Object.keys(raw).filter((k) => !(HEALTH_SYNC_KEYS as string[]).includes(k));
+  const ignoredFields = Object.keys(body).filter((k) => !(HEALTH_SYNC_KEYS as string[]).includes(k));
 
   let date: string;
   try {
@@ -84,33 +89,31 @@ export async function healthSync(req: Request, res: Response): Promise<void> {
     throw err;
   }
 
-  const hasData = HEALTH_SYNC_KEYS.some((k) => k !== "date" && input[k] !== undefined);
-  if (!hasData) {
-    throw invalid(
-      res,
-      "Nothing to sync: send at least one of activeCalories, restingCalories, steps (or stepsWatch/stepsPhone), exerciseMinutes, weightKg, sleepHours, sleepSamples or workouts",
-      "no health fields sent",
-    );
+  const syncedAt = new Date();
+  const hasSleep = input.sleepSamples !== undefined || input.sleepHours !== undefined;
+  if (!hasSleep) {
+    // An older Shortcut that only sends steps or calories: nothing to store, but not an error
+    await UserModel.updateOne({ _id: req.userId }, { $set: { lastHealthSyncAt: syncedAt } });
+    res.json({
+      ok: true,
+      date,
+      updatedFields: [],
+      ...(ignoredFields.length > 0 && { ignoredFields }),
+      note: "Only sleep is synced (sleepSamples or sleepHours). Steps, calories and workouts are entered on the Today page.",
+    });
+    return;
   }
 
   const existing = await DailyEntryModel.findOne({ userId: req.userId, date })
-    .select("steps activeCalories weightKg sleepHours workouts healthSync sleepScoreValue sleepScoreSource")
+    .select("sleepHours sleepHoursSource sleepScoreValue sleepScoreSource")
     .lean();
   const sleep = input.sleepSamples === undefined ? null : await nightFromSamples(req.userId, date, input.sleepSamples);
-  const syncedAt = new Date();
   const plan = planHealthMerge(existing, input, syncedAt, sleep);
 
-  await DailyEntryModel.updateOne(
-    { userId: req.userId, date },
-    plan.snapshot
-      ? { $set: plan.set, $push: { healthSnapshots: { $each: [plan.snapshot], $slice: -MAX_SNAPSHOTS } } }
-      : { $set: plan.set },
-    { upsert: true, runValidators: true, setDefaultsOnInsert: true },
-  );
-  await UserModel.updateOne({ _id: req.userId }, { $set: { lastHealthSyncAt: syncedAt } });
-  if (plan.updatedFields.includes("weightKg") && input.weightKg !== undefined) {
-    await updateProfileWeightIfLatest(req.userId, date, input.weightKg);
+  if (Object.keys(plan.set).length > 0) {
+    await DailyEntryModel.updateOne({ userId: req.userId, date }, { $set: plan.set }, { upsert: true, runValidators: true, setDefaultsOnInsert: true });
   }
+  await UserModel.updateOne({ _id: req.userId }, { $set: { lastHealthSyncAt: syncedAt } });
 
   res.json({
     ok: true,
@@ -118,7 +121,7 @@ export async function healthSync(req: Request, res: Response): Promise<void> {
     updatedFields: plan.updatedFields,
     ...(plan.keptFields.length > 0 && {
       keptFields: plan.keptFields,
-      note: "keptFields weren't overwritten: the day already had a value (or, for steps and activeCalories, a higher one)",
+      note: "keptFields weren't overwritten: the day already has sleep you entered yourself",
     }),
     ...(ignoredFields.length > 0 && { ignoredFields }),
     ...(input.sleepSamples !== undefined && {
@@ -130,8 +133,6 @@ export async function healthSync(req: Request, res: Response): Promise<void> {
 }
 
 const BASELINE_DAYS = 14;
-// About one sync every 5 minutes for a whole day
-const MAX_SNAPSHOTS = 300;
 
 /** The night ending on `date`, scored against the bedtimes of the previous 14 nights that have sleep data. */
 async function nightFromSamples(userId: string | undefined, date: string, text: string): Promise<StoredSleep | null> {

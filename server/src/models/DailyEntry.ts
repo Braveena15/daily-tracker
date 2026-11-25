@@ -41,28 +41,23 @@ const loggedAt = { type: Date, required: true };
 export const WORKOUT_SOURCES = ["manual", "watch"] as const;
 export type WorkoutSource = (typeof WORKOUT_SOURCES)[number];
 
+// "auto": calculated from the watch's sleep; "manual": entered on the Today page (a sync never overwrites it)
 export const SLEEP_SCORE_SOURCES = ["auto", "manual"] as const;
+// Where the day's sleepHours came from: the watch, or entered by hand (a sync never overwrites it)
+export const SLEEP_HOURS_SOURCES = ["watch", "manual"] as const;
 
 const workoutSchema = new Schema({
   loggedAt,
   type: activityName,
   durationMin: { ...minutes, required: true },
   notes,
-  // "watch" workouts come from Apple Health sync and are replaced on every sync
+  // "watch": added by an Apple Health sync on older days (syncs no longer send workouts); otherwise "manual"
   source: { type: String, enum: WORKOUT_SOURCES, default: "manual" },
   calories: { type: Number, min: L.workoutCalories.min, max: L.workoutCalories.max },
 });
 
-// Fields Apple Health sync can fill in (shown with a ⌚ in the app)
-export const HEALTH_SYNC_FIELDS = [
-  "activeCalories",
-  "restingCalories",
-  "steps",
-  "exerciseMinutes",
-  "weightKg",
-  "sleepHours",
-  "workouts",
-] as const;
+// The fields an Apple Health sync can fill in: only sleep (steps, calories and the rest are entered by hand)
+export const HEALTH_SYNC_FIELDS = ["sleepHours"] as const;
 export type HealthSyncField = (typeof HEALTH_SYNC_FIELDS)[number];
 
 const healthSyncSchema = new Schema(
@@ -129,16 +124,6 @@ const presentMomentSchema = new Schema({
   text: { type: String, required: true, trim: true, maxlength: L.presentMoment },
 });
 
-// How the day's totals grew, one point per sync that changed them (for the "through the day" charts)
-const healthSnapshotSchema = new Schema(
-  {
-    time: { type: Date, required: true },
-    steps: { type: Number, min: L.steps.min, max: L.steps.max },
-    activeCalories: { type: Number, min: L.activeCalories.min, max: L.activeCalories.max },
-  },
-  { _id: false },
-);
-
 // The day's purposes. Text fields are encrypted (DIARY_ENCRYPTION_KEY), so their lengths are checked
 // on the plain text in validation/purposeSchema.ts, not here.
 const intentionSchema = new Schema({
@@ -169,21 +154,22 @@ const dailyEntrySchema = new Schema(
     // ---------- One value per day ----------
     // Typed in on the Today page; editing replaces it
     weightKg: { type: Number, min: L.weightKg.min, max: L.weightKg.max },
-    // From Apple Health sync (only ever goes up), or typed in by hand (always replaces)
+    // Typed in on the Today page only (a sync ignores them)
     steps: { type: Number, min: L.steps.min, max: L.steps.max },
     activeCalories: { type: Number, min: L.activeCalories.min, max: L.activeCalories.max },
-    // Only set by Apple Health sync
+    // Older days only: synced from the watch before steps and calories became manual. No longer written or shown.
     restingCalories: { type: Number, min: L.restingCalories.min, max: L.restingCalories.max },
     exerciseMinutes: minutes,
+    // From the watch's sleep, or entered on the Today page ("manual", which a sync never overwrites)
     sleepHours: { type: Number, min: L.sleepHours.min, max: L.sleepHours.max },
-    // Only set by Apple Health sync
+    sleepHoursSource: { type: String, enum: SLEEP_HOURS_SOURCES },
+    // The watch's night (stages, bedtime, wake time, our calculated score). Only set by Apple Health sync
     sleep: { type: sleepSchema, default: undefined },
-    // The day's sleep score: the calculated one ("auto"). Older days may hold a score typed in by
-    // hand ("manual"), which a sync never overwrites. See utils/sleepScoreField.ts
+    // The day's sleep score: calculated from the watch's sleep ("auto"), or entered on the Today page
+    // ("manual"), which a sync never overwrites. See utils/sleepScoreField.ts
     sleepScoreValue: { type: Number, min: L.score.min, max: L.score.max },
     sleepScoreSource: { type: String, enum: SLEEP_SCORE_SOURCES },
     healthSync: { type: healthSyncSchema, default: undefined },
-    healthSnapshots: { type: [healthSnapshotSchema], default: [] },
 
     // ---------- Timestamped entries, added through the day ----------
     moodLogs: { type: [moodLogSchema], default: [] },

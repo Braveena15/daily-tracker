@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { BookMarked, Check, Copy, Flame, Heart, Plus, RotateCw, Watch, X } from 'lucide-react'
+import { BookMarked, Check, Copy, Flame, Heart, Plus, RotateCw, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -378,14 +378,9 @@ function SummaryCard({
                 <Flame className="size-4 text-physical" aria-hidden />
                 Burned so far: <span className="font-semibold tabular-nums">{kcal(burn.burn)}</span> kcal
                 <span className="text-muted-foreground tabular-nums">
-                  {burn.active !== null ? (
-                    <>
-                      (resting {kcal(burn.resting)} + active {kcal(burn.active)}{' '}
-                      <Watch className="inline size-4 align-[-2px]" aria-label="from Apple Watch" />)
-                    </>
-                  ) : (
-                    '(estimated · no watch sync yet today)'
-                  )}
+                  {burn.active !== null
+                    ? `(resting ${kcal(burn.resting)} + active ${kcal(burn.active)} from your entry)`
+                    : '(estimated)'}
                 </span>
               </p>
               <p className="text-xs text-muted-foreground tabular-nums">Expected by end of day: ~{kcal(burn.projected)} kcal</p>
@@ -404,13 +399,7 @@ function SummaryCard({
                 Burn <span className="font-semibold tabular-nums">{kcal(burn.burn)}</span> kcal
               </span>
               <Badge variant="outline" className="gap-1 bg-card">
-                {burn.source === 'watch' ? (
-                  <>
-                    <Watch aria-hidden /> from Apple Watch
-                  </>
-                ) : (
-                  'estimated'
-                )}
+                {burn.source === 'entry' ? 'from your entry' : 'estimated'}
               </Badge>
               {net !== null && day.kcal > 0 && (
                 <span className="w-full text-xs text-muted-foreground">

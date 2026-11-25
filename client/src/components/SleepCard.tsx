@@ -1,11 +1,12 @@
-// The night's sleep from Apple Health, with the score Daily Tracker calculated (see server/src/utils/sleep.ts).
+// The night's sleep from the watch, with the score Daily Tracker calculated (see server/src/utils/sleep.ts).
+// When you entered your own hours or score for the day, those are shown instead; the stages and
+// timings still come from the watch.
 import { useState } from 'react'
 import { Info, Moon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { IconBubble } from '@/components/IconBubble'
 import { ProgressRing } from '@/components/ProgressRing'
-import { WatchMark } from '@/components/CheckinFields'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import type { SleepSummary } from '@/lib/entries'
 import { cn } from '@/lib/utils'
@@ -24,29 +25,37 @@ const STAGES = [
   { key: 'remMin', label: 'REM', className: 'bg-outdoor' },
 ] as const
 
-export function SleepCard({ sleep }: { sleep: SleepSummary }) {
+export function SleepCard({
+  sleep,
+  override,
+}: {
+  sleep: SleepSummary
+  /** Hours or a score you entered yourself for the day (each null when the watch's is used) */
+  override?: { hours: number | null; score: number | null }
+}) {
   const [open, setOpen] = useState(false)
+  const score = override?.score ?? sleep.score
+  const sleptMin = override?.hours != null ? Math.round(override.hours * 60) : sleep.totalSleepMin
+  const yours = override?.hours != null || override?.score != null
   const staged = sleep.deepMin + sleep.coreMin + sleep.remMin
   const awake =
     sleep.awakeCount === 0 ? 'No time awake' : `Awake ${sleep.awakeCount} ${sleep.awakeCount === 1 ? 'time' : 'times'} · ${formatSleep(sleep.awakeMin)}`
 
   return (
     <div className="space-y-3 rounded-2xl bg-mental-soft/60 p-4">
-      <p className="flex items-center gap-1.5 text-sm font-medium text-mental-foreground">
-        <WatchMark /> Sleep score (calculated by Daily Tracker)
-      </p>
+      <p className="text-sm font-medium text-mental-foreground">Sleep score</p>
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-        <ProgressRing value={sleep.score} max={100} size={112} stroke={11} className="stroke-mental" label={`Sleep score ${sleep.score} out of 100`}>
+        <ProgressRing value={score} max={100} size={112} stroke={11} className="stroke-mental" label={`Sleep score ${score} out of 100`}>
           <div>
-            <p className="font-heading text-3xl font-semibold tabular-nums">{sleep.score}</p>
+            <p className="font-heading text-3xl font-semibold tabular-nums">{score}</p>
             <p className="text-xs text-muted-foreground">of 100</p>
           </div>
         </ProgressRing>
 
         <div className="min-w-0 flex-1 space-y-2.5">
           <div>
-            <p className="font-heading text-2xl font-semibold">{formatSleep(sleep.totalSleepMin)}</p>
+            <p className="font-heading text-2xl font-semibold">{formatSleep(sleptMin)}</p>
             <p className="text-sm text-muted-foreground tabular-nums">
               {sleep.bedtime} → {sleep.wakeTime} · {awake}
             </p>
@@ -72,9 +81,16 @@ export function SleepCard({ sleep }: { sleep: SleepSummary }) {
         </div>
       </div>
 
-      <Button type="button" variant="ghost" size="sm" className="-ml-2 text-mental-foreground" onClick={() => setOpen(true)}>
-        <Info aria-hidden /> How is this calculated?
-      </Button>
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        {override?.score == null ? (
+          <Button type="button" variant="ghost" size="sm" className="-ml-2 text-mental-foreground" onClick={() => setOpen(true)}>
+            <Info aria-hidden /> How is this calculated?
+          </Button>
+        ) : (
+          <span />
+        )}
+        <p className="text-xs text-muted-foreground">{yours ? 'Your entry · stages from your watch' : 'From your watch'}</p>
+      </div>
       <SleepBreakdownSheet sleep={sleep} open={open} onClose={() => setOpen(false)} />
     </div>
   )
@@ -94,7 +110,7 @@ function SleepBreakdownSheet({ sleep, open, onClose }: { sleep: SleepSummary; op
             <IconBubble icon={Moon} tone="mental" />
             <div>
               <SheetTitle className="text-xl font-semibold">Sleep score · {sleep.score}/100</SheetTitle>
-              <SheetDescription>Calculated by Daily Tracker from your Apple Health sleep</SheetDescription>
+              <SheetDescription>Calculated by Daily Tracker from your watch's sleep</SheetDescription>
             </div>
           </div>
         </SheetHeader>

@@ -39,13 +39,12 @@ describe("generateDemoData", () => {
     }
   });
 
-  it("logs every entry on its own day, with steps that grow through the day", () => {
+  it("logs every entry on its own day", () => {
     for (const e of entries) {
       const stamps = [...e.moodLogs, ...e.workouts, ...e.goodThings, ...e.learnings, ...e.presentMoments].map((i) => i.loggedAt);
       const start = Date.parse(`${e.date}T00:00:00+05:30`);
       expect(stamps.every((at) => at.getTime() >= start && at.getTime() < start + 24 * 3600_000)).toBe(true);
-      const steps = e.healthSnapshots.map((s) => s.steps ?? 0);
-      expect(steps).toEqual([...steps].sort((a, b) => a - b));
+      expect(e).not.toHaveProperty("healthSnapshots");
       expect(e.moodLogs.length).toBeGreaterThan(0);
     }
   });

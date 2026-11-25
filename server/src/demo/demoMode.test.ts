@@ -65,7 +65,8 @@ describe("demo mode", () => {
     expect(entries.some((e) => e.workouts.length > 0)).toBe(true);
     expect(entries.every((e) => e.waterLogs.length > 0)).toBe(true);
     expect(entries.every((e) => e.sleep?.score >= 0 && e.sleep.deepMin > 0 && e.sleep.remMin > 0 && e.sleep.breakdown.length === 3)).toBe(true);
-    expect(entries.some((e) => e.healthSnapshots.length > 0)).toBe(true);
+    expect(entries.some((e) => (e.healthSnapshots ?? []).length > 0)).toBe(false);
+    expect(entries.every((e) => e.sleepHoursSource === "watch")).toBe(true);
     expect(entries.some((e) => e.goodThings.length > 0 && e.learnings.length > 0 && e.presentMoments.length > 0)).toBe(true);
     expect(entries.filter((e) => e.dailyPurposes?.some((p: { intentions: unknown[] }) => p.intentions.length > 0)).length).toBeGreaterThan(20);
 
