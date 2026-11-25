@@ -113,7 +113,7 @@ export function WeekMoodChart({ days }: { days: ReviewDay[] }) {
                   cursor={false}
                   content={({ active, payload }) => {
                     const d = active ? (payload?.[0]?.payload as MoodPoint | undefined) : undefined
-                    if (!d) return null
+                    if (!d || d.mood === null) return null
                     return (
                       <div className="rounded-lg border bg-background px-2.5 py-1.5 text-xs shadow-raised">
                         <p className="font-medium">{tooltipDate(d.date)}</p>

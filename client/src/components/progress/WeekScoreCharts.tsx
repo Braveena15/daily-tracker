@@ -10,6 +10,7 @@ import { IconBubble } from '@/components/IconBubble'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { AREAS, tooltipDate, type ReviewDay, type WeeklyReviewResponse } from '@/lib/progress'
 import { fixedAxis } from '@/lib/chartAxis'
+import { realPointTooltip } from '@/components/progress/ProgressCharts'
 
 const scoreAxis = fixedAxis([0, 50, 100])
 
@@ -39,41 +40,23 @@ const dailyConfig = Object.fromEntries(AREAS.map((a) => [a.key, { label: a.label
 function dailySummary(days: ReviewDay[]): string {
   const logged = days.filter((d) => d.overall !== null)
   const parts = logged.map((d) => `${tooltipDate(d.date)}: physical ${d.physical}, mental ${d.mental}, learning ${d.learning}`)
-  return `Daily scores on the ${logged.length} logged days. ${parts.join('; ')}. Dashed lines bridge days without a check-in.`
+  return `Daily scores on the ${logged.length} logged days. ${parts.join('; ')}.`
 }
 
 export function DailyScoresChart({ days }: { days: ReviewDay[] }) {
   const animate = !useMediaQuery('(prefers-reduced-motion: reduce)')
   const logged = days.filter((d) => d.overall !== null).length
   return (
-    <ChartCard icon={LineIcon} title="Scores day by day" description={`${logged} of ${days.length} days logged · dashed lines bridge days without a check-in`}>
+    <ChartCard icon={LineIcon} title="Scores day by day" description={`${logged} of ${days.length} days logged`}>
       <ChartContainer config={dailyConfig} className={CHART_CLASS} summary={dailySummary(days)}>
         <LineChart data={days} margin={{ left: 0, right: 12, top: 8 }}>
           <CartesianGrid vertical={false} />
           {/* Padding keeps the first and last weekday labels inside the chart */}
           <XAxis dataKey="date" {...AXIS} tickFormatter={weekday} interval={0} padding={{ left: 12, right: 12 }} />
           <YAxis {...AXIS} width={scoreAxis.width} domain={scoreAxis.domain} ticks={scoreAxis.ticks} tickFormatter={scoreAxis.format} />
-          <ChartTooltip content={<ChartTooltipContent labelFormatter={(_, p) => tooltipDate(String(p[0]?.payload.date))} />} />
+          <ChartTooltip content={realPointTooltip} />
           <ChartLegend content={<ChartLegendContent />} />
-          {/* Bottom layer: a faint dashed line across days without a check-in (no dots, tooltip or legend entry) */}
-          {AREAS.map((a) => (
-            <Line
-              key={`${a.key}-bridge`}
-              dataKey={a.key}
-              type="monotone"
-              stroke={`var(--color-${a.key})`}
-              strokeOpacity={0.4}
-              strokeWidth={1.5}
-              strokeDasharray="4 4"
-              connectNulls
-              dot={false}
-              activeDot={false}
-              legendType="none"
-              tooltipType="none"
-              isAnimationActive={animate}
-            />
-          ))}
-          {/* Top layer: solid only between consecutive logged days, with a dot on each real score */}
+          {/* One solid line joining the real scores, with a dot on each; unlogged days get no dot or tooltip */}
           {AREAS.map((a) => (
             <Line
               key={a.key}
@@ -81,7 +64,7 @@ export function DailyScoresChart({ days }: { days: ReviewDay[] }) {
               type="monotone"
               stroke={`var(--color-${a.key})`}
               strokeWidth={2}
-              connectNulls={false}
+              connectNulls
               dot={{ r: 3, strokeWidth: 0, fill: `var(--color-${a.key})` }}
               activeDot={{ r: 5 }}
               isAnimationActive={animate}

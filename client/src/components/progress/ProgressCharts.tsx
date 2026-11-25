@@ -14,6 +14,7 @@ import {
   ReferenceLine,
   XAxis,
   YAxis,
+  type TooltipContentProps,
 } from 'recharts'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -105,6 +106,20 @@ type Range = (typeof RANGES)[number]
 
 const scoreAxis = fixedAxis([0, 50, 100])
 
+/** Score tooltip that lists only real values and stays hidden on days without a check-in. */
+export function realPointTooltip(props: TooltipContentProps) {
+  const payload = props.payload?.filter((p) => p.value !== null && p.value !== undefined)
+  if (!props.active || !payload?.length) return null
+  return (
+    <ChartTooltipContent
+      active={props.active}
+      payload={payload}
+      label={props.label}
+      labelFormatter={(_, p) => tooltipDate(String(p[0]?.payload.date))}
+    />
+  )
+}
+
 const scoreConfig = Object.fromEntries(AREAS.map((a) => [a.key, { label: a.label, color: a.chartColor }])) satisfies ChartConfig
 
 export function ScoreTrendCard() {
@@ -147,7 +162,7 @@ export function ScoreTrendCard() {
             <CartesianGrid vertical={false} />
             <XAxis dataKey="date" {...AXIS} minTickGap={28} tickFormatter={shortDate} />
             <YAxis {...AXIS} width={scoreAxis.width} domain={scoreAxis.domain} ticks={scoreAxis.ticks} tickFormatter={scoreAxis.format} />
-            <ChartTooltip content={<ChartTooltipContent labelFormatter={(_, p) => tooltipDate(String(p[0]?.payload.date))} />} />
+            <ChartTooltip content={realPointTooltip} />
             <ChartLegend content={<ChartLegendContent />} />
             {AREAS.map((a) => (
               <Line
@@ -156,9 +171,9 @@ export function ScoreTrendCard() {
                 type="monotone"
                 stroke={`var(--color-${a.key})`}
                 strokeWidth={2}
-                // Gaps on unlogged days instead of pretending they were 0
-                connectNulls={false}
-                dot={range <= 30 ? { r: 2.5, strokeWidth: 0, fill: `var(--color-${a.key})` } : false}
+                // One solid line joining the real scores; unlogged days get no circle and no tooltip
+                connectNulls
+                dot={{ r: range <= 30 ? 2.5 : 1.5, strokeWidth: 0, fill: `var(--color-${a.key})` }}
                 activeDot={{ r: 4 }}
                 isAnimationActive={animate}
               />
@@ -276,13 +291,14 @@ export function WeightCard() {
                   label={{ value: `Goal ${goal} kg`, position: 'insideBottomRight', fill: 'var(--muted-foreground)', fontSize: 11 }}
                 />
               )}
-              {/* Daily weigh-ins: clearly visible dots, never joined across days without one */}
+              {/* Daily weigh-ins: a circle on each real reading, joined by one solid line */}
               <Line
                 dataKey="weightKg"
-                stroke="none"
+                stroke="var(--color-weightKg)"
+                strokeWidth={1.5}
                 dot={{ r: 4, strokeWidth: 1.5, stroke: 'var(--card)', fill: 'var(--color-weightKg)' }}
                 activeDot={{ r: 5.5 }}
-                connectNulls={false}
+                connectNulls
                 isAnimationActive={false}
               />
               {/* The 7-day average: only on weigh-in days with 2+ readings in the week, joined between those
@@ -518,7 +534,7 @@ export function SleepChartCard() {
                   strokeWidth={2}
                   dot={{ r: 2.5, strokeWidth: 0, fill: 'var(--color-score)' }}
                   activeDot={{ r: 4 }}
-                  connectNulls={false}
+                  connectNulls
                   isAnimationActive={animate}
                 />
               )}
