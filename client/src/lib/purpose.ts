@@ -1,31 +1,40 @@
-// Today's purpose types, matching the server's /api/entries/:date/purpose and /api/purpose/days routes.
+// The day's purposes, matching the server's /api/entries/:date/purposes… and /api/purpose/days routes.
+// A day has up to 5 purposes, each with its own focus values, up to 5 intentions and an evening
+// rating, plus one evening note for the whole day.
 import { dayOf, timeOf } from '@/lib/healthSync'
 import { journeyDate } from '@/lib/journey'
 
 export type Intention = { id: string; text: string; done: boolean; doneAt: string | null }
 
-export type DailyPurpose = {
-  /** All of the day's purposes, one per line */
+export type DayPurpose = {
+  id: string
   text: string
-  /** The day's purposes (up to 5), in the order they were added */
-  purposes: { id: string; text: string }[]
   /** Up to 3 of the user's core values */
   focusValues: string[]
   /** Up to 5 */
   intentions: Intention[]
-  /** "How well did I live my purpose today?" 1–5 */
-  reflection: { rating: number; note: string; at: string } | null
-  setAt: string | null
+  /** "How well did I live this purpose today?" 1–5, null until rated */
+  rating: number | null
+  createdAt: string | null
   updatedAt: string | null
 }
 
-export type PurposeDay = DailyPurpose & { date: string }
+export type DayPurposes = {
+  /** In the order they were added (up to 5) */
+  purposes: DayPurpose[]
+  /** One evening note for the whole day ("" when none) */
+  reflectionNote: string
+}
+
+export type PurposeDay = DayPurposes & { date: string }
 
 export type PurposeStats = {
   daysWithPurpose: number
+  purposesTotal: number
   intentionsTotal: number
   intentionsDone: number
   intentionsDonePercent: number | null
+  /** Across every rated purpose */
   avgRating: number | null
   topValues: { value: string; days: number }[]
 }
@@ -38,7 +47,7 @@ export type PurposeDaysResponse = {
   journeyStartDate: string
   /** Every day with a purpose, newest first */
   days: PurposeDay[]
-  /** Today's purpose (editable until midnight), or null */
+  /** Today's purposes (editable until midnight), or null */
   today: PurposeDay | null
   /** Earlier days, newest first (locked) */
   past: PurposeDay[]
@@ -56,15 +65,34 @@ export const MAX_INTENTIONS = 5
 export const MAX_PURPOSES = 5
 export const MAX_FOCUS_VALUES = 3
 
-/** "3/4" intentions done, or null without intentions. */
-export function intentionsDone(p: Pick<DailyPurpose, 'intentions'> | null | undefined): string | null {
-  if (!p || p.intentions.length === 0) return null
-  return `${p.intentions.filter((i) => i.done).length}/${p.intentions.length}`
+/** The day's purposes from a stored entry (older responses may not have them). */
+export const dayPurposesOf = (entry: { dailyPurposes?: DayPurpose[]; dailyReflectionNote?: string } | null | undefined): DayPurposes => ({
+  purposes: entry?.dailyPurposes ?? [],
+  reflectionNote: entry?.dailyReflectionNote ?? '',
+})
+
+/** Counts for a day's summary. */
+export function dayCounts(d: Pick<DayPurposes, 'purposes'>) {
+  const intentions = d.purposes.flatMap((p) => p.intentions)
+  return { purposes: d.purposes.length, intentions: intentions.length, done: intentions.filter((i) => i.done).length }
 }
 
-/** The first line of the purpose text. */
-export const firstLine = (text: string) => text.split('\n')[0]?.trim() ?? ''
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
 
+/** "3 purposes · 5 of 8 intentions done" (the intentions part only when there are some). */
+export function daySummary(d: Pick<DayPurposes, 'purposes'>): string {
+  const c = dayCounts(d)
+  return [plural(c.purposes, 'purpose'), c.intentions > 0 && `${c.done} of ${plural(c.intentions, 'intention')} done`].filter(Boolean).join(' · ')
+}
+
+/** "3 purposes · 5/8" for small cards. */
+export function shortDaySummary(d: Pick<DayPurposes, 'purposes'>): string {
+  const c = dayCounts(d)
+  return [plural(c.purposes, 'purpose'), c.intentions > 0 && `${c.done}/${c.intentions}`].filter(Boolean).join(' · ')
+}
+
+/** Same text, ignoring case and surrounding spaces (e.g. a goal already added as an intention). */
+export const sameText = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase()
 
 /** "Sat, Nov 21 · 11:55" in the app's timezone. */
 export const savedAtLabel = (iso: string) => `${journeyDate(dayOf(iso))} · ${timeOf(iso)}`

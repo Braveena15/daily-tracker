@@ -10,8 +10,9 @@ import { EditableUntilLabel, LockedLabel, PurposeDayView } from '@/components/pu
 import { useFetch } from '@/hooks/useFetch'
 import { addDays, formatDate, relativeDay, todayInTimezone } from '@/lib/dates'
 import {
-  intentionsDone,
+  daySummary,
   savedAtLabel,
+  shortDaySummary,
   type PurposeDaysResponse,
   type PurposeHistoryResponse,
   type PurposeStats,
@@ -24,14 +25,17 @@ import { cn } from '@/lib/utils'
 const DAYS = 365
 
 export function PurposeStatsRow({ stats }: { stats: PurposeStats }) {
+  const perDay = stats.daysWithPurpose ? Math.round((stats.purposesTotal / stats.daysWithPurpose) * 10) / 10 : null
   const items = [
     { label: 'Days with a purpose', value: String(stats.daysWithPurpose) },
+    { label: 'Purposes a day', value: perDay === null ? '—' : String(perDay) },
     { label: 'Intentions done', value: stats.intentionsDonePercent === null ? '—' : `${stats.intentionsDonePercent}%` },
-    { label: 'Evening rating', value: stats.avgRating === null ? '—' : `${stats.avgRating} / 5` },
+    // Across every rated purpose
+    { label: 'Average rating', value: stats.avgRating === null ? '—' : `${stats.avgRating} / 5` },
   ]
   return (
     <div className="space-y-3">
-      <dl className="grid grid-cols-3 gap-2 text-center">
+      <dl className="grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
         {items.map((i) => (
           <div key={i.label} className="rounded-xl border px-2 py-2">
             <dt className="text-xs text-muted-foreground">{i.label}</dt>
@@ -106,8 +110,8 @@ export function DailyPurposes({ onSetToday, todayCardAbove = false }: { onSetTod
                       </Link>
                     </Button>
                   </div>
-                  {intentionsDone(data.today) && <p className="text-xs text-muted-foreground">{intentionsDone(data.today)} intentions done</p>}
-                  <PurposeDayView purpose={data.today} />
+                  {data.today.purposes.length > 0 && <p className="text-xs text-muted-foreground">{daySummary(data.today)}</p>}
+                  <PurposeDayView day={data.today} />
                 </li>
               ) : (
                 // Past days exist but today has no purpose yet (unless the card above already offers it)
@@ -130,11 +134,11 @@ export function DailyPurposes({ onSetToday, todayCardAbove = false }: { onSetTod
                         <span className="ml-2 text-xs font-normal text-muted-foreground">{formatDate(day.date, data.todayDate)}</span>
                       </p>
                       <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                        {intentionsDone(day) && `${intentionsDone(day)} done`}
+                        {day.purposes.length > 0 && shortDaySummary(day)}
                         <ArrowRight className="size-4" aria-hidden />
                       </span>
                     </div>
-                    <PurposeDayView purpose={day} />
+                    <PurposeDayView day={day} />
                     <LockedLabel />
                   </Link>
                 </li>

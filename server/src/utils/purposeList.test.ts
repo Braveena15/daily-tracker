@@ -1,7 +1,7 @@
 /// <reference types="vitest/globals" />
 // The "Daily purposes" list (GET /api/purpose/days): range and today/past split.
 import { createFieldCrypto } from "./crypto";
-import { hasDailyPurpose, openDailyPurpose, purposeDaysRange, sealText, splitPurposeDays } from "./dailyPurpose";
+import { hasDayPurposes, openDayPurposes, purposeDaysRange, sealText, splitPurposeDays } from "./dailyPurpose";
 
 const TODAY = "2026-11-21";
 const crypto = createFieldCrypto("c".repeat(64));
@@ -23,12 +23,12 @@ describe("purposeDaysRange", () => {
 
 describe("today's purpose in the list", () => {
   // What the endpoint does with a stored day: decrypt, then keep days that have a purpose
-  const stored = (date: string, text: string) => ({ date, ...openDailyPurpose(crypto, { text: sealText(crypto, text), focusValues: [] })! });
+  const stored = (date: string, text: string) => ({ date, ...openDayPurposes(crypto, { dailyPurposes: [{ _id: date, text: sealText(crypto, text) }] }) });
 
   it("appears as soon as it's saved, first, apart from the past days", () => {
-    const days = [stored(TODAY, "Be present"), stored("2026-11-19", "Rest"), stored("2026-11-20", "Focus")].filter(hasDailyPurpose);
+    const days = [stored(TODAY, "Be present"), stored("2026-11-19", "Rest"), stored("2026-11-20", "Focus")].filter(hasDayPurposes);
     const list = splitPurposeDays(days, TODAY);
-    expect(list.today?.text).toBe("Be present");
+    expect(list.today?.purposes[0]?.text).toBe("Be present");
     expect(list.past.map((d) => d.date)).toEqual(["2026-11-20", "2026-11-19"]);
     expect(list).toMatchObject({ isEmpty: false, canSetToday: false });
   });
@@ -45,7 +45,7 @@ describe("today's purpose in the list", () => {
   });
 
   it("ignores a day without any purpose content", () => {
-    const blank = { date: TODAY, ...openDailyPurpose(crypto, { text: undefined, focusValues: [] })! };
-    expect(splitPurposeDays([blank].filter(hasDailyPurpose), TODAY).isEmpty).toBe(true);
+    const blank = { date: TODAY, ...openDayPurposes(crypto, { dailyPurposes: [] }) };
+    expect(splitPurposeDays([blank].filter(hasDayPurposes), TODAY).isEmpty).toBe(true);
   });
 });

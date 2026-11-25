@@ -2,7 +2,7 @@
 // time, after the explanation dialog). Private logs are never shared. Crisis words show support
 // contacts instead of AI text (the server never sends them to the AI).
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { HeartHandshake, Lock, Plus, Send, ThumbsDown, ThumbsUp } from 'lucide-react'
+import { HeartHandshake, Lock, Send, ThumbsDown, ThumbsUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -11,7 +11,8 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { SupportButton, SupportCard } from '@/components/mind/Support'
-import { api } from '@/lib/api'
+import { AddToPurposePicker } from '@/components/purpose/AddToPurposePicker'
+import { useDay } from '@/hooks/useDay'
 import {
   SUPPORT_LINE,
   friendApi,
@@ -209,25 +210,12 @@ function FriendReplyCard({
   onChange: (c: FriendConversation) => void
 }) {
   const { reply } = conversation
-  const [adding, setAdding] = useState(false)
 
   async function rate(helpful: boolean | null) {
     try {
       onChange((await friendApi.feedback(thoughtId, 'reply', helpful)).conversation)
     } catch {
       toast.error('Could not save that')
-    }
-  }
-
-  async function addIntention() {
-    setAdding(true)
-    try {
-      await api.post(`/entries/${todayInTimezone()}/purpose/intentions`, { text: reply.smallStep.slice(0, 200) })
-      toast.success("Added to today's intentions")
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not add it')
-    } finally {
-      setAdding(false)
     }
   }
 
@@ -255,11 +243,7 @@ function FriendReplyCard({
         <section className="space-y-2">
           <h3 className="text-sm font-semibold text-mental-foreground">One small step</h3>
           <p className="text-sm leading-relaxed">{reply.smallStep}</p>
-          {canAddIntention && (
-            <Button loading={adding} type="button" variant="outline" size="sm" className="bg-card" onClick={addIntention} disabled={adding}>
-              <Plus aria-hidden /> Add as an intention for today
-            </Button>
-          )}
+          {canAddIntention && <AddStepToToday text={reply.smallStep} />}
         </section>
 
         <p className="font-heading text-lg">{reply.closing}</p>
@@ -382,5 +366,20 @@ function FriendChat({
         <FormError>{error}</FormError>
       )}
     </section>
+  )
+}
+
+/** The small step as an intention of one of today's purposes (you pick which, when there are several). */
+function AddStepToToday({ text }: { text: string }) {
+  const { day, addIntention } = useDay(todayInTimezone())
+  if (!day) return null
+  return (
+    <AddToPurposePicker
+      text={text}
+      purposes={day.entry?.dailyPurposes ?? []}
+      onAdd={addIntention}
+      label="Add as an intention for today"
+      className="bg-card"
+    />
   )
 }

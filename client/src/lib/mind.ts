@@ -113,8 +113,10 @@ export const embedUrl = (videoId: string) => `https://www.youtube-nocookie.com/e
 
 export type LiftResponse = {
   goodThings: { text: string; date: string }[]
-  /** Today's purpose when it's set (shown first) */
-  todayPurpose: { text: string; focusValues: string[] } | null
+  /** The first 3 of today's purposes (shown first when there are any) */
+  todayPurposes: { id: string; text: string; focusValues: string[] }[]
+  /** How many purposes today has in all */
+  todayPurposeCount: number
   purpose: { purposeStatement: string; coreValues: string[] } | null
   quote: (Quote & { mine: boolean }) | null
   video: { id: string; title: string; videoId: string; note: string | null } | null

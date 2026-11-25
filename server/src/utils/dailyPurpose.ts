@@ -1,35 +1,60 @@
-// Today's purpose ("What do I want today to be about?"), its intentions and the evening reflection.
+// The day's purposes ("What do I want today to be about?"): up to 5 a day, each with its own focus
+// values, up to 5 intentions and an evening rating, plus one evening note for the whole day.
 // Pure functions: the encrypter is passed in, so they can be tested with a test key.
 //
-// Stored: the purpose text, each intention's text and the reflection note are encrypted.
-// focusValues (words from the user's core values), done flags, times and the rating are not.
+// Stored: each purpose's text, each intention's text and the evening note are encrypted.
+// focusValues (words from the user's core values), done flags, times and ratings are not.
 import type { FieldCrypto } from "./crypto";
 import { addDays } from "./dates";
 
-export type StoredDailyPurpose = {
-  /** Older days: one purpose, before a day could have several */
+type StoredDate = Date | string | null | undefined;
+
+export type StoredIntention = { _id?: unknown; text: string; done?: boolean | null; doneAt?: StoredDate };
+
+export type StoredDayPurpose = {
+  _id?: unknown;
   text?: string | null;
-  purposes?: { _id?: unknown; text: string; at?: Date | string | null }[] | null;
   focusValues?: string[] | null;
-  intentions?: { _id?: unknown; text: string; done?: boolean | null; doneAt?: Date | string | null }[] | null;
-  reflection?: { rating: number; note?: string | null; at: Date | string } | null;
-  setAt?: Date | string | null;
-  updatedAt?: Date | string | null;
+  intentions?: StoredIntention[] | null;
+  rating?: number | null;
+  createdAt?: StoredDate;
+  updatedAt?: StoredDate;
 };
 
-export type DailyPurpose = {
-  /** All of the day's purposes, one per line (kept for everything that shows or checks the text) */
+/** The purpose fields of a stored DailyEntry */
+export type StoredDayPurposes = {
+  dailyPurposes?: StoredDayPurpose[] | null;
+  dailyReflectionNote?: string | null;
+};
+
+export type Intention = { id: string; text: string; done: boolean; doneAt: string | null };
+
+export type DayPurpose = {
+  id: string;
   text: string;
-  /** The day's purposes, in the order they were added. An older single purpose has id "legacy". */
-  purposes: { id: string; text: string }[];
   focusValues: string[];
-  intentions: { id: string; text: string; done: boolean; doneAt: string | null }[];
-  reflection: { rating: number; note: string; at: string } | null;
-  setAt: string | null;
+  intentions: Intention[];
+  /** "How well did I live this purpose today?" 1–5, null until rated */
+  rating: number | null;
+  createdAt: string | null;
   updatedAt: string | null;
 };
 
-const iso = (d: Date | string | null | undefined) => (d ? new Date(d).toISOString() : null);
+/** A day's purposes as the API returns them (decrypted, for the owner only) */
+export type DayPurposes = {
+  /** In the order they were added */
+  purposes: DayPurpose[];
+  /** The one evening note for the whole day ("" when there is none) */
+  reflectionNote: string;
+};
+
+/** A day holds up to 5 purposes, and each purpose up to 5 intentions. */
+export const MAX_PURPOSES = 5;
+export const MAX_INTENTIONS = 5;
+export const canAddPurpose = (count: number) => count < MAX_PURPOSES;
+export const canAddIntention = (count: number) => count < MAX_INTENTIONS;
+
+const iso = (d: StoredDate) => (d ? new Date(d).toISOString() : null);
 
 /** The stored form of some text: encrypted, or undefined when empty. */
 export function sealText(crypto: FieldCrypto, text: string | null | undefined): string | undefined {
@@ -38,44 +63,41 @@ export function sealText(crypto: FieldCrypto, text: string | null | undefined): 
 }
 
 /** For the API: everything decrypted. Text that can't be decrypted (wrong key) shows as empty. */
-export function openDailyPurpose(crypto: FieldCrypto, stored: StoredDailyPurpose | null | undefined): DailyPurpose | null {
-  if (!stored) return null;
+export function openDayPurposes(crypto: FieldCrypto, stored: StoredDayPurposes | null | undefined): DayPurposes {
   const open = (value: string | null | undefined) => (value ? (crypto.tryDecrypt(value) ?? "") : "");
-  const purposes = (
-    stored.purposes && stored.purposes.length > 0
-      ? stored.purposes.map((p) => ({ id: String(p._id), text: open(p.text) }))
-      : stored.text
-        ? [{ id: LEGACY_PURPOSE_ID, text: open(stored.text) }]
-        : []
-  ).filter((p) => p.text.trim() !== "");
   return {
-    text: purposes.map((p) => p.text).join("\n"),
-    purposes,
-    focusValues: [...(stored.focusValues ?? [])],
-    intentions: (stored.intentions ?? []).map((i) => ({
-      id: String(i._id),
-      text: open(i.text),
-      done: Boolean(i.done),
-      doneAt: iso(i.doneAt),
+    purposes: (stored?.dailyPurposes ?? []).map((p) => ({
+      id: String(p._id),
+      text: open(p.text),
+      focusValues: [...(p.focusValues ?? [])],
+      intentions: (p.intentions ?? []).map((i) => ({ id: String(i._id), text: open(i.text), done: Boolean(i.done), doneAt: iso(i.doneAt) })),
+      rating: typeof p.rating === "number" ? p.rating : null,
+      createdAt: iso(p.createdAt),
+      updatedAt: iso(p.updatedAt),
     })),
-    reflection: stored.reflection
-      ? { rating: stored.reflection.rating, note: open(stored.reflection.note), at: iso(stored.reflection.at)! }
-      : null,
-    setAt: iso(stored.setAt),
-    updatedAt: iso(stored.updatedAt),
+    reflectionNote: open(stored?.dailyReflectionNote),
   };
 }
 
-/** A day can have up to 5 purposes. */
-export const MAX_PURPOSES = 5;
-
-/** The id an older day's single purpose is shown with, until it's moved into `purposes`. */
-export const LEGACY_PURPOSE_ID = "legacy";
-
 /** True when the day has anything purpose-related worth showing. */
-export function hasDailyPurpose(p: DailyPurpose | null): p is DailyPurpose {
-  return !!p && (p.text.trim() !== "" || p.focusValues.length > 0 || p.intentions.length > 0 || p.reflection !== null);
+export const hasDayPurposes = (d: DayPurposes | null | undefined): d is DayPurposes =>
+  !!d && (d.purposes.length > 0 || d.reflectionNote.trim() !== "");
+
+/** "3 purposes · 5 of 8 intentions done": the counts behind every summary. */
+export function daySummary(d: DayPurposes) {
+  const intentions = d.purposes.flatMap((p) => p.intentions);
+  const ratings = d.purposes.flatMap((p) => (p.rating === null ? [] : [p.rating]));
+  return {
+    purposes: d.purposes.length,
+    intentions: intentions.length,
+    intentionsDone: intentions.filter((i) => i.done).length,
+    ratings,
+    /** 1 decimal, null without ratings */
+    avgRating: average(ratings),
+  };
 }
+
+const average = (xs: number[]) => (xs.length ? Math.round((xs.reduce((s, x) => s + x, 0) / xs.length) * 10) / 10 : null);
 
 /** Focus values must be some of the user's core values (matched ignoring case, spelled as in the core values). */
 export function pickFocusValues(chosen: string[], coreValues: string[]): { values: string[]; unknown: string[] } {
@@ -89,11 +111,6 @@ export function pickFocusValues(chosen: string[], coreValues: string[]): { value
   }
   return { values, unknown };
 }
-
-export const MAX_INTENTIONS = 5;
-
-/** A day holds up to 5 intentions. */
-export const canAddIntention = (count: number) => count < MAX_INTENTIONS;
 
 // ---------- Purpose versions ----------
 
@@ -213,30 +230,34 @@ export function splitPurposeDays<T extends { date: string }>(days: T[], today: s
 
 export type PurposeStats = {
   daysWithPurpose: number;
+  /** All purposes across the days */
+  purposesTotal: number;
   intentionsTotal: number;
   intentionsDone: number;
   /** Whole-number percent, null without intentions */
   intentionsDonePercent: number | null;
-  /** 1 decimal, null without reflections */
+  /** Across every rated purpose; 1 decimal, null without ratings */
   avgRating: number | null;
-  /** Most-chosen focus values, most first (ties alphabetical), up to 3 */
+  /** Most-chosen focus values (counted once per day), most first (ties alphabetical), up to 3 */
   topValues: { value: string; days: number }[];
 };
 
-export function purposeStats(days: (DailyPurpose | null)[]): PurposeStats {
-  const set = days.filter(hasDailyPurpose);
-  const intentions = set.flatMap((d) => d.intentions);
+export function purposeStats(days: (DayPurposes | null)[]): PurposeStats {
+  const set = days.filter((d): d is DayPurposes => !!d && d.purposes.length > 0);
+  const purposes = set.flatMap((d) => d.purposes);
+  const intentions = purposes.flatMap((p) => p.intentions);
   const done = intentions.filter((i) => i.done).length;
-  const ratings = set.flatMap((d) => (d.reflection ? [d.reflection.rating] : []));
+  const ratings = purposes.flatMap((p) => (p.rating === null ? [] : [p.rating]));
   const counts = new Map<string, number>();
-  for (const d of set) for (const v of new Set(d.focusValues)) counts.set(v, (counts.get(v) ?? 0) + 1);
+  for (const d of set) for (const v of new Set(d.purposes.flatMap((p) => p.focusValues))) counts.set(v, (counts.get(v) ?? 0) + 1);
 
   return {
     daysWithPurpose: set.length,
+    purposesTotal: purposes.length,
     intentionsTotal: intentions.length,
     intentionsDone: done,
     intentionsDonePercent: intentions.length ? Math.round((done / intentions.length) * 100) : null,
-    avgRating: ratings.length ? Math.round((ratings.reduce((s, r) => s + r, 0) / ratings.length) * 10) / 10 : null,
+    avgRating: average(ratings),
     topValues: [...counts]
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
       .slice(0, 3)
@@ -247,21 +268,24 @@ export function purposeStats(days: (DailyPurpose | null)[]): PurposeStats {
 // ---------- AI ----------
 
 /**
- * What the AI may know about a day's purpose: whether one was set, how many intentions and how
- * many done, the rating, and the chosen value words (only words the AI may see: `safeValue`
- * turns anything else into "other value"). Never the purpose text, intention text or notes.
+ * What the AI may know about a day's purposes: how many, how many intentions and how many done,
+ * the ratings, and the chosen value words (only words the AI may see: `safeValue` turns anything
+ * else into "other value"). Never a purpose's text, an intention's text or the evening note.
  */
-export function purposeFacts(p: DailyPurpose | null, safeValue: (value: string) => string) {
-  if (!hasDailyPurpose(p)) return { set: false };
+export function purposeFacts(d: DayPurposes | null, safeValue: (value: string) => string) {
+  if (!d || d.purposes.length === 0) return { set: false };
+  const { purposes, intentions, intentionsDone, ratings, avgRating } = daySummary(d);
   return {
     set: true,
-    intentions: p.intentions.length,
-    intentionsDone: p.intentions.filter((i) => i.done).length,
-    rating: p.reflection?.rating ?? null,
-    focusValues: [...new Set(p.focusValues.map(safeValue))],
+    purposes,
+    intentions,
+    intentionsDone,
+    ratings,
+    avgRating,
+    focusValues: [...new Set(d.purposes.flatMap((p) => p.focusValues).map(safeValue))],
   };
 }
 
 /** Every user-written purpose text, for the crisis check only (never sent anywhere). */
-export const purposeText = (p: DailyPurpose | null): string[] =>
-  p ? [...p.purposes.map((l) => l.text), ...p.intentions.map((i) => i.text), p.reflection?.note ?? ""] : [];
+export const purposeText = (d: DayPurposes | null): string[] =>
+  d ? [...d.purposes.flatMap((p) => [p.text, ...p.intentions.map((i) => i.text)]), d.reflectionNote] : [];

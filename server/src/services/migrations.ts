@@ -1,5 +1,6 @@
 // Small data migrations, run after the database connects. Each one is idempotent.
 import { DailyEntryModel } from "../models/DailyEntry";
+import { planPurposesMigration } from "../utils/purposesMigration";
 
 /**
  * appleSleepScore → sleepScoreValue + sleepScoreSource.
@@ -20,7 +21,43 @@ export async function migrateSleepScoreField(): Promise<number> {
   return typed.modifiedCount + leftover.modifiedCount + calculated.modifiedCount;
 }
 
+export type PurposesMigrationResult = { scanned: number; days: number; purposes: number; intentions: number; ratings: number; notes: number };
+
+/**
+ * dailyPurpose (one per day) → dailyPurposes (several, each with its own intentions and rating) +
+ * dailyReflectionNote. See utils/purposesMigration.ts. Uses the raw collection, because
+ * dailyPurpose is no longer in the schema. With `dryRun`, only counts.
+ */
+export async function migrateDailyPurposes(dryRun = false): Promise<PurposesMigrationResult> {
+  const collection = DailyEntryModel.collection;
+  const result: PurposesMigrationResult = { scanned: 0, days: 0, purposes: 0, intentions: 0, ratings: 0, notes: 0 };
+  for await (const doc of collection.find({ dailyPurpose: { $exists: true } })) {
+    result.scanned++;
+    const plan = planPurposesMigration(doc as unknown as Record<string, unknown> & { date: string });
+    if (!plan) continue;
+    result.days++;
+    result.purposes += plan.counts.purposes;
+    result.intentions += plan.counts.intentions;
+    result.ratings += plan.counts.ratings;
+    result.notes += plan.counts.notes;
+    if (dryRun) continue;
+    // Only if dailyPurpose is still there, so two runs at once can't move a day twice
+    await collection.updateOne(
+      { _id: doc._id, dailyPurpose: { $exists: true } },
+      {
+        ...(Object.keys(plan.set).length > 0 && { $set: plan.set }),
+        $unset: Object.fromEntries(plan.unset.map((k) => [k, ""])),
+      },
+    );
+  }
+  return result;
+}
+
 export async function runMigrations(): Promise<void> {
   const changed = await migrateSleepScoreField();
   if (changed > 0) console.log(`🔧 Sleep score field: migrated ${changed} entries`);
+  const purposes = await migrateDailyPurposes();
+  if (purposes.days > 0) {
+    console.log(`🔧 Daily purposes: moved ${purposes.days} days (${purposes.purposes} purposes, ${purposes.intentions} intentions, ${purposes.ratings} ratings, ${purposes.notes} notes)`);
+  }
 }

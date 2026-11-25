@@ -17,9 +17,9 @@ import { PageHeader } from '@/components/PageHeader'
 import { ErrorNotice } from '@/components/StatusViews'
 import { DailyPurposes, PurposeEvolution } from '@/components/purpose/PurposeJourney'
 import { PurposeCard } from '@/components/day/PurposeCard'
-import { useDay } from '@/hooks/useDay'
+import { useDay, type PurposeActions } from '@/hooks/useDay'
 import { useToday } from '@/hooks/useClock'
-import { savedAtLabel } from '@/lib/purpose'
+import { dayPurposesOf, savedAtLabel } from '@/lib/purpose'
 import { api } from '@/lib/api'
 import { VALUE_SUGGESTIONS, type Purpose as PurposeData } from '@/lib/mind'
 import { cn } from '@/lib/utils'
@@ -186,9 +186,9 @@ function scrollToToday() {
   document.getElementById('today-purpose')?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' })
 }
 
-/** Today's purpose, editable on this page. Every save also refreshes the Daily purposes list. */
+/** Today's purposes, editable on this page. Every save also refreshes the Daily purposes list. */
 function TodayPurposeEditor({ today, onSaved }: { today: string; onSaved: () => void }) {
-  const { day, error, savePurpose, addPurposeLine, updatePurposeLine, removePurposeLine, addIntention, updateIntention, removeIntention, saveReflection } = useDay(today)
+  const { day, error, ...all } = useDay(today)
   const after =
     <A extends unknown[], R>(action: (...args: A) => Promise<R>) =>
     async (...args: A) => {
@@ -196,15 +196,14 @@ function TodayPurposeEditor({ today, onSaved }: { today: string; onSaved: () => 
       onSaved()
       return result
     }
-  const actions = {
-    savePurpose: after(savePurpose),
-    addPurposeLine: after(addPurposeLine),
-    updatePurposeLine: after(updatePurposeLine),
-    removePurposeLine: after(removePurposeLine),
-    addIntention: after(addIntention),
-    updateIntention: after(updateIntention),
-    removeIntention: after(removeIntention),
-    saveReflection: after(saveReflection),
+  const actions: PurposeActions = {
+    addPurpose: after(all.addPurpose),
+    updatePurpose: after(all.updatePurpose),
+    removePurpose: after(all.removePurpose),
+    addIntention: after(all.addIntention),
+    updateIntention: after(all.updateIntention),
+    removeIntention: after(all.removeIntention),
+    saveReflectionNote: after(all.saveReflectionNote),
   }
 
   return (
@@ -214,7 +213,7 @@ function TodayPurposeEditor({ today, onSaved }: { today: string; onSaved: () => 
       ) : !day ? (
         <Skeleton className="h-32 w-full rounded-2xl" />
       ) : (
-        <PurposeCard key={day.entry?.dailyPurpose?.setAt ?? 'none'} purpose={day.entry?.dailyPurpose ?? null} isToday actions={actions} />
+        <PurposeCard day={dayPurposesOf(day.entry)} isToday actions={actions} />
       )}
     </div>
   )

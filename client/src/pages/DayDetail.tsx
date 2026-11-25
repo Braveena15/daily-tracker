@@ -16,7 +16,7 @@ import { formatLongDate, isValidDateString, relativeDay, todayInTimezone } from 
 import { dayMood, type DayResponse } from '@/lib/entries'
 import { moodBand } from '@/lib/mood'
 import { MoodIcon } from '@/components/MoodFace'
-import { intentionsDone } from '@/lib/purpose'
+import { dayPurposesOf, daySummary } from '@/lib/purpose'
 import { EditableUntilLabel, LockedLabel, PurposeDayView } from '@/components/purpose/PurposeDayView'
 import type { Tone } from '@/lib/tones'
 import type { ReactNode } from 'react'
@@ -99,17 +99,17 @@ function DayBody({ day }: { day: DayResponse }) {
         <Stat icon={GlassWater} tone="outdoor" label="Water" value={day.waterTotalMl ? litres(day.waterTotalMl) : '—'} />
       </div>
 
-      {entry?.dailyPurpose && (
+      {entry && (entry.dailyPurposes?.length || entry.dailyReflectionNote) ? (
         <Section
-          title="Purpose"
-          hint={intentionsDone(entry.dailyPurpose) ? `${intentionsDone(entry.dailyPurpose)} intentions done` : undefined}
+          title="Purposes"
+          hint={entry.dailyPurposes?.length ? daySummary(dayPurposesOf(entry)) : undefined}
           icon={Target}
           tone="mental"
         >
-          <PurposeDayView purpose={entry.dailyPurpose} />
+          <PurposeDayView day={dayPurposesOf(entry)} />
           {day.date === todayInTimezone() ? <EditableUntilLabel /> : <LockedLabel />}
         </Section>
-      )}
+      ) : null}
 
       {entry?.sleep && (
         <Section title="Sleep" icon={Moon} tone="mental">

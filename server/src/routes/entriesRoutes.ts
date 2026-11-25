@@ -12,13 +12,12 @@ import {
 } from "../controllers/entriesController";
 import {
   addIntention,
-  addPurposeLine,
-  deletePurposeLine,
-  updatePurposeLine,
+  addPurpose,
   deleteIntention,
-  saveReflection,
-  savePurposeOfDay,
+  deletePurpose,
+  saveReflectionNote,
   updateIntention,
+  updatePurpose,
 } from "../controllers/dailyPurposeController";
 import { requireAuth } from "../middleware/requireAuth";
 
@@ -35,15 +34,15 @@ entriesRouter.get("/:date", getByDate);
 entriesRouter.delete("/:date", deleteByDate);
 // Single daily values (weight, steps, active calories)
 entriesRouter.put("/:date/daily", saveDaily);
-// Today's purpose, its intentions and the evening reflection
-entriesRouter.put("/:date/purpose", savePurposeOfDay);
-entriesRouter.post("/:date/purpose/lines", addPurposeLine);
-entriesRouter.patch("/:date/purpose/lines/:id", updatePurposeLine);
-entriesRouter.delete("/:date/purpose/lines/:id", deletePurposeLine);
-entriesRouter.post("/:date/purpose/intentions", addIntention);
-entriesRouter.patch("/:date/purpose/intentions/:id", updateIntention);
-entriesRouter.delete("/:date/purpose/intentions/:id", deleteIntention);
-entriesRouter.put("/:date/purpose/reflection", saveReflection);
+// Today's purposes (up to 5), each with its own intentions and rating, and the day's evening note.
+// Before "/:date/:kind…" so "purposes" isn't treated as a kind of entry.
+entriesRouter.post("/:date/purposes", addPurpose);
+entriesRouter.patch("/:date/purposes/:purposeId", updatePurpose);
+entriesRouter.delete("/:date/purposes/:purposeId", deletePurpose);
+entriesRouter.post("/:date/purposes/:purposeId/intentions", addIntention);
+entriesRouter.patch("/:date/purposes/:purposeId/intentions/:intentionId", updateIntention);
+entriesRouter.delete("/:date/purposes/:purposeId/intentions/:intentionId", deleteIntention);
+entriesRouter.put("/:date/reflection-note", saveReflectionNote);
 // Timestamped entries: kind = moods | workouts | mental | outdoor | goodThings | learnings | presentMoments
 entriesRouter.post("/:date/:kind", addEntry);
 entriesRouter.patch("/:date/:kind/:id", updateEntry);

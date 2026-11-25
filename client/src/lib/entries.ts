@@ -5,7 +5,7 @@
 import type { LucideIcon } from 'lucide-react'
 import { BookOpen, Brain, Dumbbell, Feather, GlassWater, Moon, Smile, Sparkles, Sun, Watch } from 'lucide-react'
 import type { Tone } from '@/lib/tones'
-import type { DailyPurpose } from '@/lib/purpose'
+import type { DayPurpose } from '@/lib/purpose'
 
 export type WorkoutSource = 'manual' | 'watch'
 export type SleepScoreSource = 'auto' | 'manual'
@@ -76,8 +76,10 @@ export type DailyEntry = {
   presentMoments: PresentMoment[]
   /** Older days may not have it */
   waterLogs?: WaterLog[]
-  /** Today's purpose, decrypted (null when none was set) */
-  dailyPurpose?: DailyPurpose | null
+  /** The day's purposes (up to 5), decrypted */
+  dailyPurposes?: DayPurpose[]
+  /** The day's evening note ("" when none) */
+  dailyReflectionNote?: string
   createdAt: string
   updatedAt: string
 }

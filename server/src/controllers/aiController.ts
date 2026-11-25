@@ -19,7 +19,7 @@ import { getEncouragement, type AiRequest, type AiResult } from "../ai/service";
 import { aiConfigured, aiDeps, aiMode } from "../config/ai";
 import { env } from "../config/env";
 import { fieldCrypto } from "../config/encryption";
-import { openDailyPurpose, purposeText, type StoredDailyPurpose } from "../utils/dailyPurpose";
+import { openDayPurposes, purposeText } from "../utils/dailyPurpose";
 import { CHECKED_IN, DailyEntryModel } from "../models/DailyEntry";
 import { PurposeModel, ThoughtLogModel } from "../models/Mind";
 import { UserModel } from "../models/User";
@@ -141,7 +141,7 @@ export async function dailyNote(req: Request, res: Response): Promise<void> {
   if (!stored) throw new AppError(400, "Check in for this day first");
 
   const entry = toScoreEntry(stored);
-  const purpose = openDailyPurpose(fieldCrypto, stored.dailyPurpose as StoredDailyPurpose | undefined);
+  const purpose = openDayPurposes(fieldCrypto, stored);
   const s = scoresFor(ctx, stored, mealKcal.get(date));
   const eaten = mealKcal.get(date);
 

@@ -35,6 +35,8 @@ function LiftCard({ icon, title, children }: { icon: LucideIcon; title: string; 
 /** A gentle page of good things from your own life, your purpose, a quote, a video and a breathing exercise. */
 export function Lift() {
   const { data, error } = useFetch<LiftResponse>('/lift-me-up', 'Could not load this page')
+  // Older responses may not have the list yet
+  const todayPurposes = (data?.todayPurposes ?? []).slice(0, 3)
 
   return (
     <>
@@ -57,18 +59,32 @@ export function Lift() {
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 md:gap-6">
-            <LiftCard icon={Compass} title={data.todayPurpose ? "Today's purpose" : 'What matters to you'}>
-              {data.todayPurpose ? (
+            <LiftCard
+              icon={Compass}
+              title={todayPurposes.length > 1 ? "Today's purposes" : todayPurposes.length === 1 ? "Today's purpose" : 'What matters to you'}
+            >
+              {todayPurposes.length > 0 ? (
                 <div className="space-y-3">
-                  <p className="font-serif text-lg leading-relaxed whitespace-pre-line">{data.todayPurpose.text}</p>
-                  {data.todayPurpose.focusValues.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5">
-                      {data.todayPurpose.focusValues.map((v) => (
-                        <Badge key={v} variant="secondary" className="bg-mental-soft text-mental-foreground">
-                          {v}
-                        </Badge>
-                      ))}
-                    </div>
+                  <ul className="space-y-3">
+                    {todayPurposes.map((p) => (
+                      <li key={p.id} className="space-y-1.5">
+                        <p className="font-serif text-lg leading-relaxed whitespace-pre-line">{p.text}</p>
+                        {p.focusValues.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5">
+                            {p.focusValues.map((v) => (
+                              <Badge key={v} variant="secondary" className="bg-mental-soft text-mental-foreground">
+                                {v}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                  {data.todayPurposeCount > todayPurposes.length && (
+                    <Link to="/today#purpose" className="text-sm font-medium text-primary underline-offset-4 hover:underline">
+                      +{data.todayPurposeCount - todayPurposes.length} more on Today
+                    </Link>
                   )}
                 </div>
               ) : data.purpose ? (

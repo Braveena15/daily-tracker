@@ -11,7 +11,7 @@ A personal web app for tracking mood, meals, weight, learning and reflection eve
 ### Highlights
 
 - **Today as a timeline**: mood check-ins, water, workouts, learnings, good things and more, each with its own time
-- **Daily purpose**: what today is about, intentions to tick off and an evening reflection
+- **Daily purposes**: up to 5 things today is about, each with its own intentions to tick off and an evening rating, plus one evening note
 - **Scores and trends**: physical, mental and learning scores with a clear breakdown; weight, calories, sleep and water charts; a weekly review comparing this week with the last
 - **Meals and calories** against a daily target worked out from your profile, with macros and fibre
 - **Mind**: an encrypted diary, a step-by-step CBT thought log, "Lift me up" and box breathing
@@ -221,6 +221,16 @@ npm run migrate:timeline                # convert
 ```
 
 It's safe to run twice: days already converted are left alone.
+
+Days from before several purposes a day (one `dailyPurpose` per day) are moved to `dailyPurposes` (the old purpose becomes the first, keeping its intentions and rating; its reflection note becomes the day's evening note). The server does this on start-up; to run it by hand:
+
+```bash
+cd server
+npm run migrate:purposes -- --dry-run   # only count what would change
+npm run migrate:purposes                # move
+```
+
+Text stays encrypted (it's moved, never decrypted), and it's safe to run twice.
 
 ### Tests
 

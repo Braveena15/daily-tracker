@@ -21,14 +21,12 @@ export function sampleProfile(today: string) {
   return { ...DEMO_PROFILE, currentWeightKg: latestWeight, journeyStartDate: addDays(today, -(DEMO_DAYS - 1)) };
 }
 
-const encryptPurpose = (p: DemoDailyPurpose) => ({
-  ...p,
-  purposes: p.purposes.map((line) => ({ ...line, text: fieldCrypto.encrypt(line.text) })),
-  intentions: p.intentions.map((i) => ({ ...i, text: fieldCrypto.encrypt(i.text) })),
-  ...(p.reflection && {
-    reflection: { ...p.reflection, ...(p.reflection.note && { note: fieldCrypto.encrypt(p.reflection.note) }) },
-  }),
-});
+const encryptPurposes = (purposes: DemoDailyPurpose[]) =>
+  purposes.map((p) => ({
+    ...p,
+    text: fieldCrypto.encrypt(p.text),
+    intentions: p.intentions.map((i) => ({ ...i, text: fieldCrypto.encrypt(i.text) })),
+  }));
 
 /** Inserts the sample data for `userId`. With `expiresAt`, every document gets it (the demo's TTL). */
 export async function seedSampleData(userId: Types.ObjectId, today: string, expiresAt?: Date): Promise<{ days: number; mealDays: number }> {
@@ -42,7 +40,12 @@ export async function seedSampleData(userId: Types.ObjectId, today: string, expi
 
   await Promise.all([
     DailyEntryModel.insertMany(
-      entries.map(({ dailyPurpose, ...e }) => ({ ...e, ...owned, ...(dailyPurpose && { dailyPurpose: encryptPurpose(dailyPurpose) }) })),
+      entries.map(({ dailyPurposes, dailyReflectionNote, ...e }) => ({
+        ...e,
+        ...owned,
+        ...(dailyPurposes && { dailyPurposes: encryptPurposes(dailyPurposes) }),
+        ...(dailyReflectionNote && { dailyReflectionNote: fieldCrypto.encrypt(dailyReflectionNote) }),
+      })),
     ),
     MealDayModel.insertMany(
       mealDays.map((day) => ({

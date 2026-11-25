@@ -23,6 +23,7 @@ export const ENTRY_LIMITS = {
   focusValues: 3,
   intentionText: 200,
   intentions: 5,
+  purposes: 5,
   reflectionNote: 1000,
   listItems: 50,
   waterMl: { min: 50, max: 2000 },
@@ -134,39 +135,25 @@ const healthSnapshotSchema = new Schema(
   { _id: false },
 );
 
-// Today's purpose. Text fields are encrypted (DIARY_ENCRYPTION_KEY), so their lengths are checked
+// The day's purposes. Text fields are encrypted (DIARY_ENCRYPTION_KEY), so their lengths are checked
 // on the plain text in validation/purposeSchema.ts, not here.
 const intentionSchema = new Schema({
   text: { type: String, required: true },
   done: { type: Boolean, default: false },
   doneAt: Date,
 });
-// One of the day's purposes (a day can have several). `text` is encrypted.
-const purposeLineSchema = new Schema({
-  text: { type: String, required: true },
-  at: { type: Date, required: true },
+// One of the day's purposes (up to 5 a day), each with its own focus values, intentions and rating.
+const dayPurposeSchema = new Schema({
+  // Encrypted. Only empty for a purpose moved from an older day that had intentions but no text.
+  text: { type: String, default: "" },
+  // Words chosen from the user's core values
+  focusValues: { type: [{ type: String, trim: true, maxlength: 40 }], default: [] },
+  intentions: { type: [intentionSchema], default: [] },
+  // "How well did I live this purpose today?" 1–5
+  rating: { type: Number, min: 1, max: 5 },
+  createdAt: { type: Date, required: true },
+  updatedAt: { type: Date, required: true },
 });
-const dailyPurposeSchema = new Schema(
-  {
-    // Older days: a single purpose (encrypted). It becomes the first of `purposes` the next time that
-    // day's purposes are changed (see controllers/dailyPurposeController.ts).
-    text: String,
-    purposes: { type: [purposeLineSchema], default: undefined },
-    // Words chosen from the user's core values
-    focusValues: { type: [{ type: String, trim: true, maxlength: 40 }], default: [] },
-    intentions: { type: [intentionSchema], default: [] },
-    reflection: {
-      type: new Schema(
-        { rating: { type: Number, required: true, min: 1, max: 5 }, note: String, at: { type: Date, required: true } },
-        { _id: false },
-      ),
-      default: undefined,
-    },
-    setAt: Date,
-    updatedAt: Date,
-  },
-  { _id: false },
-);
 
 const dailyEntrySchema = new Schema(
   {
@@ -204,8 +191,11 @@ const dailyEntrySchema = new Schema(
     presentMoments: { type: [presentMomentSchema], default: [] },
     waterLogs: { type: [waterLogSchema], default: [] },
 
-    // "What do I want today to be about?" (see controllers/dailyPurposeController.ts)
-    dailyPurpose: { type: dailyPurposeSchema, default: undefined },
+    // "What do I want today to be about?" (see controllers/dailyPurposeController.ts).
+    // Older days stored one `dailyPurpose` object; services/purposesMigration.ts moves it here.
+    dailyPurposes: { type: [dayPurposeSchema], default: undefined },
+    // One evening note for the whole day (encrypted)
+    dailyReflectionNote: String,
   },
   {
     timestamps: true,

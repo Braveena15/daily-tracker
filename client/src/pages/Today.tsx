@@ -14,6 +14,7 @@ import { Section } from '@/components/CheckinFields'
 import { ErrorNotice } from '@/components/StatusViews'
 import { BodyCard } from '@/components/day/BodyCard'
 import { PurposeCard } from '@/components/day/PurposeCard'
+import { dayPurposesOf } from '@/lib/purpose'
 import { ActivityDayChart, MoodDayChart } from '@/components/day/LazyDayCharts'
 import { DayTimeline } from '@/components/day/DayTimeline'
 import { ActivityForm, LearningForm, MoodForm, TextForm } from '@/components/day/EntryForms'
@@ -99,12 +100,9 @@ function DayEditor({ date, today }: { date: string; today: string }) {
 
   return (
     <div className="space-y-4 md:space-y-6">
-      {/* key: start fresh when the saved purpose changes from another tab or device */}
       <div id="purpose" className="scroll-mt-4 space-y-2">
-        <PurposeCard key={entry?.dailyPurpose?.setAt ?? 'none'} purpose={entry?.dailyPurpose ?? null} isToday={isToday} actions={actions} />
-        {isToday && (
-          <WeeklyGoalReminder today={today} purpose={entry?.dailyPurpose ?? null} addIntention={actions.addIntention} />
-        )}
+        <PurposeCard day={dayPurposesOf(entry)} isToday={isToday} actions={actions} />
+        {isToday && <WeeklyGoalReminder today={today} purposes={entry?.dailyPurposes ?? []} addIntention={actions.addIntention} />}
       </div>
 
       <Section

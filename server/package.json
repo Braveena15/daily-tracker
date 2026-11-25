@@ -10,7 +10,8 @@
     "test": "vitest run",
     "seed:demo": "tsx src/scripts/seedDemo.ts",
     "seed:demo:clear": "tsx src/scripts/seedDemo.ts --clear",
-    "migrate:timeline": "tsx src/scripts/migrateTimeline.ts"
+    "migrate:timeline": "tsx src/scripts/migrateTimeline.ts",
+    "migrate:purposes": "tsx src/scripts/migratePurposes.ts"
   },
   "keywords": [],
   "author": "",

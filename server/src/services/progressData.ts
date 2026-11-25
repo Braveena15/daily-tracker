@@ -8,7 +8,7 @@ import { encouragement, summariseWeek, weekDifferences, weekRanges, type ReviewD
 import { mentalScore } from "../utils/scores";
 import { dayMood } from "../utils/timeline";
 import { fieldCrypto } from "../config/encryption";
-import { hasDailyPurpose, openDailyPurpose, purposeStats, type StoredDailyPurpose } from "../utils/dailyPurpose";
+import { hasDayPurposes, openDayPurposes, purposeStats } from "../utils/dailyPurpose";
 
 const minutes = (items: { durationMin?: number | null; minutes?: number | null }[]) =>
   items.reduce((s, i) => s + (i.durationMin ?? i.minutes ?? 0), 0);
@@ -80,13 +80,13 @@ async function weekPurpose(userId: string | undefined, from: string, to: string)
   const rows =
     from > to
       ? []
-      : await DailyEntryModel.find({ userId, date: { $gte: from, $lte: to }, dailyPurpose: { $exists: true } })
-          .select("date dailyPurpose")
+      : await DailyEntryModel.find({ userId, date: { $gte: from, $lte: to }, "dailyPurposes.0": { $exists: true } })
+          .select("date dailyPurposes dailyReflectionNote")
           .sort({ date: 1 })
           .lean();
   const days = rows.flatMap((r) => {
-    const p = openDailyPurpose(fieldCrypto, r.dailyPurpose as StoredDailyPurpose);
-    return hasDailyPurpose(p) ? [{ date: r.date, ...p }] : [];
+    const p = openDayPurposes(fieldCrypto, r);
+    return hasDayPurposes(p) ? [{ date: r.date, ...p }] : [];
   });
   return { days, stats: purposeStats(days) };
 }

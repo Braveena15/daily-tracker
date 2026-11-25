@@ -11,7 +11,7 @@ import { EmptyState, ErrorNotice } from '@/components/StatusViews'
 import { api } from '@/lib/api'
 import { formatDate, listDates, relativeDay, todayInTimezone } from '@/lib/dates'
 import { historyRange, journeyDate } from '@/lib/journey'
-import { firstLine, intentionsDone } from '@/lib/purpose'
+import { shortDaySummary } from '@/lib/purpose'
 import type { JourneyResponse } from '@/lib/progress'
 import { dayMood, type DailyEntry, type EntriesListResponse } from '@/lib/entries'
 import { energyBand, moodBand } from '@/lib/mood'
@@ -190,12 +190,12 @@ function DayCard({ date, today, entry, isStart }: { date: string; today: string;
         <CardChevron className="self-center" />
       </div>
 
-      {entry.dailyPurpose && (entry.dailyPurpose.text || intentionsDone(entry.dailyPurpose)) && (
+      {entry.dailyPurposes && entry.dailyPurposes.length > 0 && (
         <p className="flex min-w-0 items-baseline gap-2 text-sm">
           <Target className="size-4 shrink-0 self-center text-mental" aria-hidden />
-          <span className="min-w-0 truncate font-serif">{firstLine(entry.dailyPurpose.text) || "Today's intentions"}</span>
-          {intentionsDone(entry.dailyPurpose) && (
-            <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{intentionsDone(entry.dailyPurpose)} done</span>
+          <span className="shrink-0 tabular-nums">{shortDaySummary({ purposes: entry.dailyPurposes })}</span>
+          {entry.dailyPurposes[0]!.text && (
+            <span className="min-w-0 truncate font-serif text-muted-foreground">{entry.dailyPurposes[0]!.text}</span>
           )}
         </p>
       )}

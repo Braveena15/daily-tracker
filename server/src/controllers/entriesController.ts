@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import { isValidObjectId, Types } from "mongoose";
 import { fieldCrypto } from "../config/encryption";
-import { hasDailyPurpose, openDailyPurpose, type StoredDailyPurpose } from "../utils/dailyPurpose";
+import { openDayPurposes, type StoredDayPurposes } from "../utils/dailyPurpose";
 import { CHECKED_IN, DailyEntryModel, ENTRY_LIMITS, isCheckedIn } from "../models/DailyEntry";
 import { updateProfileWeightIfLatest } from "../services/profileWeight";
 import { fieldsStillFromWatch } from "../utils/healthSyncMerge";
@@ -93,9 +93,11 @@ export function serializeEntry(doc: LeanDay) {
       .map(withId)
       .sort((a, b) => new Date(String(b.loggedAt)).getTime() - new Date(String(a.loggedAt)).getTime());
   }
-  // Today's purpose, decrypted (only ever sent to its owner)
-  const purpose = openDailyPurpose(fieldCrypto, doc.dailyPurpose as StoredDailyPurpose | undefined);
-  out.dailyPurpose = hasDailyPurpose(purpose) ? purpose : null;
+  // The day's purposes and evening note, decrypted (only ever sent to its owner)
+  const { purposes, reflectionNote } = openDayPurposes(fieldCrypto, doc as StoredDayPurposes);
+  out.dailyPurposes = purposes;
+  out.dailyReflectionNote = reflectionNote;
+  delete out.dailyPurpose; // an older day not moved yet (see services/purposesMigration.ts)
   return out;
 }
 

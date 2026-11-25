@@ -12,7 +12,7 @@ import { IconBubble } from '@/components/IconBubble'
 import { WeekDayList, WeekMoodChart } from '@/components/progress/WeekDays'
 import { PurposeDayView } from '@/components/purpose/PurposeDayView'
 import { PurposeStatsRow } from '@/components/purpose/PurposeJourney'
-import { intentionsDone } from '@/lib/purpose'
+import { shortDaySummary } from '@/lib/purpose'
 import { aiRequests } from '@/lib/ai'
 import { PageHeader } from '@/components/PageHeader'
 import { EmptyState, ErrorNotice } from '@/components/StatusViews'
@@ -364,9 +364,9 @@ function ReviewBody({ data, today }: { data: WeeklyReviewResponse; today: string
           <CardContent className="space-y-4">
             {data.purpose.days.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No daily purpose set this week.{' '}
+                No daily purposes set this week.{' '}
                 <Link to="/today" className="font-medium text-primary underline-offset-4 hover:underline">
-                  Set today's purpose
+                  Set today's purposes
                 </Link>
               </p>
             ) : (
@@ -379,13 +379,13 @@ function ReviewBody({ data, today }: { data: WeeklyReviewResponse; today: string
                         <Link to={`/history/${day.date}`} className="font-heading font-semibold hover:underline">
                           {relativeDay(day.date, today)}
                         </Link>
-                        {intentionsDone(day) && (
-                <span className="flex items-center gap-1 text-xs text-muted-foreground tabular-nums">
-                  <Target className="size-4 text-mental" aria-hidden /> {intentionsDone(day)} done
-                </span>
-              )}
+                        {day.purposes.length > 0 && (
+                          <span className="flex items-center gap-1 text-xs text-muted-foreground tabular-nums">
+                            <Target className="size-4 text-mental" aria-hidden /> {shortDaySummary(day)}
+                          </span>
+                        )}
                       </p>
-                      <PurposeDayView purpose={day} />
+                      <PurposeDayView day={day} />
                     </li>
                   ))}
                 </ol>

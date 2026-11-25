@@ -17,7 +17,7 @@
 // These are pure functions (no database, no AI calls), so they're easy to test.
 import type { ScoreEntry } from "../utils/scores";
 import { daysBetween } from "../utils/dates";
-import { purposeFacts, type DailyPurpose, type PurposeStats } from "../utils/dailyPurpose";
+import { purposeFacts, type DayPurposes, type PurposeStats } from "../utils/dailyPurpose";
 import { dayMood, timeOfDay } from "../utils/timeline";
 
 export type AiMode = "minimal" | "full";
@@ -180,8 +180,8 @@ export function buildDailyContext(input: {
   scores: ScoresInput;
   nutrition: { eatenKcal: number; targetKcal: number | null } | null;
   today: string;
-  /** The day's purpose; only purposeFacts() of it is sent (never its text) */
-  purpose?: DailyPurpose | null;
+  /** The day's purposes; only purposeFacts() of them is sent (counts and ratings, never text) */
+  purpose?: DayPurposes | null;
 }): AiContext {
   const { entry, scores, nutrition, today } = input;
   return {
@@ -282,6 +282,7 @@ export function buildWeeklyContext(input: {
       purpose: input.purpose
         ? {
             daysWithPurpose: input.purpose.daysWithPurpose,
+            purposes: input.purpose.purposesTotal,
             intentions: input.purpose.intentionsTotal,
             intentionsDone: input.purpose.intentionsDone,
             avgRating: input.purpose.avgRating,

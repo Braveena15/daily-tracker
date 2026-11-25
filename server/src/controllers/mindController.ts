@@ -6,12 +6,10 @@ import { DailyEntryModel } from "../models/DailyEntry";
 import { dayMood } from "../utils/timeline";
 import { todayInTimezone } from "../utils/dates";
 import {
-  hasDailyPurpose,
-  openDailyPurpose,
+  openDayPurposes,
   previousVersion,
   purposeChanged,
   toPurposeContent,
-  type StoredDailyPurpose,
   type StoredPurpose,
 } from "../utils/dailyPurpose";
 import { PurposeModel, QuoteModel, ThoughtLogModel, VideoModel } from "../models/Mind";
@@ -140,9 +138,9 @@ export async function liftMeUp(req: Request, res: Response): Promise<void> {
       .sort({ smallStepDoneAt: -1, updatedAt: -1 })
       .select("date smallStep smallStepDoneAt")
       .lean(),
-    DailyEntryModel.findOne({ userId, date: todayInTimezone() }).select("dailyPurpose").lean(),
+    DailyEntryModel.findOne({ userId, date: todayInTimezone() }).select("dailyPurposes").lean(),
   ]);
-  const todayPurpose = openDailyPurpose(fieldCrypto, today?.dailyPurpose as StoredDailyPurpose | undefined);
+  const todayPurposes = openDayPurposes(fieldCrypto, today).purposes.filter((p) => p.text.trim() !== "");
 
   const goodThings = pickRandom(
     entries.flatMap((e) => e.goodThings.map((g) => ({ text: g.text, date: e.date }))),
@@ -159,8 +157,9 @@ export async function liftMeUp(req: Request, res: Response): Promise<void> {
 
   res.json({
     goodThings,
-    // Today's purpose comes first on the page when it's set; otherwise the main purpose statement
-    todayPurpose: hasDailyPurpose(todayPurpose) && todayPurpose.text ? { text: todayPurpose.text, focusValues: todayPurpose.focusValues } : null,
+    // Today's purposes (the first 3) come first on the page when set; otherwise the main purpose statement
+    todayPurposes: todayPurposes.slice(0, 3).map((p) => ({ id: p.id, text: p.text, focusValues: p.focusValues })),
+    todayPurposeCount: todayPurposes.length,
     purpose: purpose && (purpose.purposeStatement || purpose.coreValues.length > 0)
       ? { purposeStatement: purpose.purposeStatement ?? "", coreValues: purpose.coreValues }
       : null,

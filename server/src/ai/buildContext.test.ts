@@ -72,16 +72,19 @@ function allMinimalPayloads() {
       nutrition: { eatenKcal: 1900, targetKcal: 2000 },
       today: TODAY,
       purpose: {
-        text: "SECRET_DAILY_PURPOSE\nSECRET_SECOND_PURPOSE",
         purposes: [
-          { id: "a", text: "SECRET_DAILY_PURPOSE" },
-          { id: "b", text: "SECRET_SECOND_PURPOSE" },
+          {
+            id: "a",
+            text: "SECRET_DAILY_PURPOSE",
+            focusValues: ["Growth", "SECRET_VALUE Sarah"],
+            intentions: [{ id: "1", text: "SECRET_INTENTION call Priya", done: true, doneAt: null }],
+            rating: 4,
+            createdAt: null,
+            updatedAt: null,
+          },
+          { id: "b", text: "SECRET_SECOND_PURPOSE", focusValues: [], intentions: [], rating: null, createdAt: null, updatedAt: null },
         ],
-        focusValues: ["Growth", "SECRET_VALUE Sarah"],
-        intentions: [{ id: "1", text: "SECRET_INTENTION call Priya", done: true, doneAt: null }],
-        reflection: { rating: 4, note: "SECRET_REFLECTION_NOTE", at: "2026-11-19T15:00:00.000Z" },
-        setAt: null,
-        updatedAt: null,
+        reflectionNote: "SECRET_REFLECTION_NOTE",
       },
     }),
     buildWeeklyContext({

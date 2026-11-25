@@ -90,18 +90,23 @@ describe("generateDemoData extras", () => {
   });
 
   it("has daily purposes within the app's limits, always one today, and no reflection yet today", () => {
-    const withPurpose = entries.filter((e) => e.dailyPurpose);
+    const withPurpose = entries.filter((e) => e.dailyPurposes);
     expect(withPurpose.length).toBeGreaterThan(entries.length / 2);
-    for (const { dailyPurpose: p } of withPurpose) {
-      expect(p!.purposes.length).toBeGreaterThan(0);
-      expect(p!.intentions.length).toBeLessThanOrEqual(ENTRY_LIMITS.intentions);
-      expect(p!.focusValues.length).toBeLessThanOrEqual(ENTRY_LIMITS.focusValues);
-      expect(p!.focusValues.every((v) => DEMO_PURPOSE.coreValues.includes(v))).toBe(true);
-      expect(p!.intentions.every((i) => i.done === Boolean(i.doneAt))).toBe(true);
+    expect(withPurpose.some((e) => e.dailyPurposes!.length > 1)).toBe(true);
+    for (const { dailyPurposes } of withPurpose) {
+      expect(dailyPurposes!.length).toBeGreaterThan(0);
+      expect(dailyPurposes!.length).toBeLessThanOrEqual(ENTRY_LIMITS.purposes);
+      for (const p of dailyPurposes!) {
+        expect(p.intentions.length).toBeLessThanOrEqual(ENTRY_LIMITS.intentions);
+        expect(p.focusValues.length).toBeLessThanOrEqual(ENTRY_LIMITS.focusValues);
+        expect(p.focusValues.every((v) => DEMO_PURPOSE.coreValues.includes(v))).toBe(true);
+        expect(p.intentions.every((i) => i.done === Boolean(i.doneAt))).toBe(true);
+      }
     }
     const today = entries.at(-1)!;
-    expect(today.dailyPurpose).toBeDefined();
-    expect(today.dailyPurpose!.reflection).toBeUndefined();
+    expect(today.dailyPurposes).toBeDefined();
+    expect(today.dailyPurposes!.every((p) => p.rating === undefined)).toBe(true);
+    expect(today.dailyReflectionNote).toBeUndefined();
   });
 
   it("dates the diary, thought logs and weekly goals within the 60 days, one goal per week", () => {

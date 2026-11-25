@@ -100,15 +100,17 @@ export type DemoEntry = {
   sleepScoreValue?: number;
   sleepScoreSource?: "auto";
   /** Plain text here; the seed encrypts it the way the API does */
-  dailyPurpose?: DemoDailyPurpose;
+  dailyPurposes?: DemoDailyPurpose[];
+  dailyReflectionNote?: string;
 };
 
+/** One of the day's purposes, with its own intentions and rating */
 export type DemoDailyPurpose = {
-  purposes: { text: string; at: Date }[];
+  text: string;
   focusValues: string[];
   intentions: { text: string; done: boolean; doneAt?: Date }[];
-  reflection?: { rating: number; note?: string; at: Date };
-  setAt: Date;
+  rating?: number;
+  createdAt: Date;
   updatedAt: Date;
 };
 
@@ -305,22 +307,21 @@ function addDailyExtras(entries: DemoEntry[], today: string, seed: number): void
     // A purpose on about 3 days in 4 (always today)
     if (!isToday && !rnd.chance(0.75)) continue;
     const setAt = at(7, rnd.int(0, 30));
-    const intentions = rnd.some(INTENTIONS, rnd.int(2, 4)).map((text) => {
-      const done = isToday ? rnd.chance(0.35) : rnd.chance(0.75);
-      return { text, done, ...(done && { doneAt: at(isToday ? rnd.int(8, 11) : rnd.int(9, 21)) }) };
-    });
-    e.dailyPurpose = {
-      purposes: rnd.some(PURPOSES, rnd.pick([1, 1, 2])).map((text) => ({ text, at: setAt })),
-      focusValues: rnd.some(DEMO_PURPOSE.coreValues, rnd.int(1, 3)),
-      intentions,
-      // Past days were reflected on in the evening; today's reflection is still to come
-      ...(!isToday &&
-        rnd.chance(0.8) && {
-          reflection: { rating: rnd.pick([3, 4, 4, 5]), ...(rnd.chance(0.5) && { note: rnd.pick(REFLECTION_NOTES) }), at: at(21) },
-        }),
-      setAt,
+    // Past days were reflected on in the evening; today's reflection is still to come
+    const reflected = !isToday && rnd.chance(0.8);
+    const intentionPool = rnd.some(INTENTIONS, INTENTIONS.length);
+    e.dailyPurposes = rnd.some(PURPOSES, rnd.pick([1, 1, 2, 3])).map((text) => ({
+      text,
+      focusValues: rnd.some(DEMO_PURPOSE.coreValues, rnd.int(1, 2)),
+      intentions: intentionPool.splice(0, rnd.int(1, 3)).map((intention) => {
+        const done = isToday ? rnd.chance(0.35) : rnd.chance(0.75);
+        return { text: intention, done, ...(done && { doneAt: at(isToday ? rnd.int(8, 11) : rnd.int(9, 21)) }) };
+      }),
+      ...(reflected && { rating: rnd.pick([3, 4, 4, 5]) }),
+      createdAt: setAt,
       updatedAt: setAt,
-    };
+    }));
+    if (reflected && rnd.chance(0.5)) e.dailyReflectionNote = rnd.pick(REFLECTION_NOTES);
   }
 }
 

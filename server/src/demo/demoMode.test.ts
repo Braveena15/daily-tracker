@@ -67,7 +67,7 @@ describe("demo mode", () => {
     expect(entries.every((e) => e.sleep?.score >= 0 && e.sleep.deepMin > 0 && e.sleep.remMin > 0 && e.sleep.breakdown.length === 3)).toBe(true);
     expect(entries.some((e) => e.healthSnapshots.length > 0)).toBe(true);
     expect(entries.some((e) => e.goodThings.length > 0 && e.learnings.length > 0 && e.presentMoments.length > 0)).toBe(true);
-    expect(entries.filter((e) => e.dailyPurpose?.intentions.length > 0).length).toBeGreaterThan(20);
+    expect(entries.filter((e) => e.dailyPurposes?.some((p: { intentions: unknown[] }) => p.intentions.length > 0)).length).toBeGreaterThan(20);
 
     const meals = await db().collection("mealdays").find(mine).toArray();
     expect(meals.length).toBeGreaterThan(40);
@@ -86,7 +86,7 @@ describe("demo mode", () => {
     expect(purpose.body.purpose.coreValues).toContain("Curiosity");
     const today = await h.request("GET", "/api/entries/today");
     expect(today.status).toBe(200);
-    expect(today.body.entry.dailyPurpose.purposes[0].text).toMatch(/\w/);
+    expect(today.body.entry.dailyPurposes[0].text).toMatch(/\w/);
     const scores = await h.request("GET", `/api/scores/${today.body.entry.date}`);
     expect(scores.body.logged).toBe(true);
   });

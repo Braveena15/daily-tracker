@@ -1,217 +1,215 @@
-// Today's purpose: the day's intention, up to 5 small intentions, and the evening reflection.
+// The day's purposes: up to 5 a day, each with its own focus values, up to 5 intentions and an
+// evening rating, plus one evening note for the whole day.
 // Text is encrypted before it's stored and decrypted only for its owner. Every query filters by req.userId.
 import type { Request, Response } from "express";
 import { isValidObjectId, Types } from "mongoose";
 import { fieldCrypto } from "../config/encryption";
-import { DailyEntryModel, ENTRY_LIMITS } from "../models/DailyEntry";
+import { DailyEntryModel } from "../models/DailyEntry";
 import { PurposeModel } from "../models/Mind";
 import { journeyStart } from "../services/journey";
 import { AppError } from "../utils/AppError";
-import { addDays, daysBetween, isValidDateString, todayInTimezone } from "../utils/dates";
-import { purposeDaysRange, splitPurposeDays } from "../utils/dailyPurpose";
-import { LEGACY_PURPOSE_ID, MAX_PURPOSES, canAddIntention, hasDailyPurpose, isEmptyPurpose, openDailyPurpose, toPurposeContent, openHistory, pickFocusValues, purposeStats, sealText, type StoredDailyPurpose } from "../utils/dailyPurpose";
-import { clampFrom } from "../utils/journey";
+import { daysBetween, dayStatus, isValidDateString, todayInTimezone } from "../utils/dates";
+import {
+  MAX_INTENTIONS,
+  MAX_PURPOSES,
+  hasDayPurposes,
+  isEmptyPurpose,
+  openDayPurposes,
+  openHistory,
+  pickFocusValues,
+  purposeDaysRange,
+  purposeStats,
+  sealText,
+  splitPurposeDays,
+  toPurposeContent,
+} from "../utils/dailyPurpose";
 import { dateParam, dayResponse, type LeanDay } from "./entriesController";
-import { dayStatus } from "../utils/dates";
-import { dailyPurposeSchema, intentionPatchSchema, intentionSchema, purposeLineSchema, reflectionSchema } from "../validation/purposeSchema";
+import {
+  intentionPatchSchema,
+  intentionSchema,
+  purposeCreateSchema,
+  purposePatchSchema,
+  reflectionNoteSchema,
+} from "../validation/purposeSchema";
 
 const MAX_RANGE_DAYS = 366;
 
 /**
- * The day's purpose can only be created or changed on that day itself (Asia/Colombo): a past day's
- * purpose is locked, and a future day can't have one yet. There is one dailyPurpose per DailyEntry,
- * and one DailyEntry per user per date, so a day never has two.
+ * A day's purposes can only be added or changed on that day itself (Asia/Colombo): once midnight
+ * passes they're locked, and a future day can't have any yet. Every write route checks this first.
  */
 function purposeDate(req: Request): string {
   const date = dateParam(req);
   const status = dayStatus(date);
-  if (status === "past") throw new AppError(403, "This day has ended — its purpose is locked.");
-  if (status === "future") throw new AppError(400, "You can only set a purpose for today.");
+  if (status === "past") throw new AppError(403, "This day has ended — its purposes are locked.");
+  if (status === "future") throw new AppError(400, "You can only set purposes for today.");
   return date;
 }
 
-async function update(req: Request, date: string, change: Record<string, unknown>, filter: Record<string, unknown> = {}, upsert = true) {
-  const doc = (await DailyEntryModel.findOneAndUpdate(
-    { userId: req.userId, date, ...filter },
-    change,
-    { upsert, returnDocument: "after", runValidators: true, setDefaultsOnInsert: true },
-  ).lean()) as LeanDay | null;
-  if (!doc) throw new AppError(404, "Intention not found");
-  return doc;
+function objectId(value: unknown, what: string): Types.ObjectId {
+  if (typeof value !== "string" || !isValidObjectId(value)) throw new AppError(404, `${what} not found`);
+  return new Types.ObjectId(value);
 }
 
-function intentionId(req: Request): Types.ObjectId {
-  const { id } = req.params;
-  if (!isValidObjectId(id)) throw new AppError(404, "Intention not found");
-  return new Types.ObjectId(String(id));
+const purposeId = (req: Request) => objectId(req.params.purposeId, "Purpose");
+const intentionId = (req: Request) => objectId(req.params.intentionId, "Intention");
+
+/** One update on this user's day; null when the filter matched nothing (and there's no upsert). */
+async function update(
+  req: Request,
+  date: string,
+  filter: Record<string, unknown>,
+  change: Record<string, unknown>,
+  options: { upsert?: boolean; arrayFilters?: Record<string, unknown>[] } = {},
+) {
+  return (await DailyEntryModel.findOneAndUpdate({ userId: req.userId, date, ...filter }, change, {
+    upsert: options.upsert ?? false,
+    ...(options.arrayFilters && { arrayFilters: options.arrayFilters }),
+    returnDocument: "after",
+    runValidators: true,
+    setDefaultsOnInsert: true,
+  }).lean()) as LeanDay | null;
 }
 
-/** PUT /api/entries/:date/purpose — the day's purpose text and focus values (from the core values). */
-export async function savePurposeOfDay(req: Request, res: Response): Promise<void> {
+/** Focus values must be some of the user's core values (spelled as they are there). */
+async function checkFocusValues(req: Request, chosen: string[]): Promise<string[]> {
+  const purpose = await PurposeModel.findOne({ userId: req.userId }).select("coreValues").lean();
+  const { values, unknown } = pickFocusValues(chosen, purpose?.coreValues ?? []);
+  if (unknown.length > 0) throw new AppError(400, `Focus values must be from your core values (not "${unknown[0]}")`);
+  return values;
+}
+
+const tooManyPurposes = () =>
+  new AppError(400, `You already have ${MAX_PURPOSES} purposes today, which is plenty. Edit one, or let one go to make room.`);
+const tooManyIntentions = () => new AppError(400, `A purpose can have up to ${MAX_INTENTIONS} intentions`);
+
+// ---------- Purposes ----------
+
+/** POST /api/entries/:date/purposes — add one of today's purposes (up to 5). */
+export async function addPurpose(req: Request, res: Response): Promise<void> {
   const date = purposeDate(req);
-  const body = dailyPurposeSchema.parse(req.body ?? {});
+  const body = purposeCreateSchema.parse(req.body ?? {});
+  const focusValues = body.focusValues ? await checkFocusValues(req, body.focusValues) : [];
   const now = new Date();
+  const purpose = { _id: new Types.ObjectId(), text: fieldCrypto.encrypt(body.text), focusValues, intentions: [], createdAt: now, updatedAt: now };
 
-  const $set: Record<string, unknown> = { "dailyPurpose.updatedAt": now };
-  const $unset: Record<string, 1> = {};
-  if (body.text !== undefined) {
-    // Sets the day's purposes to just this one (or none)
-    const sealed = sealText(fieldCrypto, body.text);
-    $set["dailyPurpose.purposes"] = sealed ? [{ _id: new Types.ObjectId(), text: sealed, at: now }] : [];
-    $unset["dailyPurpose.text"] = 1;
-  }
-  if (body.focusValues !== undefined) {
-    const purpose = await PurposeModel.findOne({ userId: req.userId }).select("coreValues").lean();
-    const { values, unknown } = pickFocusValues(body.focusValues, purpose?.coreValues ?? []);
-    if (unknown.length > 0) throw new AppError(400, `Focus values must be from your core values (not "${unknown[0]}")`);
-    $set["dailyPurpose.focusValues"] = values;
-  }
-
-  const existing = await DailyEntryModel.findOne({ userId: req.userId, date }).select("dailyPurpose.setAt").lean();
-  if (!existing?.dailyPurpose?.setAt) $set["dailyPurpose.setAt"] = now;
-
-  const doc = await update(req, date, Object.keys($unset).length ? { $set, $unset } : { $set });
-  res.json(dayResponse(date, doc));
-}
-
-// ---------- The day's purposes (several a day) ----------
-
-/**
- * An older day keeps its single purpose in `dailyPurpose.text`. Before its purposes are changed,
- * move that text into `purposes` (still encrypted, same text). Returns the id of the moved line, if any.
- */
-async function moveLegacyPurpose(req: Request, date: string): Promise<Types.ObjectId | null> {
-  const doc = await DailyEntryModel.findOne({ userId: req.userId, date }).select("dailyPurpose").lean();
-  const stored = doc?.dailyPurpose;
-  if (!stored?.text || (stored.purposes?.length ?? 0) > 0) return null;
-  const id = new Types.ObjectId();
-  await DailyEntryModel.updateOne(
-    { userId: req.userId, date, "dailyPurpose.text": stored.text },
-    { $set: { "dailyPurpose.purposes": [{ _id: id, text: stored.text, at: stored.setAt ?? new Date() }] }, $unset: { "dailyPurpose.text": 1 } },
+  const existing = await DailyEntryModel.exists({ userId: req.userId, date });
+  // The limit is part of the update's filter, so two quick adds can't make a 6th
+  const doc = await update(
+    req,
+    date,
+    existing ? { [`dailyPurposes.${MAX_PURPOSES - 1}`]: { $exists: false } } : {},
+    { $push: { dailyPurposes: purpose } },
+    { upsert: !existing },
   );
-  return id;
-}
-
-/** The purpose line from the URL; "legacy" means an older day's single purpose (moved first). */
-async function purposeLineId(req: Request, date: string): Promise<Types.ObjectId> {
-  const moved = await moveLegacyPurpose(req, date);
-  const { id } = req.params;
-  if (id === LEGACY_PURPOSE_ID && moved) return moved;
-  if (!isValidObjectId(id)) throw new AppError(404, "Purpose not found");
-  return new Types.ObjectId(String(id));
-}
-
-/** POST /api/entries/:date/purpose/lines — add one of today's purposes (up to 5). */
-export async function addPurposeLine(req: Request, res: Response): Promise<void> {
-  const date = purposeDate(req);
-  const { text } = purposeLineSchema.parse(req.body ?? {});
-  await moveLegacyPurpose(req, date);
-
-  const existing = await DailyEntryModel.findOne({ userId: req.userId, date }).select("dailyPurpose").lean();
-  if ((existing?.dailyPurpose?.purposes?.length ?? 0) >= MAX_PURPOSES) {
-    throw new AppError(400, `You can set up to ${MAX_PURPOSES} purposes a day`);
-  }
-  const now = new Date();
-  const doc = await update(req, date, {
-    $push: { "dailyPurpose.purposes": { _id: new Types.ObjectId(), text: fieldCrypto.encrypt(text), at: now } },
-    $set: { "dailyPurpose.updatedAt": now, ...(!existing?.dailyPurpose?.setAt && { "dailyPurpose.setAt": now }) },
-  });
+  if (!doc) throw tooManyPurposes();
   res.status(201).json(dayResponse(date, doc));
 }
 
-/** PATCH /api/entries/:date/purpose/lines/:id — change one of today's purposes. */
-export async function updatePurposeLine(req: Request, res: Response): Promise<void> {
+/** PATCH /api/entries/:date/purposes/:purposeId — change the text, focus values or rating. */
+export async function updatePurpose(req: Request, res: Response): Promise<void> {
   const date = purposeDate(req);
-  const { text } = purposeLineSchema.parse(req.body ?? {});
-  const id = await purposeLineId(req, date);
-  const doc = await update(
-    req,
-    date,
-    { $set: { "dailyPurpose.purposes.$.text": fieldCrypto.encrypt(text), "dailyPurpose.updatedAt": new Date() } },
-    { "dailyPurpose.purposes._id": id },
-    false,
-  ).catch((err) => {
-    throw err instanceof AppError ? new AppError(404, "Purpose not found") : err;
-  });
+  const id = purposeId(req);
+  const body = purposePatchSchema.parse(req.body ?? {});
+
+  const $set: Record<string, unknown> = { "dailyPurposes.$.updatedAt": new Date() };
+  const $unset: Record<string, 1> = {};
+  if (body.text !== undefined) $set["dailyPurposes.$.text"] = fieldCrypto.encrypt(body.text);
+  if (body.focusValues !== undefined) $set["dailyPurposes.$.focusValues"] = await checkFocusValues(req, body.focusValues);
+  if (body.rating === null) $unset["dailyPurposes.$.rating"] = 1;
+  else if (body.rating !== undefined) $set["dailyPurposes.$.rating"] = body.rating;
+
+  const doc = await update(req, date, { "dailyPurposes._id": id }, Object.keys($unset).length ? { $set, $unset } : { $set });
+  if (!doc) throw new AppError(404, "Purpose not found");
   res.json(dayResponse(date, doc));
 }
 
-/** DELETE /api/entries/:date/purpose/lines/:id */
-export async function deletePurposeLine(req: Request, res: Response): Promise<void> {
+/** DELETE /api/entries/:date/purposes/:purposeId — the purpose and its intentions. */
+export async function deletePurpose(req: Request, res: Response): Promise<void> {
   const date = purposeDate(req);
-  const id = await purposeLineId(req, date);
-  const doc = await update(
-    req,
-    date,
-    { $pull: { "dailyPurpose.purposes": { _id: id } }, $set: { "dailyPurpose.updatedAt": new Date() } },
-    { "dailyPurpose.purposes._id": id },
-    false,
-  ).catch((err) => {
-    throw err instanceof AppError ? new AppError(404, "Purpose not found") : err;
-  });
+  const id = purposeId(req);
+  const doc = await update(req, date, { "dailyPurposes._id": id }, { $pull: { dailyPurposes: { _id: id } } });
+  if (!doc) throw new AppError(404, "Purpose not found");
   res.json(dayResponse(date, doc));
 }
 
-/** POST /api/entries/:date/purpose/intentions — up to 5 a day. */
+// ---------- A purpose's intentions ----------
+
+/** POST /api/entries/:date/purposes/:purposeId/intentions — up to 5 per purpose. */
 export async function addIntention(req: Request, res: Response): Promise<void> {
   const date = purposeDate(req);
+  const pid = purposeId(req);
   const { text } = intentionSchema.parse(req.body ?? {});
-
-  const existing = await DailyEntryModel.findOne({ userId: req.userId, date }).select("dailyPurpose").lean();
-  if (!canAddIntention(existing?.dailyPurpose?.intentions?.length ?? 0)) {
-    throw new AppError(400, `You can set up to ${ENTRY_LIMITS.intentions} intentions a day`);
+  const doc = await update(
+    req,
+    date,
+    { dailyPurposes: { $elemMatch: { _id: pid, [`intentions.${MAX_INTENTIONS - 1}`]: { $exists: false } } } },
+    {
+      $push: { "dailyPurposes.$[p].intentions": { _id: new Types.ObjectId(), text: fieldCrypto.encrypt(text), done: false } },
+      $set: { "dailyPurposes.$[p].updatedAt": new Date() },
+    },
+    { arrayFilters: [{ "p._id": pid }] },
+  );
+  if (!doc) {
+    const exists = await DailyEntryModel.exists({ userId: req.userId, date, "dailyPurposes._id": pid });
+    throw exists ? tooManyIntentions() : new AppError(404, "Purpose not found");
   }
-  const now = new Date();
-  const doc = await update(req, date, {
-    $push: { "dailyPurpose.intentions": { _id: new Types.ObjectId(), text: fieldCrypto.encrypt(text), done: false } },
-    $set: { "dailyPurpose.updatedAt": now, ...(!existing?.dailyPurpose?.setAt && { "dailyPurpose.setAt": now }) },
-  });
   res.status(201).json(dayResponse(date, doc));
 }
 
-/** PATCH /api/entries/:date/purpose/intentions/:id — change the text, or tick it (saved with the time). */
+/** PATCH /api/entries/:date/purposes/:purposeId/intentions/:intentionId — change the text, or tick it (saved with the time). */
 export async function updateIntention(req: Request, res: Response): Promise<void> {
   const date = purposeDate(req);
-  const id = intentionId(req);
+  const pid = purposeId(req);
+  const iid = intentionId(req);
   const body = intentionPatchSchema.parse(req.body ?? {});
   const now = new Date();
 
-  const $set: Record<string, unknown> = { "dailyPurpose.updatedAt": now };
+  const at = "dailyPurposes.$[p].intentions.$[i]";
+  const $set: Record<string, unknown> = { "dailyPurposes.$[p].updatedAt": now };
   const $unset: Record<string, 1> = {};
-  if (body.text !== undefined) $set["dailyPurpose.intentions.$.text"] = fieldCrypto.encrypt(body.text);
+  if (body.text !== undefined) $set[`${at}.text`] = fieldCrypto.encrypt(body.text);
   if (body.done !== undefined) {
-    $set["dailyPurpose.intentions.$.done"] = body.done;
-    if (body.done) $set["dailyPurpose.intentions.$.doneAt"] = now;
-    else $unset["dailyPurpose.intentions.$.doneAt"] = 1;
+    $set[`${at}.done`] = body.done;
+    if (body.done) $set[`${at}.doneAt`] = now;
+    else $unset[`${at}.doneAt`] = 1;
   }
 
-  const doc = await update(req, date, Object.keys($unset).length ? { $set, $unset } : { $set }, { "dailyPurpose.intentions._id": id }, false);
-  res.json(dayResponse(date, doc));
-}
-
-/** DELETE /api/entries/:date/purpose/intentions/:id */
-export async function deleteIntention(req: Request, res: Response): Promise<void> {
-  const date = purposeDate(req);
-  const id = intentionId(req);
   const doc = await update(
     req,
     date,
-    { $pull: { "dailyPurpose.intentions": { _id: id } }, $set: { "dailyPurpose.updatedAt": new Date() } },
-    { "dailyPurpose.intentions._id": id },
-    false,
+    { dailyPurposes: { $elemMatch: { _id: pid, "intentions._id": iid } } },
+    Object.keys($unset).length ? { $set, $unset } : { $set },
+    { arrayFilters: [{ "p._id": pid }, { "i._id": iid }] },
   );
+  if (!doc) throw new AppError(404, "Intention not found");
   res.json(dayResponse(date, doc));
 }
 
-/** PUT /api/entries/:date/purpose/reflection — "How well did I live my purpose today?" 1–5 + a note. */
-export async function saveReflection(req: Request, res: Response): Promise<void> {
+/** DELETE /api/entries/:date/purposes/:purposeId/intentions/:intentionId */
+export async function deleteIntention(req: Request, res: Response): Promise<void> {
   const date = purposeDate(req);
-  const { rating, note } = reflectionSchema.parse(req.body ?? {});
-  const now = new Date();
+  const pid = purposeId(req);
+  const iid = intentionId(req);
+  const doc = await update(
+    req,
+    date,
+    { dailyPurposes: { $elemMatch: { _id: pid, "intentions._id": iid } } },
+    { $pull: { "dailyPurposes.$[p].intentions": { _id: iid } }, $set: { "dailyPurposes.$[p].updatedAt": new Date() } },
+    { arrayFilters: [{ "p._id": pid }] },
+  );
+  if (!doc) throw new AppError(404, "Intention not found");
+  res.json(dayResponse(date, doc));
+}
+
+// ---------- The evening note ----------
+
+/** PUT /api/entries/:date/reflection-note — one note for the whole day; empty clears it. */
+export async function saveReflectionNote(req: Request, res: Response): Promise<void> {
+  const date = purposeDate(req);
+  const { note } = reflectionNoteSchema.parse(req.body ?? {});
   const sealed = sealText(fieldCrypto, note);
-  const doc = await update(req, date, {
-    $set: { "dailyPurpose.reflection": { rating, at: now, ...(sealed && { note: sealed }) }, "dailyPurpose.updatedAt": now },
-  });
+  const doc = await update(req, date, {}, sealed ? { $set: { dailyReflectionNote: sealed } } : { $unset: { dailyReflectionNote: 1 } }, { upsert: true });
   res.json(dayResponse(date, doc));
 }
 
@@ -236,13 +234,13 @@ export async function listPurposeDays(req: Request, res: Response): Promise<void
 
   const rows = from > to
     ? []
-    : await DailyEntryModel.find({ userId: req.userId, date: { $gte: from, $lte: to }, dailyPurpose: { $exists: true } })
-        .select("date dailyPurpose")
+    : await DailyEntryModel.find({ userId: req.userId, date: { $gte: from, $lte: to }, $or: [{ "dailyPurposes.0": { $exists: true } }, { dailyReflectionNote: { $exists: true } }] })
+        .select("date dailyPurposes dailyReflectionNote")
         .sort({ date: -1 })
         .lean();
   const days = rows.flatMap((r) => {
-    const purpose = openDailyPurpose(fieldCrypto, r.dailyPurpose as StoredDailyPurpose);
-    return hasDailyPurpose(purpose) ? [{ date: r.date, ...purpose }] : [];
+    const day = openDayPurposes(fieldCrypto, r);
+    return hasDayPurposes(day) ? [{ date: r.date, ...day }] : [];
   });
   // days: every day, newest first; today/past/isEmpty/canSetToday: what the list shows (see splitPurposeDays)
   res.json({ from, to, todayDate: today, journeyStartDate: start, days, ...splitPurposeDays(days, today), stats: purposeStats(days) });

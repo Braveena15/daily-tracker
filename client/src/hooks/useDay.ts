@@ -37,17 +37,27 @@ export function useDay(date: string) {
       apply(api.patch<DayResponse>(`/entries/${date}/${kind}/${id}`, body)),
     remove: (kind: EntryKind, id: string) => apply(api.delete<DayResponse>(`/entries/${date}/${kind}/${id}`)),
     saveDaily: (body: DailyInput) => apply(api.put<DayResponse>(`/entries/${date}/daily`, body)),
-    // Today's purpose
-    savePurpose: (body: { text?: string; focusValues?: string[] }) => apply(api.put<DayResponse>(`/entries/${date}/purpose`, body)),
-    addPurposeLine: (text: string) => apply(api.post<DayResponse>(`/entries/${date}/purpose/lines`, { text })),
-    updatePurposeLine: (id: string, text: string) => apply(api.patch<DayResponse>(`/entries/${date}/purpose/lines/${id}`, { text })),
-    removePurposeLine: (id: string) => apply(api.delete<DayResponse>(`/entries/${date}/purpose/lines/${id}`)),
-    addIntention: (text: string) => apply(api.post<DayResponse>(`/entries/${date}/purpose/intentions`, { text })),
-    updateIntention: (id: string, body: { text?: string; done?: boolean }) =>
-      apply(api.patch<DayResponse>(`/entries/${date}/purpose/intentions/${id}`, body)),
-    removeIntention: (id: string) => apply(api.delete<DayResponse>(`/entries/${date}/purpose/intentions/${id}`)),
-    saveReflection: (body: { rating: number; note: string | null }) => apply(api.put<DayResponse>(`/entries/${date}/purpose/reflection`, body)),
+    // Today's purposes (up to 5), each with its own intentions and rating, and the day's evening note
+    ...purposeActions(date, apply),
   }
 }
 
 export type DayActions = Omit<ReturnType<typeof useDay>, 'day' | 'error'>
+
+/** The calls for a day's purposes; each returns the whole day. */
+export function purposeActions(date: string, apply: (request: Promise<DayResponse>) => Promise<DayResponse>) {
+  const base = `/entries/${date}/purposes`
+  return {
+    addPurpose: (body: { text: string; focusValues?: string[] }) => apply(api.post<DayResponse>(base, body)),
+    updatePurpose: (id: string, body: { text?: string; focusValues?: string[]; rating?: number | null }) =>
+      apply(api.patch<DayResponse>(`${base}/${id}`, body)),
+    removePurpose: (id: string) => apply(api.delete<DayResponse>(`${base}/${id}`)),
+    addIntention: (purposeId: string, text: string) => apply(api.post<DayResponse>(`${base}/${purposeId}/intentions`, { text })),
+    updateIntention: (purposeId: string, id: string, body: { text?: string; done?: boolean }) =>
+      apply(api.patch<DayResponse>(`${base}/${purposeId}/intentions/${id}`, body)),
+    removeIntention: (purposeId: string, id: string) => apply(api.delete<DayResponse>(`${base}/${purposeId}/intentions/${id}`)),
+    saveReflectionNote: (note: string | null) => apply(api.put<DayResponse>(`/entries/${date}/reflection-note`, { note })),
+  }
+}
+
+export type PurposeActions = ReturnType<typeof purposeActions>
