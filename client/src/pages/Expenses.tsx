@@ -1,9 +1,9 @@
 // Expenses: a day's spending (total, categories, the list, receipts) or "This week" (the same 7 days
 // as the Weekly review). Add or edit an expense with receipts; see every receipt in the evidence view
-// and download a PDF.
+// and the report, and download it as a PDF or PNG.
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Paperclip, Plus, Receipt as ReceiptIcon, Trash2, Wallet } from 'lucide-react'
+import { FileText, Paperclip, Plus, Receipt as ReceiptIcon, Trash2, Wallet } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -17,6 +17,7 @@ import { PageHeader } from '@/components/PageHeader'
 import { EmptyState, ErrorNotice } from '@/components/StatusViews'
 import { EvidenceView } from '@/components/expenses/EvidenceView'
 import { ExpenseForm } from '@/components/expenses/ExpenseForm'
+import { DownloadMenu, ReportView } from '@/components/expenses/ReportView'
 import { ReceiptThumb } from '@/components/expenses/ReceiptView'
 import { WeekView } from '@/components/expenses/WeekView'
 import { useDateParam } from '@/hooks/useDateParam'
@@ -32,6 +33,7 @@ export function Expenses() {
   const [version, setVersion] = useState(0)
   const [form, setForm] = useState<{ expense?: Expense } | null>(params.get('add') === '1' ? {} : null)
   const [evidence, setEvidence] = useState(false)
+  const [report, setReport] = useState(false)
   const refresh = () => setVersion((v) => v + 1)
 
   const { data: settings } = useFetch<ExpenseSettings>('/expenses/settings')
@@ -72,10 +74,14 @@ export function Expenses() {
               </TabsTrigger>
             </TabsList>
           </Tabs>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => setReport(true)} disabled={expenses.length === 0}>
+              <FileText aria-hidden /> Report
+            </Button>
             <Button type="button" variant="outline" size="sm" onClick={() => setEvidence(true)} disabled={expenses.length === 0}>
               <ReceiptIcon aria-hidden /> Receipts{receiptCount > 0 && ` (${receiptCount})`}
             </Button>
+            <DownloadMenu from={from} to={date} currency={currency} expenses={expenses} />
             <Button type="button" size="sm" onClick={() => setForm({})}>
               <Plus aria-hidden /> Add expense
             </Button>
@@ -163,6 +169,8 @@ export function Expenses() {
         currency={currency}
         expenses={expenses}
       />
+
+      <ReportView open={report} onClose={() => setReport(false)} from={from} to={date} currency={currency} expenses={expenses} />
     </>
   )
 }

@@ -1,12 +1,13 @@
 // The evidence view: one screen with a day's or a week's total, every expense and all its receipts
-// (photos large, PDFs with "Open"), a full-screen lightbox, and "Download PDF" / "Download images".
+// (photos large, PDFs with "Open"), a full-screen lightbox, and "Download" (PDF report / PNG) and "Download images".
 import { useState } from 'react'
-import { Download, Images, Loader2, Paperclip } from 'lucide-react'
+import { Images, Loader2, Paperclip } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { IconBubble } from '@/components/IconBubble'
 import { Lightbox, ReceiptLarge } from '@/components/expenses/ReceiptView'
+import { DownloadMenu } from '@/components/expenses/ReportView'
 import { formatDate } from '@/lib/dates'
 import { CATEGORY, isImage, money, type Expense, type Receipt } from '@/lib/expenses'
 
@@ -30,25 +31,12 @@ export function EvidenceView({
   expenses: Expense[]
 }) {
   const [lightbox, setLightbox] = useState<number | null>(null)
-  const [busy, setBusy] = useState<'pdf' | 'images' | null>(null)
+  const [busy, setBusy] = useState<'images' | null>(null)
   const sorted = [...expenses].sort((a, b) => a.date.localeCompare(b.date) || (a.createdAt ?? '').localeCompare(b.createdAt ?? ''))
   // Every receipt in order, for swiping through them all
   const all: { receipt: Receipt; expense: Expense }[] = sorted.flatMap((e) => e.receipts.map((receipt) => ({ receipt, expense: e })))
   const total = sorted.filter((e) => e.currency === currency).reduce((s, e) => s + Math.round(e.amount * 100), 0) / 100
   const imageCount = all.filter((x) => isImage(x.receipt)).length
-
-  async function pdf() {
-    setBusy('pdf')
-    try {
-      const { exportExpensesPdf, saveBlob } = await import('@/lib/exportPdf')
-      const blob = await exportExpensesPdf({ title, from, to, currency, expenses: sorted })
-      saveBlob(blob, `Expenses ${from === to ? from : `${from} to ${to}`}.pdf`)
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not make the PDF')
-    } finally {
-      setBusy(null)
-    }
-  }
 
   async function images() {
     setBusy('images')
@@ -75,9 +63,7 @@ export function EvidenceView({
             </span>
           </DialogDescription>
           <div className="flex flex-wrap gap-2 pt-2">
-            <Button type="button" size="sm" onClick={() => void pdf()} disabled={busy !== null || sorted.length === 0}>
-              {busy === 'pdf' ? <Loader2 className="animate-spin" aria-hidden /> : <Download aria-hidden />} Download PDF
-            </Button>
+            <DownloadMenu from={from} to={to} currency={currency} expenses={sorted} variant="default" />
             {imageCount > 0 && (
               <Button type="button" size="sm" variant="outline" onClick={() => void images()} disabled={busy !== null}>
                 {busy === 'images' ? <Loader2 className="animate-spin" aria-hidden /> : <Images aria-hidden />} Download images

@@ -1,8 +1,8 @@
-// "Download PDF" for a day's or a week's expenses, made in the browser (pdf-lib is loaded only here):
-// page 1 is the summary (total, per category, per day, every expense), then each receipt — photos one
+// The expense report as a PDF, made in the browser (pdf-lib is loaded only here): first the report
+// (header, summary, the table of expenses with the total), then each receipt — photos one
 // per page with the expense as a caption, and receipt PDFs merged in.
-import { CATEGORY, isImage, isPdf, money, receiptBlob, type Expense, type ExpenseCategory } from '@/lib/expenses'
-import { listDates } from '@/lib/dates'
+import { isImage, isPdf, receiptBlob, type Expense } from '@/lib/expenses'
+import type { Report } from '@/lib/report'
 
 const A4: [number, number] = [595.28, 841.89]
 const MARGIN = 48
@@ -48,89 +48,111 @@ async function embeddable(blob: Blob): Promise<{ bytes: ArrayBuffer; type: 'jpg'
   }
 }
 
-export async function exportExpensesPdf({
-  title,
-  from,
-  to,
-  currency,
-  expenses,
-}: {
-  title: string
-  from: string
-  to: string
-  currency: string
-  expenses: Expense[]
-}): Promise<Blob> {
+export async function exportExpensesPdf(report: Report): Promise<Blob> {
   const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib')
   const doc = await PDFDocument.create()
-  doc.setTitle(pdfText(title))
+  doc.setTitle(pdfText(`Expense report - ${report.period}`))
   const font = await doc.embedFont(StandardFonts.Helvetica)
   const bold = await doc.embedFont(StandardFonts.HelveticaBold)
+  type Font = typeof font
   const grey = rgb(0.4, 0.4, 0.4)
-  const mine = expenses.filter((e) => e.currency === currency)
-  const total = mine.reduce((s, e) => s + Math.round(e.amount * 100), 0) / 100
-  const sorted = [...expenses].sort((a, b) => a.date.localeCompare(b.date) || (a.createdAt ?? '').localeCompare(b.createdAt ?? ''))
+  const rule = rgb(0.85, 0.85, 0.85)
+  const W = A4[0] - MARGIN * 2
 
-  // ---------- Summary pages ----------
+  // ---------- Report pages ----------
   let page = doc.addPage(A4)
   let y = A4[1] - MARGIN
-  const line = (text: string, opts: { size?: number; f?: typeof font; color?: ReturnType<typeof rgb>; x?: number; right?: string } = {}) => {
-    const size = opts.size ?? 11
-    if (y < MARGIN + size) {
+  const ensure = (h: number) => {
+    if (y - h < MARGIN) {
       page = doc.addPage(A4)
       y = A4[1] - MARGIN
     }
-    page.drawText(pdfText(text), { x: opts.x ?? MARGIN, y, size, font: opts.f ?? font, color: opts.color })
-    if (opts.right) {
-      const r = pdfText(opts.right)
-      page.drawText(r, { x: A4[0] - MARGIN - (opts.f ?? font).widthOfTextAtSize(r, size), y, size, font: opts.f ?? font, color: opts.color })
-    }
+  }
+  /** Cuts text to fit a width, with "..." */
+  const fit = (text: string, f: Font, size: number, width: number) => {
+    let t = pdfText(text)
+    if (f.widthOfTextAtSize(t, size) <= width) return t
+    while (t.length > 1 && f.widthOfTextAtSize(`${t}...`, size) > width) t = t.slice(0, -1)
+    return `${t}...`
+  }
+  const text = (t: string, x: number, opts: { size?: number; f?: Font; color?: ReturnType<typeof rgb>; width?: number; right?: boolean } = {}) => {
+    const size = opts.size ?? 10
+    const f = opts.f ?? font
+    const s = opts.width ? fit(t, f, size, opts.width) : pdfText(t)
+    const dx = opts.right && opts.width ? opts.width - f.widthOfTextAtSize(s, size) : 0
+    page.drawText(s, { x: x + dx, y, size, font: f, color: opts.color })
+  }
+  const line = (t: string, opts: { size?: number; f?: Font; color?: ReturnType<typeof rgb>; right?: string } = {}) => {
+    const size = opts.size ?? 10.5
+    ensure(size + 7)
+    text(t, MARGIN, { ...opts, size, width: opts.right ? W * 0.65 : W, right: false })
+    if (opts.right) text(opts.right, MARGIN, { ...opts, right: true, size, width: W })
     y -= size + 7
   }
-  const gap = (n = 8) => (y -= n)
-
-  line(title, { size: 20, f: bold })
-  line(from === to ? from : `${from} to ${to}`, { color: grey })
-  gap(10)
-  line('Total', { size: 13, f: bold, right: money(total, currency) })
-  line(`${mine.length} ${mine.length === 1 ? 'expense' : 'expenses'}`, { color: grey })
-  const others = expenses.filter((e) => e.currency !== currency)
-  if (others.length > 0) line(`Plus ${others.length} in other currencies (not in the total)`, { color: grey })
-
-  gap(12)
-  line('By category', { size: 13, f: bold })
-  const byCategory = new Map<ExpenseCategory, number>()
-  for (const e of mine) byCategory.set(e.category, (byCategory.get(e.category) ?? 0) + Math.round(e.amount * 100))
-  for (const [category, cents] of [...byCategory].sort((a, b) => b[1] - a[1])) line(CATEGORY[category].label, { right: money(cents / 100, currency) })
-
-  if (from !== to) {
-    gap(12)
-    line('By day', { size: 13, f: bold })
-    for (const date of listDates(from, to)) {
-      const cents = mine.filter((e) => e.date === date).reduce((s, e) => s + Math.round(e.amount * 100), 0)
-      line(date, { right: cents ? money(cents / 100, currency) : '-', color: cents ? undefined : grey })
-    }
+  const hr = () => {
+    page.drawLine({ start: { x: MARGIN, y: y + 4 }, end: { x: A4[0] - MARGIN, y: y + 4 }, thickness: 0.6, color: rule })
+    y -= 6
   }
 
-  gap(12)
+  line('Expense report', { size: 22, f: bold })
+  if (report.name) line(report.name, { size: 12 })
+  line(report.period, { size: 12, f: bold })
+  line(report.generated, { size: 9, color: grey })
+  y -= 12
+
+  line('Summary', { size: 13, f: bold })
+  line('Total spent', { f: bold, right: report.total })
+  line('Expenses', { right: String(report.count) })
+  if (report.otherCount > 0) line(`Plus ${report.otherCount} in other currencies (not in the total)`, { color: grey })
+  y -= 6
+  line('By category', { size: 11, f: bold })
+  for (const c of report.byCategory) line(c.label, { right: c.amount })
+  if (report.isWeek) {
+    y -= 6
+    line('By day', { size: 11, f: bold })
+    for (const d of report.byDay) line(d.day, { right: d.amount, color: d.empty ? grey : undefined })
+  }
+  y -= 14
+
+  // The table: date, time, item, category, payment, amount
+  const cols = [
+    { label: 'Date', w: 68 },
+    { label: 'Time', w: 36 },
+    { label: 'Item', w: W - 68 - 36 - 72 - 56 - 88 },
+    { label: 'Category', w: 72 },
+    { label: 'Payment', w: 56 },
+    { label: 'Amount', w: 88, right: true },
+  ]
+  const row = (cells: string[], f: Font, color?: ReturnType<typeof rgb>) => {
+    ensure(18)
+    let x = MARGIN
+    cells.forEach((c, i) => {
+      text(c, x, { f, size: 9.5, color, width: cols[i].w - (cols[i].right ? 0 : 6), right: cols[i].right })
+      x += cols[i].w
+    })
+    y -= 16
+  }
   line('Expenses', { size: 13, f: bold })
-  for (const e of sorted) {
-    const receipts = e.receipts.length ? ` (${e.receipts.length} receipt${e.receipts.length === 1 ? '' : 's'})` : ''
-    line(`${e.date}  ${e.title}`, { right: money(e.amount, e.currency) })
-    line(`${CATEGORY[e.category].label}${e.paymentMethod ? ` · ${e.paymentMethod}` : ''}${receipts}`, { size: 9, color: grey, x: MARGIN + 12 })
+  row(cols.map((c) => c.label), bold, grey)
+  hr()
+  for (const r of report.rows) {
+    const extra = r.receipts.length ? ` (${r.receipts.length} receipt${r.receipts.length === 1 ? '' : 's'})` : ''
+    row([r.day, r.time || '–', `${r.title}${extra}`, r.category, r.payment, r.amount], font)
   }
+  hr()
+  row(['Total', '', '', '', '', report.total], bold)
 
-  // ---------- Receipts ----------
-  for (const e of sorted) {
-    const caption = `${e.title} · ${money(e.amount, e.currency)} · ${e.date}`
-    for (const r of e.receipts) {
+  // ---------- Receipts: photos one per page with a caption, PDFs merged in ----------
+  for (const r of report.rows) {
+    const caption = `${r.caption} · ${r.day}`
+    for (const rec of r.receipts) {
       let blob: Blob
       try {
-        blob = await receiptBlob(r.fileId)
+        blob = await receiptBlob(rec.fileId)
       } catch {
         continue
       }
-      if (isPdf(r)) {
+      if (isPdf(rec)) {
         try {
           const src = await PDFDocument.load(await blob.arrayBuffer(), { ignoreEncryption: true })
           const pages = await doc.copyPages(src, src.getPageIndices())
@@ -142,18 +164,19 @@ export async function exportExpensesPdf({
           const p = doc.addPage(A4)
           p.drawText(pdfText(`${caption} — this PDF couldn't be included (open it in the app)`), { x: MARGIN, y: A4[1] - MARGIN, size: 11, font })
         }
-      } else if (isImage(r)) {
+      } else if (isImage(rec)) {
         const img = await embeddable(blob)
         const p = doc.addPage(A4)
-        p.drawText(pdfText(caption), { x: MARGIN, y: A4[1] - MARGIN, size: 11, font: bold })
+        p.drawText(pdfText(caption), { x: MARGIN, y: A4[1] - MARGIN, size: 12, font: bold })
         if (!img) {
           p.drawText(pdfText("This photo couldn't be included (open it in the app)"), { x: MARGIN, y: A4[1] - MARGIN - 20, size: 10, font, color: grey })
           continue
         }
         const embedded = img.type === 'jpg' ? await doc.embedJpg(img.bytes) : await doc.embedPng(img.bytes)
+        // As large as the page allows (small photos are scaled up too, so they're readable)
         const maxW = A4[0] - MARGIN * 2
         const maxH = A4[1] - MARGIN * 2 - 30
-        const scale = Math.min(maxW / embedded.width, maxH / embedded.height, 1)
+        const scale = Math.min(maxW / embedded.width, maxH / embedded.height)
         const w = embedded.width * scale
         const h = embedded.height * scale
         p.drawImage(embedded, { x: (A4[0] - w) / 2, y: A4[1] - MARGIN - 30 - h, width: w, height: h })
