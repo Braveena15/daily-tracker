@@ -1,19 +1,19 @@
 // A quiet one-line reminder of this week's goal, under Today's purposes (today only).
 import { useEffect, useState } from 'react'
 import { Target } from 'lucide-react'
-import { AddToPurposePicker } from '@/components/purpose/AddToPurposePicker'
+import { AddToWhatMatters } from '@/components/purpose/AddToWhatMatters'
 import type { DayPurpose } from '@/lib/purpose'
 import { goalsApi, type WeeklyGoal } from '@/lib/weeklyGoals'
 
 export function WeeklyGoalReminder({
   today,
   purposes,
-  addIntention,
+  addPurpose,
 }: {
   today: string
   purposes: DayPurpose[]
-  /** Adds the goal as an intention of the chosen purpose */
-  addIntention: (purposeId: string, text: string) => Promise<unknown>
+  /** Adds the goal as one of today's items (intensity 5) */
+  addPurpose: (body: { text: string; intensity: number }) => Promise<unknown>
 }) {
   const [goal, setGoal] = useState<WeeklyGoal | null>(null)
 
@@ -40,7 +40,7 @@ export function WeeklyGoalReminder({
           {goal.text}
         </span>
       </p>
-      <AddToPurposePicker text={goal.text} purposes={purposes} onAdd={addIntention} />
+      <AddToWhatMatters text={goal.text} purposes={purposes} onAdd={addPurpose} />
     </div>
   )
 }

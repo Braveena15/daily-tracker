@@ -7,8 +7,8 @@
 //   scores, mood/energy counts and averages, times of day ("afternoon"), sleep hours and sleep score
 //   (never raw sleep samples), activity types and minutes, feeling names and intensities,
 //   thinking-trap types, and counts. No free text written by the user — not even mood notes.
-//   For "what matters to me today": only counts (purposes, intentions, done) and the intensity
-//   numbers (0–10). Never the purpose text, intention text, focus value words or evening notes.
+//   For "what matters to me today": only counts and the intensity numbers (0–10). Never the
+//   purpose text, focus value words or evening notes.
 //   Even activity and feeling names are free text when the user types their own
 //   ("Walk with Sarah"), so only the app's built-in names are sent; anything else becomes "other".
 // - "full" mode may also send thought-log text — but never from a log marked private.
@@ -284,8 +284,6 @@ export function buildWeeklyContext(input: {
         ? {
             daysWithPurpose: input.purpose.daysWithPurpose,
             purposes: input.purpose.purposesTotal,
-            intentions: input.purpose.intentionsTotal,
-            intentionsDone: input.purpose.intentionsDone,
             avgIntensity: input.purpose.avgIntensity,
           }
         : null,

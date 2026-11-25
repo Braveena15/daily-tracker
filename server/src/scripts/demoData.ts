@@ -104,11 +104,10 @@ export type DemoEntry = {
   dailyReflectionNote?: string;
 };
 
-/** One of the day's purposes ("what matters to me today"), with its intensity and optional intentions */
+/** One of the day's purposes ("what matters to me today"), with its intensity */
 export type DemoDailyPurpose = {
   text: string;
   focusValues: string[];
-  intentions: { text: string; done: boolean; doneAt?: Date }[];
   intensity: number;
   createdAt: Date;
   updatedAt: Date;
@@ -237,18 +236,6 @@ const PURPOSES = [
   "Learn one thing deeply instead of many things lightly",
   "Keep the day calm and simple",
 ];
-const INTENTIONS = [
-  "Go cycling",
-  "30 minutes of reading",
-  "Cook a healthy dinner",
-  "Call a friend",
-  "Stretch for 10 minutes",
-  "Study for an hour",
-  "Walk after lunch",
-  "Phone-free first hour",
-  "Drink 2 litres of water",
-  "Write three good things",
-];
 const REFLECTION_NOTES = ["Mostly on track.", "Got distracted in the afternoon, but the evening was good.", "A really good day.", "Tired, but I did what mattered."];
 
 const clock = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
@@ -296,17 +283,11 @@ function addDailyExtras(entries: DemoEntry[], today: string, seed: number): void
     const setAt = at(7, rnd.int(0, 30));
     // Past days were reflected on in the evening; today's reflection is still to come
     const reflected = !isToday && rnd.chance(0.8);
-    const intentionPool = rnd.some(INTENTIONS, INTENTIONS.length);
     e.dailyPurposes = rnd.some(PURPOSES, rnd.pick([1, 1, 2, 3])).map((text) => ({
       text,
       focusValues: rnd.some(DEMO_PURPOSE.coreValues, rnd.int(1, 2)),
       // How strongly it's felt today (0–10)
       intensity: rnd.pick([4, 5, 6, 6, 7, 7, 8, 8, 9, 10]),
-      // Intentions are optional: some purposes have none
-      intentions: intentionPool.splice(0, rnd.int(0, 2)).map((intention) => {
-        const done = isToday ? rnd.chance(0.35) : rnd.chance(0.75);
-        return { text: intention, done, ...(done && { doneAt: at(isToday ? rnd.int(8, 11) : rnd.int(9, 21)) }) };
-      }),
       createdAt: setAt,
       updatedAt: setAt,
     }));

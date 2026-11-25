@@ -1,6 +1,6 @@
 // "What matters to me today", read-only: each item as its own small block (text, its intensity,
-// focus value chips and any intentions done / not done), then the day's evening note.
-import { Check, Target, X } from 'lucide-react'
+// and focus value chips), then the day's evening note.
+import { Target } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { type DayPurpose, type DayPurposes } from '@/lib/purpose'
 import { cn } from '@/lib/utils'
@@ -39,28 +39,11 @@ export function PurposeBlockView({ purpose }: { purpose: DayPurpose }) {
       <div className="flex items-start gap-2">
         <Target className="mt-1.5 size-4 shrink-0 text-mental" aria-hidden />
         <p className={cn('min-w-0 flex-1 font-serif text-lg leading-snug break-words whitespace-pre-line', !purpose.text && 'text-muted-foreground italic')}>
-          {purpose.text || 'Intentions for the day'}
+          {purpose.text || 'Untitled'}
         </p>
         <IntensityBadge intensity={purpose.intensity} className="mt-1" />
       </div>
       <FocusValueChips values={purpose.focusValues} />
-      {purpose.intentions.length > 0 && (
-        <ul className="space-y-1 text-sm">
-          {purpose.intentions.map((i) => (
-            <li key={i.id} className="flex items-start gap-2">
-              {i.done ? (
-                <Check className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
-              ) : (
-                <X className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
-              )}
-              <span className={cn('break-words', !i.done && 'text-muted-foreground')}>
-                <span className="sr-only">{i.done ? 'Done: ' : 'Not done: '}</span>
-                {i.text}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
     </div>
   )
 }

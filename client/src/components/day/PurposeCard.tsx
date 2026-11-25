@@ -1,14 +1,13 @@
 // "What matters to me today" at the top of the Today page: up to 5 things today is about, each with
-// how strongly I feel it (intensity 0–10), optional focus values from my core values and optional
-// intentions to tick off (folded away until opened). One evening note covers the whole day.
+// how strongly I feel it (intensity 0–10) and optional focus values from my core values. One evening
+// note covers the whole day.
 //
 // Today and past days are edited the same way (no lock at midnight); future days can't have any.
 import { useId, useState, type FormEvent } from 'react'
-import { Check, ChevronDown, Copy, NotebookPen, Pencil, Plus, Target, Trash2, X } from 'lucide-react'
+import { Check, Copy, NotebookPen, Pencil, Plus, Target, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
@@ -17,12 +16,10 @@ import { Section } from '@/components/CheckinFields'
 import { useFetch } from '@/hooks/useFetch'
 import type { PurposeActions } from '@/hooks/useDay'
 import { FocusValueChips, IntensityBadge } from '@/components/purpose/PurposeDayView'
-import { timeOf } from '@/lib/healthSync'
 import type { Purpose } from '@/lib/mind'
 import {
   DEFAULT_INTENSITY,
   MAX_FOCUS_VALUES,
-  MAX_INTENTIONS,
   MAX_PURPOSES,
   daySummary,
   matchSuggestions,
@@ -252,7 +249,6 @@ function PurposeBlock({ purpose, index, coreValues, actions }: { purpose: DayPur
           onChange={(focusValues) => void attempt(() => actions.updatePurpose(purpose.id, { focusValues }))}
           optional
         />
-        <Intentions purpose={purpose} actions={actions} editable />
       </li>
     )
   }
@@ -262,7 +258,7 @@ function PurposeBlock({ purpose, index, coreValues, actions }: { purpose: DayPur
       <div className="flex items-start gap-2">
         <Target className="mt-1.5 size-4 shrink-0 text-mental" aria-hidden />
         <p className={cn('min-w-0 flex-1 font-serif text-lg leading-snug break-words', !purpose.text && 'text-muted-foreground italic')}>
-          {purpose.text || 'Intentions for the day'}
+          {purpose.text || 'Untitled'}
         </p>
         <div className="-my-1 flex shrink-0">
           <Button type="button" variant="ghost" size="icon" aria-label={`Edit "${label}"`} onClick={() => setEditing(true)}>
@@ -284,7 +280,7 @@ function PurposeBlock({ purpose, index, coreValues, actions }: { purpose: DayPur
 
       {confirmDelete && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-destructive/10 px-3 py-2 text-sm" role="alert">
-          <span>Delete this{purpose.intentions.length > 0 ? ' and its intentions' : ''}?</span>
+          <span>Delete this?</span>
           <span className="flex gap-2">
             <Button type="button" variant="ghost" size="sm" onClick={() => setConfirmDelete(false)} disabled={deleting}>
               Keep it
@@ -303,7 +299,6 @@ function PurposeBlock({ purpose, index, coreValues, actions }: { purpose: DayPur
           <FocusValueChips values={purpose.focusValues} />
         </div>
       )}
-      <Intentions purpose={purpose} actions={actions} editable={false} />
     </li>
   )
 }
@@ -392,95 +387,6 @@ function FocusValuePicker({
           )
         })}
       </div>
-    </div>
-  )
-}
-
-/**
- * Optional intentions, folded away by default ("Intentions · 1 of 3 done"). Ticking works whenever
- * they're open; `editable` (edit mode) also lets you add and remove them.
- */
-function Intentions({ purpose, actions, editable }: { purpose: DayPurpose; actions: Actions; editable: boolean }) {
-  const [open, setOpen] = useState(false)
-  const [draft, setDraft] = useState('')
-  const [busy, setBusy] = useState(false)
-  const { intentions } = purpose
-  const full = intentions.length >= MAX_INTENTIONS
-  const listId = useId()
-  if (!editable && intentions.length === 0) return null
-
-  async function add(e: FormEvent) {
-    e.preventDefault()
-    if (!draft.trim()) return
-    setBusy(true)
-    if (await attempt(() => actions.addIntention(purpose.id, draft.trim()))) setDraft('')
-    setBusy(false)
-  }
-
-  const done = intentions.filter((i) => i.done).length
-  const summary = intentions.length === 0 ? 'Add intentions (optional)' : `Intentions · ${done} of ${intentions.length} done`
-
-  return (
-    <div className="space-y-2">
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className="-ml-2 text-muted-foreground"
-        aria-expanded={open}
-        aria-controls={listId}
-        onClick={() => setOpen((o) => !o)}
-      >
-        <ChevronDown className={cn('transition-transform', open && 'rotate-180')} aria-hidden /> {summary}
-      </Button>
-      {open && (
-        <div id={listId} className="space-y-2">
-          {intentions.length > 0 && (
-            <ul className="space-y-1.5">
-              {intentions.map((i) => (
-                <li key={i.id} className="flex items-center gap-3 rounded-xl bg-card/80 px-3 py-2">
-                  <Checkbox
-                    id={`intention-${i.id}`}
-                    checked={i.done}
-                    // Ticking saves straight away, with the time
-                    onCheckedChange={(checked) => attempt(() => actions.updateIntention(purpose.id, i.id, { done: checked === true }))}
-                  />
-                  <Label htmlFor={`intention-${i.id}`} className={cn('min-w-0 flex-1 font-normal break-words', i.done && 'text-muted-foreground line-through')}>
-                    {i.text}
-                  </Label>
-                  {i.done && i.doneAt && <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{timeOf(i.doneAt)}</span>}
-                  {editable && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="-my-1 shrink-0 text-muted-foreground hover:text-destructive"
-                      aria-label={`Remove "${i.text}"`}
-                      onClick={() => attempt(() => actions.removeIntention(purpose.id, i.id))}
-                    >
-                      <X />
-                    </Button>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-          {editable && !full && (
-            <form className="flex gap-2" onSubmit={add} noValidate>
-              <Input
-                aria-label="Add an intention"
-                placeholder="e.g. Go cycling, Call Amma, Study 1 hour"
-                maxLength={200}
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-              />
-              <Button loading={busy} type="submit" variant="secondary" disabled={busy || !draft.trim()}>
-                <Plus aria-hidden /> Add
-              </Button>
-            </form>
-          )}
-        </div>
-      )}
     </div>
   )
 }

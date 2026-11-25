@@ -34,11 +34,10 @@ export function PurposeStatsRow({ stats }: { stats: PurposeStats }) {
     { label: 'Things a day', value: perDay === null ? '—' : String(perDay) },
     // Across every item with an intensity
     { label: 'Avg intensity', value: stats.avgIntensity === null ? '—' : `${stats.avgIntensity}/10` },
-    { label: 'Intentions done', value: stats.intentionsDonePercent === null ? '—' : `${stats.intentionsDonePercent}%` },
   ]
   return (
     <div className="space-y-3">
-      <dl className="grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
+      <dl className="grid grid-cols-3 gap-2 text-center">
         {items.map((i) => (
           <div key={i.label} className="rounded-xl border px-2 py-2">
             <dt className="text-xs text-muted-foreground">{i.label}</dt>

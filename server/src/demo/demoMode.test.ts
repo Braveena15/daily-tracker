@@ -68,7 +68,7 @@ describe("demo mode", () => {
     expect(entries.some((e) => (e.healthSnapshots ?? []).length > 0)).toBe(false);
     expect(entries.every((e) => e.sleepHoursSource === "watch")).toBe(true);
     expect(entries.some((e) => e.goodThings.length > 0 && e.learnings.length > 0 && e.presentMoments.length > 0)).toBe(true);
-    expect(entries.filter((e) => e.dailyPurposes?.some((p: { intentions: unknown[] }) => p.intentions.length > 0)).length).toBeGreaterThan(20);
+    expect(entries.filter((e) => e.dailyPurposes?.length > 0).length).toBeGreaterThan(20);
 
     const meals = await db().collection("mealdays").find(mine).toArray();
     expect(meals.length).toBeGreaterThan(40);

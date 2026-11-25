@@ -1,6 +1,6 @@
 /// <reference types="vitest/globals" />
 // "What matters to me today", end to end against a real (in-memory) MongoDB: up to 5 purposes, each
-// with an intensity (0–10) and its own intentions, one evening note, editing past days (no midnight lock),
+// with an intensity (0–10), one evening note, editing past days (no midnight lock),
 // text encrypted at rest, suggestions, recurring purposes, and the migrations from older data.
 import mongoose from "mongoose";
 import { startHarness, type Harness } from "../test/harness";
@@ -45,7 +45,9 @@ describe("today's purposes", () => {
     const res = await h.request("POST", `${base()}/purposes`, { text: "Be present with family", intensity: 8, focusValues: ["family"] });
     expect(res.status).toBe(201);
     expect(res.body.entry.dailyPurposes).toHaveLength(1);
-    expect(res.body.entry.dailyPurposes[0]).toMatchObject({ text: "Be present with family", intensity: 8, focusValues: ["Family"], intentions: [] });
+    expect(res.body.entry.dailyPurposes[0]).toMatchObject({ text: "Be present with family", intensity: 8, focusValues: ["Family"] });
+    // Intentions are gone from the API (older data may still hold them, unused)
+    expect(res.body.entry.dailyPurposes[0]).not.toHaveProperty("intentions");
     expect(res.body.entry.dailyPurposes[0]).not.toHaveProperty("rating");
     first = res.body.entry.dailyPurposes[0].id;
 
@@ -74,35 +76,11 @@ describe("today's purposes", () => {
     expect((await h.request("PATCH", `${base()}/purposes/${first}`, { rating: 4 })).status).toBe(400);
   });
 
-  it("keeps each purpose's intentions apart, up to 5 per purpose", async () => {
-    const day = (await h.request("GET", base())).body.entry;
-    const second = day.dailyPurposes[1].id;
-
-    for (const text of ["Call Amma", "Dinner without phones", "Read a story", "Walk together", "Say thank you"]) {
-      expect((await h.request("POST", `${base()}/purposes/${first}/intentions`, { text })).status).toBe(201);
-    }
-    const sixth = await h.request("POST", `${base()}/purposes/${first}/intentions`, { text: "One more" });
-    expect(sixth.status).toBe(400);
-    // The other purpose still has room
-    const other = await h.request("POST", `${base()}/purposes/${second}/intentions`, { text: "Outline section 2" });
-    expect(other.status).toBe(201);
-    const [p1, p2] = other.body.entry.dailyPurposes;
-    expect(p1.intentions).toHaveLength(5);
-    expect(p2.intentions.map((i: { text: string }) => i.text)).toEqual(["Outline section 2"]);
-
-    // Ticking one intention touches only that one
-    const iid = p1.intentions[0].id;
-    const ticked = await h.request("PATCH", `${base()}/purposes/${first}/intentions/${iid}`, { done: true });
-    expect(ticked.status).toBe(200);
-    expect(ticked.body.entry.dailyPurposes[0].intentions[0]).toMatchObject({ done: true, doneAt: expect.any(String) });
-    expect(ticked.body.entry.dailyPurposes[0].intentions[1].done).toBe(false);
-
-    // An intention can't be reached through another purpose
-    expect((await h.request("PATCH", `${base()}/purposes/${second}/intentions/${iid}`, { done: false })).status).toBe(404);
-    expect((await h.request("DELETE", `${base()}/purposes/${second}/intentions/${iid}`)).status).toBe(404);
-
-    const removed = await h.request("DELETE", `${base()}/purposes/${first}/intentions/${p1.intentions[4].id}`);
-    expect(removed.body.entry.dailyPurposes[0].intentions).toHaveLength(4);
+  it("has no intentions routes any more", async () => {
+    const id = new mongoose.Types.ObjectId().toHexString();
+    expect((await h.request("POST", `${base()}/purposes/${first}/intentions`, { text: "Call Amma" })).status).toBe(404);
+    expect((await h.request("PATCH", `${base()}/purposes/${first}/intentions/${id}`, { done: true })).status).toBe(404);
+    expect((await h.request("DELETE", `${base()}/purposes/${first}/intentions/${id}`)).status).toBe(404);
   });
 
   it("saves one evening note for the day, and clears it when empty", async () => {
@@ -115,11 +93,10 @@ describe("today's purposes", () => {
   it("stores every text encrypted and returns it decrypted", async () => {
     const raw = await entries().findOne({ userId, date: today });
     const json = JSON.stringify(raw);
-    expect(json).not.toMatch(/present with|the report|Call Amma|without phones|calm, good/);
+    expect(json).not.toMatch(/present with|the report|calm, good/);
     expect(raw!.dailyPurposes[0].focusValues).toEqual(["Family", "Health"]); // value words aren't secret
     const day = (await h.request("GET", base())).body.entry;
     expect(day.dailyPurposes[0].text).toBe("Be fully present with family");
-    expect(day.dailyPurposes[0].intentions[0].text).toBe("Call Amma");
     expect(day.dailyReflectionNote).toBe("A calm, good day");
     expect(day).not.toHaveProperty("dailyPurpose");
   });
@@ -129,7 +106,7 @@ describe("today's purposes", () => {
     expect(res.status).toBe(200);
     expect(res.body.today.purposes).toHaveLength(5);
     expect(res.body.today.reflectionNote).toBe("A calm, good day");
-    expect(res.body.stats).toMatchObject({ daysWithPurpose: 1, purposesTotal: 5, intentionsTotal: 5, intentionsDone: 1, avgIntensity: 6 });
+    expect(res.body.stats).toEqual({ daysWithPurpose: 1, purposesTotal: 5, avgIntensity: 6, topValues: [{ value: "Family", days: 1 }, { value: "Health", days: 1 }] });
     // (9 + 6 + 0 + 10 + 5) / 5 = 6, and every purpose shows up once as a recurring one
     expect(res.body.recurring).toHaveLength(5);
     expect(res.body.recurring[0]).toMatchObject({ count: 1 });
@@ -141,7 +118,7 @@ describe("today's purposes", () => {
     expect(res.body.todayPurposeCount).toBe(5);
   });
 
-  it("deletes one purpose with its intentions", async () => {
+  it("deletes one purpose", async () => {
     const res = await h.request("DELETE", `${base()}/purposes/${first}`);
     expect(res.status).toBe(200);
     expect(res.body.entry.dailyPurposes).toHaveLength(4);
@@ -152,18 +129,13 @@ describe("today's purposes", () => {
 });
 
 describe("no midnight lock", () => {
-  it("adds, edits and deletes purposes, intentions and the evening note on a past day", async () => {
+  it("adds, edits and deletes purposes and the evening note on a past day", async () => {
     await h.request("PUT", "/api/profile", { journeyStartDate: addDays(today, -30) });
     const past = `/api/entries/${addDays(today, -2)}`;
     const added = await h.request("POST", `${past}/purposes`, { text: "Rest well", intensity: 6 });
     expect(added.status).toBe(201);
     const pid = added.body.entry.dailyPurposes[0].id;
     expect((await h.request("PATCH", `${past}/purposes/${pid}`, { intensity: 8 })).body.entry.dailyPurposes[0].intensity).toBe(8);
-    const withIntention = await h.request("POST", `${past}/purposes/${pid}/intentions`, { text: "Nap" });
-    expect(withIntention.status).toBe(201);
-    const iid = withIntention.body.entry.dailyPurposes[0].intentions[0].id;
-    expect((await h.request("PATCH", `${past}/purposes/${pid}/intentions/${iid}`, { done: true })).status).toBe(200);
-    expect((await h.request("DELETE", `${past}/purposes/${pid}/intentions/${iid}`)).status).toBe(200);
     expect((await h.request("PUT", `${past}/reflection-note`, { note: "Written later" })).body.entry.dailyReflectionNote).toBe("Written later");
     expect((await h.request("DELETE", `${past}/purposes/${pid}`)).status).toBe(200);
   });
@@ -215,13 +187,13 @@ describe("migration from one purpose a day", () => {
         id: expect.any(String),
         text: "Be patient",
         focusValues: ["Family"],
-        intentions: [{ id: expect.any(String), text: "Breathe first", done: true, doneAt: at.toISOString() }],
-        // The old rating is kept (as legacyRating) but never shown; older purposes have no intensity
+        // Its intentions stay in the database, unused; the old rating is kept (as legacyRating) but never shown; older purposes have no intensity
         intensity: null,
         createdAt: at.toISOString(),
         updatedAt: at.toISOString(),
       },
     ]);
+    expect((await entries().findOne({ userId, date }))!.dailyPurposes[0].intentions).toHaveLength(1);
     expect(day.dailyReflectionNote).toBe("Mostly patient");
   });
 });

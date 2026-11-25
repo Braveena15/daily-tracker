@@ -42,7 +42,7 @@ export function useDay(date: string) {
     clearMissedReason: () => apply(api.delete<DayResponse>(`/entries/${date}/missed-reason`)),
     // Sets the day's water to exactly this total (replaces the day's drinks)
     setWaterTotal: (totalMl: number) => apply(api.put<DayResponse>(`/entries/${date}/water/total`, { totalMl })),
-    // What matters today (up to 5), each with its intensity and optional intentions, and the day's evening note
+    // What matters today (up to 5), each with its intensity, and the day's evening note
     ...purposeActions(date, apply),
   }
 }
@@ -57,10 +57,6 @@ export function purposeActions(date: string, apply: (request: Promise<DayRespons
     updatePurpose: (id: string, body: { text?: string; intensity?: number; focusValues?: string[] }) =>
       apply(api.patch<DayResponse>(`${base}/${id}`, body)),
     removePurpose: (id: string) => apply(api.delete<DayResponse>(`${base}/${id}`)),
-    addIntention: (purposeId: string, text: string) => apply(api.post<DayResponse>(`${base}/${purposeId}/intentions`, { text })),
-    updateIntention: (purposeId: string, id: string, body: { text?: string; done?: boolean }) =>
-      apply(api.patch<DayResponse>(`${base}/${purposeId}/intentions/${id}`, body)),
-    removeIntention: (purposeId: string, id: string) => apply(api.delete<DayResponse>(`${base}/${purposeId}/intentions/${id}`)),
     saveReflectionNote: (note: string | null) => apply(api.put<DayResponse>(`/entries/${date}/reflection-note`, { note })),
   }
 }

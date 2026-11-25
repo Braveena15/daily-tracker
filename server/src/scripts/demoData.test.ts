@@ -96,10 +96,8 @@ describe("generateDemoData extras", () => {
       expect(dailyPurposes!.length).toBeGreaterThan(0);
       expect(dailyPurposes!.length).toBeLessThanOrEqual(ENTRY_LIMITS.purposes);
       for (const p of dailyPurposes!) {
-        expect(p.intentions.length).toBeLessThanOrEqual(ENTRY_LIMITS.intentions);
         expect(p.focusValues.length).toBeLessThanOrEqual(ENTRY_LIMITS.focusValues);
         expect(p.focusValues.every((v) => DEMO_PURPOSE.coreValues.includes(v))).toBe(true);
-        expect(p.intentions.every((i) => i.done === Boolean(i.doneAt))).toBe(true);
       }
     }
     const today = entries.at(-1)!;

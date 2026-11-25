@@ -4,7 +4,7 @@ import { Smile } from 'lucide-react'
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, type ChartConfig } from '@/components/ui/chart'
-import { MoodDot } from '@/components/day/MoodDot'
+import { MoodSquare } from '@/components/day/MoodDot'
 import { energyBand, moodBand } from '@/lib/mood'
 import { IconBubble } from '@/components/IconBubble'
 import { EmptyState } from '@/components/StatusViews'
@@ -125,7 +125,7 @@ export function MoodDayChart({ moodLogs }: { moodLogs: MoodLog[] }) {
                 type="monotone"
                 stroke={`var(--color-${key})`}
                 strokeWidth={2}
-                dot={key === 'mood' ? MoodDot : { r: 3, strokeWidth: 0, fill: `var(--color-${key})` }}
+                dot={key === 'mood' ? MoodSquare : { r: 3, strokeWidth: 0, fill: `var(--color-${key})` }}
                 activeDot={{ r: 5 }}
                 isAnimationActive={animate}
               />

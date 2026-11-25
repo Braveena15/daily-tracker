@@ -1,9 +1,7 @@
 /// <reference types="vitest/globals" />
 import { createFieldCrypto } from "./crypto";
 import {
-  MAX_INTENTIONS,
   MAX_PURPOSES,
-  canAddIntention,
   canAddPurpose,
   daySummary,
   hasDayPurposes,
@@ -28,7 +26,7 @@ import {
 import { clampFrom } from "./journey";
 import { ENTRY_LIMITS } from "../models/DailyEntry";
 import { purposeSchema } from "../validation/mindSchema";
-import { intentionPatchSchema, intentionSchema, purposeCreateSchema, purposePatchSchema, reflectionNoteSchema } from "../validation/purposeSchema";
+import { purposeCreateSchema, purposePatchSchema, reflectionNoteSchema } from "../validation/purposeSchema";
 
 const crypto = createFieldCrypto("a".repeat(64));
 const otherKey = createFieldCrypto("b".repeat(64));
@@ -38,7 +36,6 @@ const purpose = (overrides: Partial<DayPurpose> = {}): DayPurpose => ({
   id: "p1",
   text: "Be present with family",
   focusValues: ["Family"],
-  intentions: [],
   intensity: null,
   createdAt: at.toISOString(),
   updatedAt: at.toISOString(),
@@ -48,31 +45,28 @@ const day = (purposes: Partial<DayPurpose>[] = [{}], reflectionNote = ""): DayPu
   purposes: purposes.map((p, i) => purpose({ id: `p${i + 1}`, ...p })),
   reflectionNote,
 });
-const i = (done: boolean, text = "t") => ({ id: "x", text, done, doneAt: null });
 
 describe("encryption", () => {
-  it("round-trips each purpose, its intentions and the day's evening note", () => {
+  it("round-trips each purpose and the day's evening note (older intentions are left out)", () => {
     const stored = {
       dailyPurposes: [
         {
           _id: "a",
           text: sealText(crypto, "  Be present with family  "),
           focusValues: ["Family", "Health"],
-          intentions: [
-            { _id: "i1", text: crypto.encrypt("Call Amma"), done: true, doneAt: at },
-            { _id: "i2", text: crypto.encrypt("Go cycling"), done: false },
-          ],
+          // Older data: still stored, never returned
+          intentions: [{ _id: "i1", text: crypto.encrypt("Call Amma"), done: true, doneAt: at }],
           intensity: 8,
           createdAt: at,
           updatedAt: at,
         },
         // From before intensity existed: the old rating is never shown
-        { _id: "b", text: crypto.encrypt("Finish the report calmly"), focusValues: [], intentions: [], legacyRating: 4, createdAt: at, updatedAt: at },
+        { _id: "b", text: crypto.encrypt("Finish the report calmly"), focusValues: [], legacyRating: 4, createdAt: at, updatedAt: at },
       ],
       dailyReflectionNote: crypto.encrypt("A calm, good day"),
     };
     // Nothing readable is stored
-    expect(JSON.stringify(stored)).not.toMatch(/Amma|cycling|present|calm|report/);
+    expect(JSON.stringify(stored)).not.toMatch(/Amma|present|calm|report/);
 
     expect(openDayPurposes(crypto, stored)).toEqual({
       purposes: [
@@ -80,15 +74,11 @@ describe("encryption", () => {
           id: "a",
           text: "Be present with family",
           focusValues: ["Family", "Health"],
-          intentions: [
-            { id: "i1", text: "Call Amma", done: true, doneAt: at.toISOString() },
-            { id: "i2", text: "Go cycling", done: false, doneAt: null },
-          ],
           intensity: 8,
           createdAt: at.toISOString(),
           updatedAt: at.toISOString(),
         },
-        { id: "b", text: "Finish the report calmly", focusValues: [], intentions: [], intensity: null, createdAt: at.toISOString(), updatedAt: at.toISOString() },
+        { id: "b", text: "Finish the report calmly", focusValues: [], intensity: null, createdAt: at.toISOString(), updatedAt: at.toISOString() },
       ],
       reflectionNote: "A calm, good day",
     });
@@ -114,23 +104,13 @@ describe("encryption", () => {
 });
 
 describe("limits", () => {
-  it("allows up to 5 purposes a day and 5 intentions per purpose", () => {
+  it("allows up to 5 purposes a day", () => {
     expect(MAX_PURPOSES).toBe(ENTRY_LIMITS.purposes);
-    expect(MAX_INTENTIONS).toBe(ENTRY_LIMITS.intentions);
     expect(canAddPurpose(4)).toBe(true);
     expect(canAddPurpose(5)).toBe(false);
-    expect(canAddIntention(0)).toBe(true);
-    expect(canAddIntention(4)).toBe(true);
-    expect(canAddIntention(5)).toBe(false);
   });
 
-  it("checks purpose text, intensity (0–10, required to add), focus values, intentions and the evening note", () => {
-    expect(intentionSchema.safeParse({ text: "x".repeat(200) }).success).toBe(true);
-    expect(intentionSchema.safeParse({ text: "x".repeat(201) }).success).toBe(false);
-    expect(intentionSchema.safeParse({ text: "  " }).success).toBe(false);
-    expect(intentionPatchSchema.safeParse({}).success).toBe(false);
-    expect(intentionPatchSchema.parse({ done: true })).toEqual({ done: true });
-
+  it("checks purpose text, intensity (0–10, required to add), focus values and the evening note", () => {
     expect(purposeCreateSchema.safeParse({ text: "Be kind", intensity: 5, focusValues: ["A", "B", "C"] }).success).toBe(true);
     expect(purposeCreateSchema.safeParse({ text: "Be kind", intensity: 5, focusValues: ["A", "B", "C", "D"] }).success).toBe(false);
     expect(purposeCreateSchema.safeParse({ text: "x".repeat(501), intensity: 5 }).success).toBe(false);
@@ -219,13 +199,13 @@ describe("purpose history", () => {
 });
 
 describe("purposeStats", () => {
-  it("counts days, purposes, completed intentions, the average intensity across purposes and top values", () => {
+  it("counts days, purposes, the average intensity across purposes and top values", () => {
     const stats = purposeStats([
       day([
-        { focusValues: ["Family", "Health"], intentions: [i(true), i(false)], intensity: 8 },
-        { focusValues: ["Family"], intentions: [i(true)], intensity: 4 },
+        { focusValues: ["Family", "Health"], intensity: 8 },
+        { focusValues: ["Family"], intensity: 4 },
       ]),
-      day([{ focusValues: ["Family"], intentions: [i(true), i(true)], intensity: 9 }]),
+      day([{ focusValues: ["Family"], intensity: 9 }]),
       day([{ focusValues: ["Growth"] }]), // from before intensity existed
       day([], "Only a note"),
       null,
@@ -233,9 +213,6 @@ describe("purposeStats", () => {
     expect(stats).toEqual({
       daysWithPurpose: 3,
       purposesTotal: 4,
-      intentionsTotal: 5,
-      intentionsDone: 4,
-      intentionsDonePercent: 80,
       avgIntensity: 7,
       topValues: [
         { value: "Family", days: 2 },
@@ -245,13 +222,12 @@ describe("purposeStats", () => {
     });
   });
 
-  it("has nulls without intentions or intensities", () => {
-    expect(purposeStats([])).toMatchObject({ daysWithPurpose: 0, purposesTotal: 0, intentionsDonePercent: null, avgIntensity: null, topValues: [] });
+  it("has nulls without intensities", () => {
+    expect(purposeStats([])).toMatchObject({ daysWithPurpose: 0, purposesTotal: 0, avgIntensity: null, topValues: [] });
   });
 
   it("sums a day for its header: 2 things · avg intensity 7/10", () => {
-    const d = day([{ intensity: 8, intentions: [i(true), i(false)] }, { intensity: 6 }]);
-    expect(daySummary(d)).toEqual({ purposes: 2, intentions: 2, intentionsDone: 1, intensities: [8, 6], avgIntensity: 7 });
+    expect(daySummary(day([{ intensity: 8 }, { intensity: 6 }]))).toEqual({ purposes: 2, intensities: [8, 6], avgIntensity: 7 });
   });
 });
 
@@ -309,21 +285,20 @@ describe("AI facts", () => {
   it("sends only counts and intensity numbers — never any text or value words", () => {
     const d = day(
       [
-        { text: "SECRET_PURPOSE", focusValues: ["Family", "SECRET_VALUE Priya"], intentions: [i(true, "SECRET_INTENTION call Amma"), i(false, "SECRET_INTENTION 2")], intensity: 8 },
-        { text: "SECRET_PURPOSE_2", focusValues: [], intentions: [i(true, "SECRET_INTENTION 3")], intensity: 4 },
+        { text: "SECRET_PURPOSE", focusValues: ["Family", "SECRET_VALUE Priya"], intensity: 8 },
+        { text: "SECRET_PURPOSE_2", focusValues: [], intensity: 4 },
       ],
       "SECRET_NOTE",
     );
     const facts = purposeFacts(d);
-    expect(facts).toEqual({ set: true, purposes: 2, intentions: 3, intentionsDone: 2, intensities: [8, 4], avgIntensity: 6 });
-    expect(JSON.stringify(facts)).not.toMatch(/SECRET|Amma|Priya|Family/);
+    expect(facts).toEqual({ set: true, purposes: 2, intensities: [8, 4], avgIntensity: 6 });
+    expect(JSON.stringify(facts)).not.toMatch(/SECRET|Priya|Family/);
     expect(purposeFacts(null)).toEqual({ set: false });
     expect(purposeFacts(day([], "SECRET_NOTE"))).toEqual({ set: false });
   });
 
   it("still checks every purpose text for crisis language", () => {
-    const d = day([{ text: "One", intentions: [i(false, "Rest")] }, { text: "Two" }], "Hard day");
-    expect(purposeText(d)).toEqual(["One", "Rest", "Two", "Hard day"]);
+    expect(purposeText(day([{ text: "One" }, { text: "Two" }], "Hard day"))).toEqual(["One", "Two", "Hard day"]);
   });
 });
 

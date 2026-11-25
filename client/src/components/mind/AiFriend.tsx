@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { SupportButton, SupportCard } from '@/components/mind/Support'
-import { AddToPurposePicker } from '@/components/purpose/AddToPurposePicker'
+import { AddToWhatMatters } from '@/components/purpose/AddToWhatMatters'
 import { useDay } from '@/hooks/useDay'
 import {
   SUPPORT_LINE,
@@ -123,7 +123,7 @@ export function AiFriend({ thoughtId, thoughtDate, isPrivate }: { thoughtId: str
           <FriendReplyCard
             thoughtId={thoughtId}
             conversation={conversation}
-            canAddIntention={thoughtDate === todayInTimezone()}
+            canAddToToday={thoughtDate === todayInTimezone()}
             onChange={setConversation}
           />
           <FriendChat thoughtId={thoughtId} conversation={conversation} messagesLeft={messagesLeft} onResult={apply} />
@@ -201,12 +201,12 @@ function Helpful({ value, onChange }: { value: boolean | null | undefined; onCha
 function FriendReplyCard({
   thoughtId,
   conversation,
-  canAddIntention,
+  canAddToToday,
   onChange,
 }: {
   thoughtId: string
   conversation: FriendConversation
-  canAddIntention: boolean
+  canAddToToday: boolean
   onChange: (c: FriendConversation) => void
 }) {
   const { reply } = conversation
@@ -243,7 +243,7 @@ function FriendReplyCard({
         <section className="space-y-2">
           <h3 className="text-sm font-semibold text-mental-foreground">One small step</h3>
           <p className="text-sm leading-relaxed">{reply.smallStep}</p>
-          {canAddIntention && <AddStepToToday text={reply.smallStep} />}
+          {canAddToToday && <AddStepToToday text={reply.smallStep} />}
         </section>
 
         <p className="font-heading text-lg">{reply.closing}</p>
@@ -369,17 +369,11 @@ function FriendChat({
   )
 }
 
-/** The small step as an intention of one of today's purposes (you pick which, when there are several). */
+/** The small step as one of today's "what matters" items (intensity 5). */
 function AddStepToToday({ text }: { text: string }) {
-  const { day, addIntention } = useDay(todayInTimezone())
+  const { day, addPurpose } = useDay(todayInTimezone())
   if (!day) return null
   return (
-    <AddToPurposePicker
-      text={text}
-      purposes={day.entry?.dailyPurposes ?? []}
-      onAdd={addIntention}
-      label="Add as an intention for today"
-      className="bg-card"
-    />
+    <AddToWhatMatters text={text} purposes={day.entry?.dailyPurposes ?? []} onAdd={addPurpose} className="bg-card" />
   )
 }

@@ -104,7 +104,7 @@ function DayEditor({ date, today }: { date: string; today: string }) {
       {isToday && <MissedTodayControls day={day} onSave={actions.setMissedReason} onClear={actions.clearMissedReason} />}
       <div id="purpose" className="scroll-mt-4 space-y-2">
         <PurposeCard day={dayPurposesOf(entry)} isToday={isToday} actions={actions} />
-        {isToday && <WeeklyGoalReminder today={today} purposes={entry?.dailyPurposes ?? []} addIntention={actions.addIntention} />}
+        {isToday && <WeeklyGoalReminder today={today} purposes={entry?.dailyPurposes ?? []} addPurpose={actions.addPurpose} />}
       </div>
 
       <Section

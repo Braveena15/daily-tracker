@@ -1,21 +1,19 @@
 // "What matters to me today": up to 5 things a day, each with how strongly it's felt (intensity 0–10),
-// optional focus values and up to 5 optional intentions, plus one evening note for the whole day.
+// and optional focus values, plus one evening note for the whole day. Older purposes may still hold
+// intentions in the database; they're no longer read or shown.
 // Pure functions: the encrypter is passed in, so they can be tested with a test key.
 //
-// Stored: each purpose's text, each intention's text and the evening note are encrypted.
+// Stored: each purpose's text and the evening note are encrypted.
 // focusValues (words from the user's core values), done flags, times and intensities are not.
 import type { FieldCrypto } from "./crypto";
 import { addDays } from "./dates";
 
 type StoredDate = Date | string | null | undefined;
 
-export type StoredIntention = { _id?: unknown; text: string; done?: boolean | null; doneAt?: StoredDate };
-
 export type StoredDayPurpose = {
   _id?: unknown;
   text?: string | null;
   focusValues?: string[] | null;
-  intentions?: StoredIntention[] | null;
   intensity?: number | null;
   createdAt?: StoredDate;
   updatedAt?: StoredDate;
@@ -27,13 +25,10 @@ export type StoredDayPurposes = {
   dailyReflectionNote?: string | null;
 };
 
-export type Intention = { id: string; text: string; done: boolean; doneAt: string | null };
-
 export type DayPurpose = {
   id: string;
   text: string;
   focusValues: string[];
-  intentions: Intention[];
   /** "How strongly do I feel this today?" 0–10; null only on purposes from before intensity existed */
   intensity: number | null;
   createdAt: string | null;
@@ -48,11 +43,9 @@ export type DayPurposes = {
   reflectionNote: string;
 };
 
-/** A day holds up to 5 purposes, and each purpose up to 5 intentions. */
+/** A day holds up to 5 purposes. */
 export const MAX_PURPOSES = 5;
-export const MAX_INTENTIONS = 5;
 export const canAddPurpose = (count: number) => count < MAX_PURPOSES;
-export const canAddIntention = (count: number) => count < MAX_INTENTIONS;
 
 const iso = (d: StoredDate) => (d ? new Date(d).toISOString() : null);
 
@@ -70,7 +63,6 @@ export function openDayPurposes(crypto: FieldCrypto, stored: StoredDayPurposes |
       id: String(p._id),
       text: open(p.text),
       focusValues: [...(p.focusValues ?? [])],
-      intentions: (p.intentions ?? []).map((i) => ({ id: String(i._id), text: open(i.text), done: Boolean(i.done), doneAt: iso(i.doneAt) })),
       intensity: typeof p.intensity === "number" ? p.intensity : null,
       createdAt: iso(p.createdAt),
       updatedAt: iso(p.updatedAt),
@@ -87,12 +79,9 @@ const intensitiesOf = (purposes: DayPurpose[]) => purposes.flatMap((p) => (p.int
 
 /** "2 things · avg intensity 7/10": the counts behind every summary. */
 export function daySummary(d: DayPurposes) {
-  const intentions = d.purposes.flatMap((p) => p.intentions);
   const intensities = intensitiesOf(d.purposes);
   return {
     purposes: d.purposes.length,
-    intentions: intentions.length,
-    intentionsDone: intentions.filter((i) => i.done).length,
     intensities,
     /** 1 decimal, null without intensities */
     avgIntensity: average(intensities),
@@ -234,10 +223,6 @@ export type PurposeStats = {
   daysWithPurpose: number;
   /** All purposes across the days */
   purposesTotal: number;
-  intentionsTotal: number;
-  intentionsDone: number;
-  /** Whole-number percent, null without intentions */
-  intentionsDonePercent: number | null;
   /** Across every purpose with an intensity; 1 decimal, null without any */
   avgIntensity: number | null;
   /** Most-chosen focus values (counted once per day), most first (ties alphabetical), up to 3 */
@@ -247,17 +232,12 @@ export type PurposeStats = {
 export function purposeStats(days: (DayPurposes | null)[]): PurposeStats {
   const set = days.filter((d): d is DayPurposes => !!d && d.purposes.length > 0);
   const purposes = set.flatMap((d) => d.purposes);
-  const intentions = purposes.flatMap((p) => p.intentions);
-  const done = intentions.filter((i) => i.done).length;
   const counts = new Map<string, number>();
   for (const d of set) for (const v of new Set(d.purposes.flatMap((p) => p.focusValues))) counts.set(v, (counts.get(v) ?? 0) + 1);
 
   return {
     daysWithPurpose: set.length,
     purposesTotal: purposes.length,
-    intentionsTotal: intentions.length,
-    intentionsDone: done,
-    intentionsDonePercent: intentions.length ? Math.round((done / intentions.length) * 100) : null,
     avgIntensity: average(intensitiesOf(purposes)),
     topValues: [...counts]
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
@@ -335,16 +315,15 @@ export function matchSuggestions(suggestions: string[], typed: string, limit = 5
 // ---------- AI ----------
 
 /**
- * What the AI may know about a day's purposes: how many, how many intentions and how many done,
- * and the intensity numbers. Never a purpose's text, an intention's text, the evening note or
- * the focus value words.
+ * What the AI may know about a day's purposes: how many, and the intensity numbers. Never a
+ * purpose's text, the evening note or the focus value words.
  */
 export function purposeFacts(d: DayPurposes | null) {
   if (!d || d.purposes.length === 0) return { set: false };
-  const { purposes, intentions, intentionsDone, intensities, avgIntensity } = daySummary(d);
-  return { set: true, purposes, intentions, intentionsDone, intensities, avgIntensity };
+  const { purposes, intensities, avgIntensity } = daySummary(d);
+  return { set: true, purposes, intensities, avgIntensity };
 }
 
 /** Every user-written purpose text, for the crisis check only (never sent anywhere). */
 export const purposeText = (d: DayPurposes | null): string[] =>
-  d ? [...d.purposes.flatMap((p) => [p.text, ...p.intentions.map((i) => i.text)]), d.reflectionNote] : [];
+  d ? [...d.purposes.map((p) => p.text), d.reflectionNote] : [];

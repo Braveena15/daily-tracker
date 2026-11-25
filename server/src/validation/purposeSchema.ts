@@ -36,19 +36,6 @@ export const purposePatchSchema = z
   })
   .refine((v) => v.text !== undefined || v.focusValues !== undefined || v.intensity !== undefined, "Nothing to change");
 
-/** POST /:date/purposes/:purposeId/intentions */
-export const intentionSchema = z.strictObject({
-  text: text("Intention", L.intentionText).min(1, "Write the intention first"),
-});
-
-/** PATCH /:date/purposes/:purposeId/intentions/:intentionId */
-export const intentionPatchSchema = z
-  .strictObject({
-    text: text("Intention", L.intentionText).min(1, "An intention can't be empty").optional(),
-    done: z.boolean({ error: "done must be true or false" }).optional(),
-  })
-  .refine((v) => v.text !== undefined || v.done !== undefined, "Nothing to change");
-
 /** PUT /:date/reflection-note — one evening note for the whole day ("" or null clears it) */
 export const reflectionNoteSchema = z.strictObject({
   note: text("Evening note", L.reflectionNote).nullable(),

@@ -25,7 +25,6 @@ const encryptPurposes = (purposes: DemoDailyPurpose[]) =>
   purposes.map((p) => ({
     ...p,
     text: fieldCrypto.encrypt(p.text),
-    intentions: p.intentions.map((i) => ({ ...i, text: fieldCrypto.encrypt(i.text) })),
   }));
 
 /** Inserts the sample data for `userId`. With `expiresAt`, every document gets it (the demo's TTL). */

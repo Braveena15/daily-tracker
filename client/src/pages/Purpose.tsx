@@ -200,9 +200,6 @@ function TodayPurposeEditor({ today, onSaved }: { today: string; onSaved: () => 
     addPurpose: after(all.addPurpose),
     updatePurpose: after(all.updatePurpose),
     removePurpose: after(all.removePurpose),
-    addIntention: after(all.addIntention),
-    updateIntention: after(all.updateIntention),
-    removeIntention: after(all.removeIntention),
     saveReflectionNote: after(all.saveReflectionNote),
   }
 
