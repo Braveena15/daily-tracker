@@ -30,6 +30,7 @@ const Purpose = lazyPage(() => import('./pages/Purpose').then((m) => m.Purpose))
 const Expenses = lazyPage(() => import('./pages/Expenses').then((m) => m.Expenses))
 const Motivation = lazyPage(() => import('./pages/Motivation').then((m) => m.Motivation))
 const Profile = lazyPage(() => import('./pages/Profile').then((m) => m.Profile))
+const JourneyNew = lazyPage(() => import('./pages/JourneyNew').then((m) => m.JourneyNew))
 const Settings = lazyPage(() => import('./pages/Settings').then((m) => m.Settings))
 
 // A "data router" (createBrowserRouter), so pages can use the data APIs such as useBlocker.
@@ -61,6 +62,7 @@ const router = createBrowserRouter([
           { path: '/purpose', element: <Purpose /> },
           { path: '/motivation', element: <Motivation /> },
           { path: '/profile', element: <Profile /> },
+          { path: '/journey/new', element: <JourneyNew /> },
           { path: '/settings', element: <Settings /> },
           { path: '/settings/:section', element: <Settings /> },
         ],
