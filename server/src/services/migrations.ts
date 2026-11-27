@@ -1,4 +1,5 @@
 // Small data migrations, run after the database connects. Each one is idempotent.
+import { migrateJourneysToPrograms } from "./programMigration";
 import { DailyEntryModel } from "../models/DailyEntry";
 import { planIntensityMigration, planPurposesMigration } from "../utils/purposesMigration";
 
@@ -79,4 +80,7 @@ export async function runMigrations(): Promise<void> {
   // After the move above, so ratings it carried over are moved too
   const ratings = await migratePurposeRatings();
   if (ratings.days > 0) console.log(`🔧 Purpose ratings → legacyRating: ${ratings.ratings} on ${ratings.days} days`);
+  // Old journey settings → a program (skipped for anyone who already has one)
+  const programs = await migrateJourneysToPrograms();
+  if (programs.created > 0) console.log(`🔧 Journeys → programs: created ${programs.created}`);
 }

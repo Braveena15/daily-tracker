@@ -7,6 +7,7 @@ import { UserModel } from "../models/User";
 import { todayInTimezone } from "../utils/dates";
 import { earliestDate, resolveJourneyStart } from "../utils/journey";
 import { WeeklyGoalModel } from "../models/WeeklyGoal";
+import { earliestProgramStart } from "./programs";
 
 /** The date of the user's first real entry: a logged day, a meal, a diary entry or a thought log. */
 export async function firstEntryDate(userId: string | undefined): Promise<string | null> {
@@ -21,10 +22,16 @@ export async function firstEntryDate(userId: string | undefined): Promise<string
   return earliestDate(dates);
 }
 
-/** The journey start: the date the user chose, else their first real entry, else today. */
+/**
+ * The journey start (the History floor: older days are hidden, never deleted): the earliest start of
+ * any of the user's programs, else the date they chose (older accounts), else their first real
+ * entry, else today.
+ */
 export async function journeyStart(userId: string | undefined, user?: { journeyStartDate?: string | null } | null): Promise<string> {
-  const chosen = user !== undefined ? user?.journeyStartDate : (await UserModel.findById(userId).select("journeyStartDate").lean())?.journeyStartDate;
-  // Only look up the first entry when the user hasn't picked a date
+  const programStart = await earliestProgramStart(userId);
+  const chosen =
+    programStart ?? (user !== undefined ? user?.journeyStartDate : (await UserModel.findById(userId).select("journeyStartDate").lean())?.journeyStartDate);
+  // Only look up the first entry when there's no program or chosen date
   return resolveJourneyStart(chosen, chosen ? null : await firstEntryDate(userId), todayInTimezone());
 }
 

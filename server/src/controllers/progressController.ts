@@ -1,3 +1,4 @@
+import { activeProgram } from "../services/programs";
 import type { Request, Response } from "express";
 import { CHECKED_IN, DailyEntryModel } from "../models/DailyEntry";
 import { goalNumbers, journeyStart, loadUserContext, loadWater } from "../services/dayData";
@@ -98,16 +99,17 @@ export async function getWeeklyReview(req: Request, res: Response): Promise<void
   res.json(review);
 }
 
-/** GET /api/progress/journey — "Day X of 100". */
+/** GET /api/progress/journey — "Day X of 100": the active program's, else the journey since the first entry. */
 export async function getJourney(req: Request, res: Response): Promise<void> {
   const ctx = await loadUserContext(req.userId);
-  const startDate = await journeyStart(req.userId, ctx.user);
+  const program = await activeProgram(req.userId, today());
+  const startDate = program?.startDate ?? (await journeyStart(req.userId, ctx.user));
   const rows = await DailyEntryModel.find({ userId: req.userId, date: { $gte: startDate }, ...CHECKED_IN }).select("date -_id").lean();
 
   res.json(
     journeyProgress({
       startDate,
-      lengthDays: ctx.goals.journeyLengthDays,
+      lengthDays: program?.lengthDays ?? ctx.goals.journeyLengthDays,
       today: today(),
       loggedDates: rows.map((r) => r.date),
     }),
