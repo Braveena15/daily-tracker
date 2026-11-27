@@ -4,20 +4,24 @@
 import mongoose from "mongoose";
 import { startHarness, type Harness } from "../test/harness";
 
-const gemini = vi.hoisted(() => ({ generate: vi.fn(async () => "A kind note from the AI."), create: vi.fn() }));
-vi.mock("../ai/gemini", () => ({
-  createGemini: (...args: unknown[]) => {
-    gemini.create(...args);
-    return gemini.generate;
-  },
-}));
+// No module mocking and no vi.fn() call history: both were unreliable in full runs on Windows (now
+// and then the real module loaded, or the recorded calls were gone by the last test). The harness
+// swaps the app's Gemini client for this fake after start-up, and it counts its own calls.
+let aiCalls = 0;
+const generate = async () => {
+  aiCalls++;
+  return "A kind note from the AI.";
+};
 
 let h: Harness;
 let models: typeof import("./setup");
 
 beforeAll(async () => {
   // DEMO_MODE left at its default ("false"); DEMO_REPO_URL set, which alone must change nothing
-  h = await startHarness({ ALLOW_REGISTRATION: "true", GEMINI_API_KEY: "test-key", DEMO_REPO_URL: "https://github.com/example/daily-tracker" });
+  h = await startHarness(
+    { ALLOW_REGISTRATION: "true", GEMINI_API_KEY: "test-key", DEMO_REPO_URL: "https://github.com/example/daily-tracker" },
+    { aiGenerate: generate },
+  );
   models = await import("./setup");
 }, 120_000);
 
@@ -64,11 +68,12 @@ describe("DEMO_MODE off", () => {
   });
 
   it("uses the AI as before", async () => {
-    expect(gemini.create).toHaveBeenCalledTimes(1);
+    // With a key and DEMO_MODE off, the Gemini client is created as usual
+    expect(h.aiClientCreated).toBe(true);
     const status = await h.request("GET", "/api/ai/status");
     expect(status.body.configured).toBe(true);
     expect(status.body).not.toHaveProperty("demo");
-    expect(gemini.generate).toHaveBeenCalled();
+    expect(aiCalls).toBeGreaterThan(0);
     const stored = await db().collection("aimessages").findOne({ type: "boost" });
     expect(stored!.source).toBe("ai");
   });

@@ -16,9 +16,19 @@ export type Harness = {
   cookie: string | null;
   setCookie: (cookie: string | null) => void;
   stop: () => Promise<void>;
+  /** Whether the app created a real AI client at start-up (before any `aiGenerate` replaced it) */
+  aiClientCreated: boolean;
 };
 
-export async function startHarness(env: Record<string, string>): Promise<Harness> {
+export type HarnessOptions = {
+  /**
+   * Replaces the app's AI text generator (the Gemini client) with this function. It's set on the
+   * same module instance the app uses, so no module mocking is needed.
+   */
+  aiGenerate?: (prompt: string, options?: Record<string, unknown>) => Promise<string>;
+};
+
+export async function startHarness(env: Record<string, string>, options: HarnessOptions = {}): Promise<Harness> {
   const mongo = await MongoMemoryServer.create();
   Object.assign(process.env, {
     NODE_ENV: "test",
@@ -38,6 +48,10 @@ export async function startHarness(env: Record<string, string>): Promise<Harness
 
   const { connectDB } = await import("../config/db");
   const { app } = await import("../app");
+  // Loaded next to the app, so this is the instance its controllers read on every request
+  const ai = await import("../config/ai");
+  const aiClientCreated = ai.aiConfigured && typeof ai.aiDeps.generate === "function";
+  if (options.aiGenerate) ai.aiDeps.generate = options.aiGenerate as typeof ai.aiDeps.generate;
   await connectDB();
   const server: Server = await new Promise((resolve) => {
     const s = app.listen(0, "127.0.0.1", () => resolve(s));
@@ -46,6 +60,7 @@ export async function startHarness(env: Record<string, string>): Promise<Harness
 
   const harness: Harness = {
     base,
+    aiClientCreated,
     cookie: null,
     setCookie: (cookie) => {
       harness.cookie = cookie;
