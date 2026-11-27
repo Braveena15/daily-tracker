@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Heart, LogOut, UserRound } from 'lucide-react'
+import { Heart, LogOut, Settings, UserRound } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import {
@@ -20,7 +20,7 @@ import { useLogout } from '@/hooks/useLogout'
 import { THEME_OPTIONS } from '@/lib/themeOptions'
 import { cn } from '@/lib/utils'
 
-/** Phone-sized account menu: support, profile, theme and logout (the sidebar has these on desktop). */
+/** Phone-sized account menu: support, profile, settings, theme and logout (the sidebar has these on desktop). */
 export function UserMenu({ className }: { className?: string }) {
   const { user } = useAuth()
   const { theme, setTheme } = useTheme()
@@ -53,6 +53,11 @@ export function UserMenu({ className }: { className?: string }) {
         <DropdownMenuItem asChild>
           <Link to="/profile">
             <UserRound /> Profile & goals
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link to="/settings">
+            <Settings /> Settings
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />

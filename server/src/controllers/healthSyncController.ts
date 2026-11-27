@@ -1,6 +1,8 @@
 // Apple Health sync: token management (logged-in routes) and the sync endpoint (Bearer token).
 // Neither the token nor the request body is ever logged.
+import { networkInterfaces } from "node:os";
 import type { Request, Response } from "express";
+import { env } from "../config/env";
 import { DailyEntryModel } from "../models/DailyEntry";
 import { UserModel } from "../models/User";
 import { addLogNote } from "../middleware/requestLogger";
@@ -28,7 +30,27 @@ export async function syncStatus(req: Request, res: Response): Promise<void> {
     hasToken: Boolean(user.healthSyncTokenHash),
     createdAt: user.healthSyncTokenHash ? (user.healthSyncTokenCreatedAt ?? null) : null,
     lastHealthSyncAt: user.lastHealthSyncAt ?? null,
+    // Development only: this computer's Wi-Fi/LAN IPv4 addresses, so the phone can be pointed at one
+    lanAddresses: env.isProduction ? [] : lanIPv4Addresses(),
   });
+}
+
+/** This computer's non-internal IPv4 addresses (e.g. "192.168.1.20"). */
+export function lanIPv4Addresses(): string[] {
+  return Object.values(networkInterfaces())
+    .flat()
+    .filter((a): a is NonNullable<typeof a> => !!a && a.family === "IPv4" && !a.internal)
+    .map((a) => a.address);
+}
+
+/**
+ * GET /api/health-sync/test — "Test connection": proves the API is reachable and the login works,
+ * and reports whether a token is active (the token itself is never stored, so it can't be checked here).
+ */
+export async function testSyncConnection(req: Request, res: Response): Promise<void> {
+  const user = await UserModel.findById(req.userId).select("+healthSyncTokenHash lastHealthSyncAt").lean();
+  if (!user) throw new AppError(401, "Please log in to continue");
+  res.json({ ok: true, hasToken: Boolean(user.healthSyncTokenHash), lastHealthSyncAt: user.lastHealthSyncAt ?? null, serverTime: new Date() });
 }
 
 /** POST /api/health-sync/token — a new token, returned this once. Replaces any previous token. */

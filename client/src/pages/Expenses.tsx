@@ -3,12 +3,13 @@
 // and the report, and download it as a PDF or PNG.
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { FileText, Paperclip, Plus, Receipt as ReceiptIcon, Trash2, Wallet } from 'lucide-react'
+import { FileText, Paperclip, Plus, Receipt as ReceiptIcon, Settings2, Trash2, Wallet } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { DateBar } from '@/components/DateBar'
@@ -16,6 +17,7 @@ import { IconBubble } from '@/components/IconBubble'
 import { PageHeader } from '@/components/PageHeader'
 import { EmptyState, ErrorNotice } from '@/components/StatusViews'
 import { EvidenceView } from '@/components/expenses/EvidenceView'
+import { ExpenseSettingsCard } from '@/components/expenses/ExpenseCards'
 import { ExpenseForm } from '@/components/expenses/ExpenseForm'
 import { DownloadMenu, ReportView } from '@/components/expenses/ReportView'
 import { ReceiptThumb } from '@/components/expenses/ReceiptView'
@@ -34,9 +36,10 @@ export function Expenses() {
   const [form, setForm] = useState<{ expense?: Expense } | null>(params.get('add') === '1' ? {} : null)
   const [evidence, setEvidence] = useState(false)
   const [report, setReport] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const refresh = () => setVersion((v) => v + 1)
 
-  const { data: settings } = useFetch<ExpenseSettings>('/expenses/settings')
+  const { data: settings } = useFetch<ExpenseSettings>(`/expenses/settings?v=${version}`)
   const currency = settings?.currency ?? 'LKR'
   // The week is the 7 days ending on the chosen day, like the Weekly review
   const from = view === 'week' ? addDays(date, -6) : date
@@ -59,7 +62,26 @@ export function Expenses() {
 
   return (
     <>
-      <PageHeader title="Expenses" description="What you spent, with the receipts to show for it." />
+      <PageHeader
+        title="Expenses"
+        description="What you spent, with the receipts to show for it."
+        action={
+          <Button type="button" variant="outline" size="sm" onClick={() => setSettingsOpen(true)}>
+            <Settings2 aria-hidden /> Expense settings
+          </Button>
+        }
+      />
+      <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <SheetContent side="right" className="w-full gap-0 overflow-y-auto sm:max-w-md">
+          <SheetHeader className="border-b px-5 pt-5 pb-4">
+            <SheetTitle className="text-xl font-semibold">Expense settings</SheetTitle>
+            <SheetDescription>Your currency, a weekly budget and receipt storage. Also in Settings.</SheetDescription>
+          </SheetHeader>
+          <div className="p-5">
+            <ExpenseSettingsCard bare onSaved={refresh} />
+          </div>
+        </SheetContent>
+      </Sheet>
       <div className="space-y-4 md:space-y-6">
         <DateBar date={date} today={today} onChange={goTo} />
 

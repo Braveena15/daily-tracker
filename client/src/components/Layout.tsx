@@ -5,6 +5,7 @@ import {
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
+  Settings as SettingsIcon,
   Sparkles,
   SquarePen,
   UserRound,
@@ -56,6 +57,7 @@ const NAV: NavItem[] = [
   { to: '/history', label: 'History', icon: CalendarDays },
   // On phones, Profile is in the account menu (top right of each page)
   { to: '/profile', label: 'Profile', icon: UserRound, sidebarOnly: true },
+  { to: '/settings', label: 'Settings', icon: SettingsIcon, sidebarOnly: true },
 ]
 
 /**
@@ -180,6 +182,7 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
   const { user } = useAuth()
   const { loggingOut, logout } = useLogout()
   const profile = byPath('/profile')
+  const settings = byPath('/settings')
 
   return (
     <aside
@@ -235,6 +238,7 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
             </div>
           )}
           <SidebarLink item={profile} isOn={isOn} collapsed={collapsed} />
+          <SidebarLink item={settings} isOn={isOn} collapsed={collapsed} />
           <div className={cn('flex items-center gap-2 py-1', collapsed ? 'justify-center' : 'justify-between px-3')}>
             {!collapsed && <span className="text-sm font-medium text-muted-foreground">Theme</span>}
             <ThemeToggle className={cn(collapsed && 'flex-col')} />

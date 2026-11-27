@@ -1,14 +1,13 @@
-// Profile → Data: permanently delete the user's own data dated before their journey start.
+// Settings → Data → Danger zone: permanently delete the user's own data dated before their journey start.
 // The dialog lists what will go and needs "DELETE" typed in, because it can't be undone.
 import { useState } from 'react'
-import { Database, Loader2, Trash2 } from 'lucide-react'
+import { AlertTriangle, Loader2, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { IconBubble } from '@/components/IconBubble'
 import { ErrorNotice } from '@/components/StatusViews'
 import { api } from '@/lib/api'
 import { journeyDate } from '@/lib/journey'
@@ -59,13 +58,15 @@ export function DataCleanup() {
   }
 
   return (
-    <Card>
+    <Card className="ring-2 ring-destructive/60">
       <CardHeader>
         <div className="flex min-w-0 items-center gap-3">
-          <IconBubble icon={Database} />
+          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-destructive/10 text-destructive">
+            <AlertTriangle className="size-5" aria-hidden />
+          </span>
           <div className="min-w-0">
-            <CardTitle className="text-lg font-semibold">Data</CardTitle>
-            <CardDescription>Days before your journey start are hidden, not deleted.</CardDescription>
+            <CardTitle className="text-lg font-semibold text-destructive">Danger zone</CardTitle>
+            <CardDescription>Days before your journey start are hidden, not deleted. Deleting them can't be undone.</CardDescription>
           </div>
         </div>
       </CardHeader>

@@ -14,7 +14,7 @@ import { THOUGHT_TEXT_FIELDS, createThoughtSchema, updateThoughtSchema } from ".
 type TextField = (typeof THOUGHT_TEXT_FIELDS)[number];
 type ThoughtDoc = ThoughtLog & { _id: unknown; createdAt: Date; updatedAt: Date };
 
-function toLog(doc: ThoughtDoc) {
+export function toLog(doc: ThoughtDoc) {
   const texts = Object.fromEntries(
     THOUGHT_TEXT_FIELDS.map((field) => [field, doc[field] ? (fieldCrypto.tryDecrypt(doc[field]) ?? "") : ""]),
   ) as Record<TextField, string>;

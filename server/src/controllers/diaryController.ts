@@ -34,7 +34,7 @@ function toSummary(doc: DiaryDoc) {
   };
 }
 
-function toEntry(doc: DiaryDoc) {
+export function toEntry(doc: DiaryDoc) {
   const body = fieldCrypto.tryDecrypt(doc.body);
   return {
     id: String(doc._id),

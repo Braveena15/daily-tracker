@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
-import { CalendarDays, Save, Watch } from 'lucide-react'
+import { CalendarDays, ChevronRight, Compass, Flame, Save, Settings as SettingsIcon } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '@/context/useAuth'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -11,10 +12,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
-import { DataCleanup } from '@/components/DataCleanup'
 import { journeyDate } from '@/lib/journey'
-import { AiSettings } from '@/components/ai/AiSettings'
-import { AppleWatchSync } from '@/components/AppleWatchSync'
+import { IconBubble } from '@/components/IconBubble'
 import { InputWithUnit } from '@/components/InputWithUnit'
 import { PageHeader } from '@/components/PageHeader'
 import { ErrorNotice } from '@/components/StatusViews'
@@ -26,10 +25,10 @@ import {
   type ActivityLevel,
   type Profile as ProfileData,
   type Sex,
+  type SummaryResponse,
   type WeeklyGoalKg,
 } from '@/lib/profile'
 import { cn } from '@/lib/utils'
-import { ExpenseSettingsCard } from '@/components/expenses/ExpenseCards'
 
 // Form inputs hold strings; an empty string means "not set".
 type FormState = { [K in keyof ProfileData]: string }
@@ -204,7 +203,7 @@ function JourneyStartPicker({
 }
 
 export function Profile() {
-  const isDemo = useAuth().user?.isDemo === true
+  const { user } = useAuth()
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
   const [goals, setGoals] = useState<GoalsForm>({
     stepGoal: '',
@@ -221,11 +220,14 @@ export function Profile() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // The daily calorie target comes from the plan (body stats + weekly goal), not a box of its own
+  const [plan, setPlan] = useState<SummaryResponse | null>(null)
 
   function show(data: ProfileResponse) {
     setForm(toForm(data.profile))
     setGoals(toGoalsForm(data.goals))
     setJourneyStartResolved(data.goals.journeyStartResolved)
+    api.get<SummaryResponse>('/profile/summary').then(setPlan, () => setPlan(null))
   }
 
   useEffect(() => {
@@ -271,7 +273,14 @@ export function Profile() {
     <>
       <PageHeader
         title="Your profile"
-        description="Used to estimate your daily calorie needs. You can change it any time."
+        description="About you: your body, your daily goals and your journey. Used to estimate your calorie needs."
+        action={
+          <Button asChild variant="outline" size="sm">
+            <Link to="/settings">
+              <SettingsIcon aria-hidden /> Settings
+            </Link>
+          </Button>
+        }
       />
 
       {loading ? (
@@ -282,6 +291,15 @@ export function Profile() {
             <CardContent className="space-y-6">
               {error && <ErrorNotice>{error}</ErrorNotice>}
 
+              <div>
+                <p className="font-heading text-xl font-semibold">{user?.name}</p>
+                <p className="text-sm text-muted-foreground">{user?.email}</p>
+              </div>
+
+              <section aria-labelledby="body-heading" className="space-y-5">
+              <h2 id="body-heading" className="text-xl font-semibold">
+                Body
+              </h2>
               <div className="grid gap-5 md:grid-cols-2">
                 <Field id="currentWeightKg" label="Current weight">
                   <InputWithUnit
@@ -388,15 +406,27 @@ export function Profile() {
                   </Select>
                 </Field>
               </div>
+              </section>
 
               <Separator />
 
               <section aria-labelledby="goals-heading" className="space-y-5">
                 <div>
                   <h2 id="goals-heading" className="text-xl font-semibold">
-                    Goals
+                    Daily goals
                   </h2>
                   <p className="text-sm text-muted-foreground">Used for your daily scores and the journey progress bar.</p>
+                </div>
+                <div className="flex items-start gap-3 rounded-xl bg-muted/50 p-3 text-sm" role="status">
+                  <Flame className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+                  {plan?.complete ? (
+                    <p>
+                      <span className="font-medium">Calories: {plan.summary.calorieTarget.toLocaleString()} kcal a day</span>
+                      <span className="text-muted-foreground"> — set by your plan from your body stats and weekly goal above.</span>
+                    </p>
+                  ) : (
+                    <p className="text-muted-foreground">Calories come from your plan: fill in your body stats and weekly goal above, then save.</p>
+                  )}
                 </div>
                 <div className="grid gap-5 md:grid-cols-2">
                   {GOAL_INPUTS.map((g) => (
@@ -441,36 +471,17 @@ export function Profile() {
         </Card>
       )}
 
-      {isDemo ? (
-        // The server refuses both in the demo, so they aren't offered
-        <Card className="mt-4 max-w-3xl md:mt-6">
-          <CardContent className="flex items-start gap-3 text-sm text-muted-foreground">
-            <Watch className="mt-0.5 size-5 shrink-0" aria-hidden />
-            <p>
-              Apple Watch sync and deleting data are turned off in this demo. In your own copy of Daily Tracker, your sleep
-              arrives automatically from an iOS Shortcut.
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <section aria-label="Apple Watch sync" className="mt-4 md:mt-6">
-          <AppleWatchSync />
-        </section>
-      )}
-
-      <section aria-label="Expenses" className="mt-4 md:mt-6">
-        <ExpenseSettingsCard />
-      </section>
-
-      <section aria-label="AI settings" className="mt-4 md:mt-6">
-        <AiSettings />
-      </section>
-
-      {!isDemo && (
-        <section aria-label="Data" className="mt-4 md:mt-6">
-          <DataCleanup />
-        </section>
-      )}
+      <Link
+        to="/purpose"
+        className="group mt-4 flex max-w-3xl items-center gap-3 surface p-4 transition-all outline-none hover:bg-accent/40 focus-visible:ring-3 focus-visible:ring-ring/50 md:mt-6"
+      >
+        <IconBubble icon={Compass} />
+        <span className="min-w-0 flex-1">
+          <span className="block font-medium">Purpose & core values</span>
+          <span className="block text-sm text-muted-foreground">What matters to you, and why you're on this journey</span>
+        </span>
+        <ChevronRight className="size-4 text-muted-foreground" aria-hidden />
+      </Link>
     </>
   )
 }

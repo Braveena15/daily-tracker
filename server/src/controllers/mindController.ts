@@ -22,7 +22,7 @@ import { purposeSchema, quoteSchema, videoSchema } from "../validation/mindSchem
 
 // ---------- Purpose ----------
 
-function toPurpose(doc: StoredPurpose) {
+export function toPurpose(doc: StoredPurpose) {
   return { ...toPurposeContent(doc), updatedAt: doc?.updatedAt ?? null };
 }
 

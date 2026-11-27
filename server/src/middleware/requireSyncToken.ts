@@ -20,7 +20,7 @@ export async function requireSyncToken(req: Request, res: Response, next: NextFu
   }
   if (!looksLikeSyncToken(token)) {
     addLogNote(res, "auth failed: invalid token (wrong format)");
-    throw new AppError(401, 'That doesn\'t look like a sync token. It should start with "dt_" — copy it again from Profile → Apple Watch sync.');
+    throw new AppError(401, 'That doesn\'t look like a sync token. It should start with "dt_" — copy it again from Settings → Apple Watch sync.');
   }
 
   // Found by hash (the token itself is never stored), then compared in constant time
@@ -29,7 +29,7 @@ export async function requireSyncToken(req: Request, res: Response, next: NextFu
     .lean();
   if (!user || !verifySyncToken(token, user.healthSyncTokenHash)) {
     addLogNote(res, "auth failed: invalid token (unknown, revoked or regenerated)");
-    throw new AppError(401, "This sync token isn't valid. It may have been revoked or regenerated — create a new one in Profile → Apple Watch sync.");
+    throw new AppError(401, "This sync token isn't valid. It may have been revoked or regenerated — create a new one in Settings → Apple Watch sync.");
   }
 
   req.userId = String(user._id);

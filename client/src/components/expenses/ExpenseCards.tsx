@@ -1,5 +1,5 @@
 // Small expense cards for other pages: "Spent today" on Today, the week on the Dashboard, and the
-// Profile's currency, weekly budget and receipt storage.
+// expense settings (currency, weekly budget, receipt storage) for Settings and the Expenses page sheet.
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { Check, HardDrive, Plus, Wallet } from 'lucide-react'
@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Progress } from '@/components/ui/progress'
 import { CardChevron } from '@/components/CardChevron'
 import { IconBubble } from '@/components/IconBubble'
@@ -68,16 +69,34 @@ export function WeekExpensesCard() {
   )
 }
 
-/** Profile: currency, weekly budget and the receipt storage used. */
-export function ExpenseSettingsCard() {
+const CURRENCIES = ['LKR', 'USD', 'EUR', 'GBP', 'INR', 'AUD'] as const
+const OTHER = 'other'
+
+/**
+ * Settings → Expenses (and the ⚙️ sheet on the Expenses page): currency, weekly budget and the
+ * receipt storage used. `bare` leaves out the card, for use inside a sheet.
+ */
+export function ExpenseSettingsCard({ bare = false, onSaved }: { bare?: boolean; onSaved?: (s: ExpenseSettings) => void }) {
   const { data } = useFetch<ExpenseSettings>('/expenses/settings')
   const { data: usage } = useFetch<StorageUsage>('/storage/usage')
   if (!data) return null
-  return <ExpenseSettingsForm initial={data} usage={usage} />
+  return <ExpenseSettingsForm initial={data} usage={usage} bare={bare} onSaved={onSaved} />
 }
 
-function ExpenseSettingsForm({ initial, usage }: { initial: ExpenseSettings; usage: StorageUsage | null }) {
+function ExpenseSettingsForm({
+  initial,
+  usage,
+  bare,
+  onSaved,
+}: {
+  initial: ExpenseSettings
+  usage: StorageUsage | null
+  bare: boolean
+  onSaved?: (s: ExpenseSettings) => void
+}) {
   const [currency, setCurrency] = useState(initial.currency)
+  // A code outside the list shows the "Other" box
+  const [pick, setPick] = useState<string>((CURRENCIES as readonly string[]).includes(initial.currency) ? initial.currency : OTHER)
   const [budget, setBudget] = useState(initial.weeklyBudget === null ? '' : String(initial.weeklyBudget))
   const [busy, setBusy] = useState(false)
   const [saved, setSaved] = useState(initial)
@@ -94,6 +113,7 @@ function ExpenseSettingsForm({ initial, usage }: { initial: ExpenseSettings; usa
       const next = await api.put<ExpenseSettings>('/expenses/settings', { currency: currency.trim().toUpperCase(), weeklyBudget: budgetValue })
       setSaved(next)
       setCurrency(next.currency)
+      onSaved?.(next)
       toast.success('Saved')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not save')
@@ -104,20 +124,41 @@ function ExpenseSettingsForm({ initial, usage }: { initial: ExpenseSettings; usa
 
   const high = usage !== null && usage.percentUsed >= 80
 
-  return (
-    <Card className="max-w-3xl">
-      <CardHeader className="flex items-center gap-3">
-        <IconBubble icon={Wallet} />
-        <div>
-          <CardTitle className="text-lg font-semibold">Expenses</CardTitle>
-          <CardDescription>Your currency, a weekly budget and receipt storage</CardDescription>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-5">
-        <form className="grid gap-4 sm:grid-cols-[8rem_1fr_auto] sm:items-end" onSubmit={submit} noValidate>
+  const body = (
+    <div className="space-y-5">
+        <form className="grid gap-4 sm:grid-cols-[9rem_1fr_auto] sm:items-end" onSubmit={submit} noValidate>
           <div className="space-y-1.5">
             <Label htmlFor="expense-currency">Currency</Label>
-            <Input id="expense-currency" maxLength={3} autoCapitalize="characters" className="uppercase" value={currency} onChange={(e) => setCurrency(e.target.value)} />
+            <Select
+              value={pick}
+              onValueChange={(v) => {
+                setPick(v)
+                setCurrency(v === OTHER ? '' : v)
+              }}
+            >
+              <SelectTrigger id="expense-currency" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CURRENCIES.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
+                ))}
+                <SelectItem value={OTHER}>Other…</SelectItem>
+              </SelectContent>
+            </Select>
+            {pick === OTHER && (
+              <Input
+                aria-label="Currency code (3 letters)"
+                placeholder="e.g. JPY"
+                maxLength={3}
+                autoCapitalize="characters"
+                className="uppercase"
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+              />
+            )}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="expense-budget">
@@ -143,7 +184,20 @@ function ExpenseSettingsForm({ initial, usage }: { initial: ExpenseSettings; usa
             )}
           </div>
         )}
-      </CardContent>
+    </div>
+  )
+
+  if (bare) return body
+  return (
+    <Card className="max-w-3xl">
+      <CardHeader className="flex items-center gap-3">
+        <IconBubble icon={Wallet} />
+        <div>
+          <CardTitle className="text-lg font-semibold">Expenses</CardTitle>
+          <CardDescription>Your currency, a weekly budget and receipt storage</CardDescription>
+        </div>
+      </CardHeader>
+      <CardContent>{body}</CardContent>
     </Card>
   )
 }
