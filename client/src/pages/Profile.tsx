@@ -1,24 +1,20 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
-import { CalendarDays, ChevronRight, Compass, Flame, Save, Settings as SettingsIcon } from 'lucide-react'
+import { ChevronRight, Compass, Flame, Route, Save, Settings as SettingsIcon } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/context/useAuth'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Calendar } from '@/components/LazyCalendar'
 import { Card, CardContent, CardFooter } from '@/components/ui/card'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Separator } from '@/components/ui/separator'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
-import { journeyDate } from '@/lib/journey'
 import { IconBubble } from '@/components/IconBubble'
 import { InputWithUnit } from '@/components/InputWithUnit'
 import { PageHeader } from '@/components/PageHeader'
 import { ErrorNotice } from '@/components/StatusViews'
 import { api } from '@/lib/api'
-import { formatLongDate, fromLocalDate, todayInTimezone, toLocalDate } from '@/lib/dates'
 import {
   ACTIVITY_OPTIONS,
   WEEKLY_GOAL_OPTIONS,
@@ -102,9 +98,8 @@ type NumberGoal =
   | 'fiberGoalG'
   | 'waterGoalMl'
   | 'glassSizeMl'
-  | 'journeyLengthDays'
-type Goals = Record<NumberGoal, number> & { journeyStartDate: string | null; journeyStartResolved: string }
-type GoalsForm = Record<NumberGoal, string> & { journeyStartDate: string } // '' = automatic
+type Goals = Record<NumberGoal, number>
+type GoalsForm = Record<NumberGoal, string>
 type ProfileResponse = { profile: ProfileData; goals: Goals }
 
 const GOAL_INPUTS: { key: NumberGoal; label: string; unit: string; min: number; max: number; hint: string }[] = [
@@ -122,7 +117,6 @@ const GOAL_INPUTS: { key: NumberGoal; label: string; unit: string; min: number; 
     hint: 'Per day · default 2,000. A common starting point is about 2–2.5 L a day; needs vary with heat, activity and health — adjust as needed.',
   },
   { key: 'glassSizeMl', label: 'Glass size', unit: 'ml', min: 50, max: 1000, hint: 'For the "+1 glass" button · default 250' },
-  { key: 'journeyLengthDays', label: 'Journey length', unit: 'days', min: 7, max: 1000, hint: 'Default 100' },
 ]
 
 function toGoalsForm(goals: Goals): GoalsForm {
@@ -134,72 +128,15 @@ function toGoalsForm(goals: Goals): GoalsForm {
     fiberGoalG: String(goals.fiberGoalG),
     waterGoalMl: String(goals.waterGoalMl),
     glassSizeMl: String(goals.glassSizeMl),
-    journeyLengthDays: String(goals.journeyLengthDays),
-    journeyStartDate: goals.journeyStartDate ?? '',
   }
 }
 
-/** Empty goal boxes go back to their defaults (null); '' journey start means automatic. */
+/** Empty goal boxes go back to their defaults (null). The journey's dates live on My Journey. */
 function toGoalsBody(form: GoalsForm) {
   const numbers = Object.fromEntries(
     GOAL_INPUTS.map(({ key }) => [key, form[key].trim() === '' ? null : Number(form[key])]),
   ) as Record<NumberGoal, number | null>
-  return { ...numbers, journeyStartDate: form.journeyStartDate || null }
-}
-
-/** A date button with a calendar; "Use automatic" clears the choice. */
-function JourneyStartPicker({
-  value,
-  fallback,
-  onChange,
-}: {
-  value: string
-  fallback: string
-  onChange: (value: string) => void
-}) {
-  const [open, setOpen] = useState(false)
-  const today = todayInTimezone()
-  const shown = value || fallback
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button id="journeyStartDate" type="button" variant="outline" className="w-full justify-start rounded-xl font-normal">
-          <CalendarDays className="text-muted-foreground" aria-hidden />
-          {formatLongDate(shown)}
-          {!value && <span className="ml-auto text-xs text-muted-foreground">automatic</span>}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-2" align="start">
-        <Calendar
-          mode="single"
-          selected={toLocalDate(shown)}
-          defaultMonth={toLocalDate(shown)}
-          endMonth={toLocalDate(today)}
-          disabled={{ after: toLocalDate(today) }}
-          onSelect={(picked) => {
-            if (!picked) return
-            onChange(fromLocalDate(picked))
-            setOpen(false)
-          }}
-        />
-        {value && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="w-full"
-            onClick={() => {
-              onChange('')
-              setOpen(false)
-            }}
-          >
-            Use automatic (first entry)
-          </Button>
-        )}
-      </PopoverContent>
-    </Popover>
-  )
+  return numbers
 }
 
 export function Profile() {
@@ -213,10 +150,7 @@ export function Profile() {
     fiberGoalG: '',
     waterGoalMl: '',
     glassSizeMl: '',
-    journeyLengthDays: '',
-    journeyStartDate: '',
   })
-  const [journeyStartResolved, setJourneyStartResolved] = useState(todayInTimezone())
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -226,7 +160,6 @@ export function Profile() {
   function show(data: ProfileResponse) {
     setForm(toForm(data.profile))
     setGoals(toGoalsForm(data.goals))
-    setJourneyStartResolved(data.goals.journeyStartResolved)
     api.get<SummaryResponse>('/profile/summary').then(setPlan, () => setPlan(null))
   }
 
@@ -273,7 +206,7 @@ export function Profile() {
     <>
       <PageHeader
         title="Your profile"
-        description="About you: your body, your daily goals and your journey. Used to estimate your calorie needs."
+        description="About you: your body and your daily goals. Used to estimate your calorie needs."
         action={
           <Button asChild variant="outline" size="sm">
             <Link to="/settings">
@@ -415,7 +348,7 @@ export function Profile() {
                   <h2 id="goals-heading" className="text-xl font-semibold">
                     Daily goals
                   </h2>
-                  <p className="text-sm text-muted-foreground">Used for your daily scores and the journey progress bar.</p>
+                  <p className="text-sm text-muted-foreground">Used for your daily scores.</p>
                 </div>
                 <div className="flex items-start gap-3 rounded-xl bg-muted/50 p-3 text-sm" role="status">
                   <Flame className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
@@ -444,19 +377,6 @@ export function Profile() {
                       />
                     </Field>
                   ))}
-                  <Field
-                    id="journeyStartDate"
-                    label="Journey start"
-                    hint={`Your journey started on ${journeyDate(goals.journeyStartDate || journeyStartResolved)}${
-                      goals.journeyStartDate ? '' : ' (your first entry)'
-                    }. Days before this date are hidden from History, streaks, scores and charts.`}
-                  >
-                    <JourneyStartPicker
-                      value={goals.journeyStartDate}
-                      fallback={journeyStartResolved}
-                      onChange={(v) => updateGoal('journeyStartDate', v)}
-                    />
-                  </Field>
                 </div>
               </section>
             </CardContent>
@@ -481,6 +401,9 @@ export function Profile() {
           <span className="block text-sm text-muted-foreground">What matters to you, and why you're on this journey</span>
         </span>
         <ChevronRight className="size-4 text-muted-foreground" aria-hidden />
+      </Link>
+      <Link to="/journey" className="mt-3 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground hover:underline">
+        <Route className="size-4" aria-hidden /> Manage my journey →
       </Link>
     </>
   )

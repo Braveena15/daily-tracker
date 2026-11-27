@@ -38,6 +38,7 @@ import { WeeklyGoalReminder } from '@/components/day/WeeklyGoalReminder'
 import { WaterCard } from '@/components/day/WaterCard'
 import { MissedTodayControls, MissedYesterdayCard } from '@/components/day/MissedDay'
 import { SpentTodayCard } from '@/components/expenses/ExpenseCards'
+import { JourneyHomeCard } from '@/components/journey/JourneyHomeCard'
 
 export function Today() {
   // ?date=YYYY-MM-DD picks a past day; anything missing, invalid or in the future means today
@@ -103,6 +104,7 @@ function DayEditor({ date, today }: { date: string; today: string }) {
     <div className="space-y-4 md:space-y-6">
       {isToday && <MissedYesterdayCard today={today} />}
       {isToday && <MissedTodayControls day={day} onSave={actions.setMissedReason} onClear={actions.clearMissedReason} />}
+      {isToday && <JourneyHomeCard habitsFor={{ date, done: entry?.programHabitsDone ?? [] }} />}
       <div id="purpose" className="scroll-mt-4 space-y-2">
         <PurposeCard day={dayPurposesOf(entry)} isToday={isToday} actions={actions} />
         {isToday && <WeeklyGoalReminder today={today} purposes={entry?.dailyPurposes ?? []} addPurpose={actions.addPurpose} />}

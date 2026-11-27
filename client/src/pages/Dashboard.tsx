@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, BedDouble, CalendarRange, Flame, Info, Scale, Target, UserRound, Wallet, type LucideIcon } from 'lucide-react'
+import { ArrowRight, BedDouble, CalendarDays, CalendarRange, Flame, Info, Scale, Target, UserRound, Wallet, type LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/PageHeader'
 import { EmptyState, ErrorNotice } from '@/components/StatusViews'
 import { LowMoodCard } from '@/components/mind/Support'
 import { JourneyRow } from '@/components/progress/JourneyCards'
+import { JourneyHomeCard } from '@/components/journey/JourneyHomeCard'
 import { CaloriesChartCard, InsightsCard, ScoreTrendCard, SleepChartCard, WaterChartCard, WeightCard } from '@/components/progress/ProgressCharts'
 import { TodayScores } from '@/components/progress/TodayScores'
 import { useFetch } from '@/hooks/useFetch'
@@ -32,6 +33,13 @@ export function Dashboard() {
                 <span className="hidden sm:inline">Expenses</span>
               </Link>
             </Button>
+            {/* History has no phone tab (My Journey has it): a quick way there */}
+            <Button asChild variant="outline" size="sm" className="size-10 rounded-xl p-0 sm:w-auto sm:px-3">
+              <Link to="/history" aria-label="History">
+                <CalendarDays aria-hidden />
+                <span className="hidden sm:inline">History</span>
+              </Link>
+            </Button>
             <Button asChild variant="outline" size="sm" className="size-10 rounded-xl p-0 sm:w-auto sm:px-3">
               <Link to="/review" aria-label="Weekly review">
                 <CalendarRange aria-hidden />
@@ -45,6 +53,7 @@ export function Dashboard() {
       <div className="space-y-4 md:space-y-6">
         <WellbeingNote />
         <MilestoneNote />
+        <JourneyHomeCard />
         <JourneyRow />
         <TodayScores />
         <ScoreTrendCard />

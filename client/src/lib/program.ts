@@ -1,7 +1,7 @@
 // Transformation programs ("My Journey"), matching the server's /api/programs routes, plus the
 // same day maths as server/src/utils/program.ts so the countdown moves on at local midnight
 // (Asia/Colombo) without reloading.
-import { addDays } from './dates'
+import { addDays, formatLongDate } from './dates'
 
 export type ProgramStatus = 'active' | 'completed' | 'ended_early' | 'abandoned'
 export const PROGRAM_PRESETS = [30, 60, 90, 100] as const
@@ -146,6 +146,15 @@ export function programClock(startDate: string, lengthDays: number, today: strin
 
 export const daysLeftLabel = (n: number) => (n === 1 ? 'day left' : 'days left')
 
+/** One sentence for screen readers: "87 days left in your 100-day transformation: day 14 of 100." */
+export function countdownSentence(p: Pick<Program, 'name' | 'startDate' | 'lengthDays'>, today: string): string {
+  const c = programClock(p.startDate, p.lengthDays, today)
+  if (c.phase === 'upcoming') return `${p.name} starts in ${c.startsIn} ${c.startsIn === 1 ? 'day' : 'days'}, on ${formatLongDate(p.startDate)}.`
+  if (c.phase === 'finished') return `${p.name}: completed, all ${p.lengthDays} days.`
+  return `${c.daysLeft} ${daysLeftLabel(c.daysLeft)} in ${p.name}: day ${c.dayNumber} of ${p.lengthDays}.`
+}
+
+
 /** "Program ended on day 37" / "Completed all 100 days" */
 export function endedLabel(p: Program): string {
   if (p.status === 'ended_early') return `Program ended on day ${p.endedOnDay}`
@@ -170,3 +179,51 @@ export const photoUrl = (fileId: string) => `/api/program-photos/${fileId}`
 
 /** Numbers from text inputs: '' → null. */
 export const numOrNull = (v: string): number | null => (v.trim() === '' ? null : Number(v.replace(',', '.')))
+
+// ---------- Progress (GET /api/programs/:id/progress) ----------
+
+export type TargetKey = 'water' | 'calories' | 'sleep' | 'workout' | 'learning'
+export const TARGET_LABELS: Record<TargetKey, string> = { water: 'Water', calories: 'Calories', sleep: 'Sleep', workout: 'Workout', learning: 'Learning' }
+
+export type ProgramWeekStats = {
+  week: number
+  from: string
+  to: string
+  days: number
+  partial: boolean
+  daysLogged: number
+  avgOverall: number | null
+  avgMood: number | null
+  workouts: number
+  workoutsTargetMet: boolean | null
+  learningMinutes: number
+  avgSleep: number | null
+  weightKg: number | null
+  targetsHit: number
+  targetsPossible: number
+}
+
+export type CompareRow = { key: string; label: string; before: number | null; goal: number | null; latest: number | null; change: number | null; progress: number | null }
+
+export type ProgramProgress = {
+  range: { from: string; to: string; days: number; partial: boolean }
+  stats: {
+    daysCompleted: number
+    daysLogged: number
+    consistency: number
+    totals: { workouts: number; learningHours: number; waterLitres: number; avgSleep: number | null; avgMood: number | null; avgOverall: number | null }
+    streaks: { longest: number; current: number }
+    bestWeek: { week: number; avgOverall: number | null; partial: boolean } | null
+    latestWeightKg: number | null
+    weeks: ProgramWeekStats[]
+    habits: { id: string; label: string; daysDone: number; percent: number }[]
+    targetDays: { date: string; logged: boolean; hit: Partial<Record<TargetKey, boolean>> }[]
+  }
+  latest: { weightKg: number | null; source: 'final' | 'midpoint' | 'entries' | null }
+  weight: { before: number | null; goal: number | null; latest: number | null; change: number | null; progress: number | null }
+  ratings: CompareRow[]
+  measurements: { key: MeasurementKey; before: number | null; latest: number | null; change: number | null }[]
+}
+
+/** A rating row's name: the five built-in ones by label, custom ones as typed. */
+export const ratingLabel = (row: Pick<CompareRow, 'key' | 'label'>) => (row.key in RATING_LABELS ? RATING_LABELS[row.key as RatingKey] : row.label)

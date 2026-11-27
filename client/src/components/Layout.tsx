@@ -5,6 +5,7 @@ import {
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
+  Route,
   Settings as SettingsIcon,
   Sparkles,
   SquarePen,
@@ -46,6 +47,8 @@ const MIND_PATHS = ['/mind', ...MIND_PAGES.map((p) => p.to)]
 
 const NAV: NavItem[] = [
   { to: '/today', label: 'Today', icon: SquarePen },
+  // On phones it takes the History tab's place (History is linked from My Journey and the Dashboard)
+  { to: '/journey', label: 'My Journey', icon: Route, alsoActiveOnMobile: ['/history'] },
   // My Foods lives inside Meals, so the Meals tab stays highlighted there
   { to: '/meals', label: 'Meals', icon: UtensilsCrossed, alsoActiveOn: ['/foods'] },
   // Phones keep 5 tabs: Expenses is reached from the Today card and the Dashboard
@@ -54,7 +57,7 @@ const NAV: NavItem[] = [
   { to: '/mind', label: 'Mind', icon: Sparkles, alsoActiveOn: MIND_PATHS, mobileOnly: true },
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true, alsoActiveOnMobile: ['/review'] },
   { to: '/review', label: 'Weekly review', icon: CalendarRange, sidebarOnly: true },
-  { to: '/history', label: 'History', icon: CalendarDays },
+  { to: '/history', label: 'History', icon: CalendarDays, sidebarOnly: true },
   // On phones, Profile is in the account menu (top right of each page)
   { to: '/profile', label: 'Profile', icon: UserRound, sidebarOnly: true },
   { to: '/settings', label: 'Settings', icon: SettingsIcon, sidebarOnly: true },
@@ -76,7 +79,7 @@ function useIsActive(mobile: boolean) {
 // The desktop sidebar's groups. Phones keep the bottom tab bar (NAV above).
 const byPath = (to: string) => NAV.find((item) => item.to === to)!
 const SIDEBAR_GROUPS: { label: string | null; items: NavItem[] }[] = [
-  { label: null, items: [byPath('/today')] },
+  { label: null, items: [byPath('/today'), byPath('/journey')] },
   { label: 'Track', items: [byPath('/meals'), byPath('/expenses'), byPath('/history'), byPath('/review'), byPath('/')] },
   { label: 'Mind', items: MIND_PAGES },
 ]

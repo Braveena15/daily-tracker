@@ -11,6 +11,7 @@ import { PROGRAM_LIMITS, ProgramModel } from "../models/Program";
 import { UserModel } from "../models/User";
 import { deleteFiles, readFile, storeFile, totalBytesUsed } from "../services/encryptedFiles";
 import { activeProgram } from "../services/programs";
+import { computeProgramProgress } from "../services/programStats";
 import { buildSummary } from "../services/profileSummary";
 import { AppError } from "../utils/AppError";
 import { addDays, isValidDateString, todayInTimezone } from "../utils/dates";
@@ -168,6 +169,15 @@ export async function getActiveProgram(req: Request, res: Response): Promise<voi
 /** GET /api/programs/:id */
 export async function getProgram(req: Request, res: Response): Promise<void> {
   res.json({ program: serializeProgram(await ownProgram(req)) });
+}
+
+/**
+ * GET /api/programs/:id/progress — baseline vs goal vs latest, weekly progress, habits and targets,
+ * over day 1 → today (or the day it ended).
+ */
+export async function getProgramProgress(req: Request, res: Response): Promise<void> {
+  const program = await ownProgram(req);
+  res.json(await computeProgramProgress(req.userId, program, today()));
 }
 
 // ---------- Creating and changing ----------

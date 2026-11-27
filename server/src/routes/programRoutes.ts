@@ -7,6 +7,7 @@ import {
   endProgram,
   getActiveProgram,
   getProgram,
+  getProgramProgress,
   listPrograms,
   photoUpload,
   removePhoto,
@@ -27,6 +28,7 @@ programsRouter.post("/", createProgram);
 programsRouter.get("/active", getActiveProgram);
 programsRouter.put("/habits/:date", setHabitsDone);
 programsRouter.get("/:id", getProgram);
+programsRouter.get("/:id/progress", getProgramProgress);
 programsRouter.put("/:id", updateProgram);
 programsRouter.delete("/:id", deleteUpcomingProgram);
 programsRouter.put("/:id/baseline", updateBaseline);

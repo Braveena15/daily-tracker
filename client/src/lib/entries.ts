@@ -73,6 +73,8 @@ export type DailyEntry = {
   dailyPurposes?: DayPurpose[]
   /** The day's evening note ("" when none) */
   dailyReflectionNote?: string
+  /** The active program's own daily habits ticked that day (their ids) */
+  programHabitsDone?: string[]
   /** Why the day wasn't logged (today or yesterday only); never counts as logging it */
   missedReason?: MissedReason | null
   createdAt: string
