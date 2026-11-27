@@ -14,6 +14,8 @@ import { serializeExpense } from "./expensesController";
 import { toEntry } from "./diaryController";
 import { toPurpose } from "./mindController";
 import { toLog } from "./thoughtsController";
+import { ProgramModel } from "../models/Program";
+import { serializeProgram } from "./programsController";
 
 /** GET /api/profile/export */
 export async function exportMyData(req: Request, res: Response): Promise<void> {
@@ -21,19 +23,20 @@ export async function exportMyData(req: Request, res: Response): Promise<void> {
   const user = await UserModel.findById(userId).select("name email createdAt").lean();
   if (!user) throw new AppError(401, "Please log in to continue");
 
-  const [entries, mealDays, expenses, purpose, diary, thoughts] = await Promise.all([
+  const [entries, mealDays, expenses, purpose, diary, thoughts, programs] = await Promise.all([
     DailyEntryModel.find({ userId }).sort({ date: 1 }).lean(),
     MealDayModel.find({ userId }).sort({ date: 1 }).lean(),
     ExpenseModel.find({ userId }).sort({ date: 1, createdAt: 1 }).lean(),
     PurposeModel.findOne({ userId }).lean(),
     DiaryEntryModel.find({ userId }).sort({ date: 1, createdAt: 1 }).lean(),
     ThoughtLogModel.find({ userId }).sort({ date: 1, createdAt: 1 }).lean(),
+    ProgramModel.find({ userId }).sort({ startDate: 1 }).lean(),
   ]);
 
   const data = {
     exportedAt: new Date().toISOString(),
     account: { name: user.name, email: user.email, createdAt: user.createdAt ?? null },
-    note: "Receipt files aren't included — download them from the Expenses page (report or evidence view).",
+    note: "Receipt files and progress photos aren't included — receipts can be downloaded from the Expenses page (report or evidence view).",
     entries: entries.map((d) => serializeEntry(d as unknown as LeanDay)),
     meals: mealDays.map(({ _id, __v, userId: _u, ...rest }) => ({ id: String(_id), ...rest })),
     expenses: expenses.map((e) => {
@@ -43,6 +46,11 @@ export async function exportMyData(req: Request, res: Response): Promise<void> {
     purpose: purpose ? toPurpose(purpose as Parameters<typeof toPurpose>[0]) : null,
     diary: diary.map((d) => toEntry(d as Parameters<typeof toEntry>[0])),
     thoughtLogs: thoughts.map((t) => toLog(t as Parameters<typeof toLog>[0])),
+    // My Journey programs (photos aren't included; their ids are listed)
+    programs: programs.map((p) => {
+      const { clock: _clock, dueCheckIn: _due, canUndoEnd: _undo, ...rest } = serializeProgram(p);
+      return rest;
+    }),
   };
 
   res.set("Cache-Control", "no-store");

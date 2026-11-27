@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label'
 import { ErrorNotice } from '@/components/StatusViews'
 import { api } from '@/lib/api'
 import { journeyDate } from '@/lib/journey'
+import { DeleteEverything } from '@/components/settings/DeleteEverything'
 
 type Counts = { days: number; mealDays: number; diaryEntries: number; thoughtLogs: number; aiMessages: number; weeklyGoals: number }
 type CountsResponse = { journeyStartDate: string; counts: Counts; total: number }
@@ -70,10 +71,11 @@ export function DataCleanup() {
           </div>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex flex-wrap gap-2">
         <Button type="button" variant="outline" className="text-destructive hover:text-destructive" onClick={openDialog}>
           <Trash2 aria-hidden /> Delete data before my journey start
         </Button>
+        <DeleteEverything />
       </CardContent>
 
       <Dialog open={open} onOpenChange={(o) => !deleting && setOpen(o)}>

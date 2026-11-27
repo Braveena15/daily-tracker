@@ -174,12 +174,12 @@ function ExpenseSettingsForm({
           <div className="space-y-1.5">
             <p className="flex items-center gap-1.5 text-sm">
               <HardDrive className="size-4 text-muted-foreground" aria-hidden />
-              Receipt storage used: {bytes(usage.bytesUsed)} of ~{bytes(usage.limitBytes)}
+              Storage used (receipts and progress photos): {bytes(usage.bytesUsed)} of ~{bytes(usage.limitBytes)}
             </p>
             <Progress value={Math.min(100, usage.percentUsed)} aria-label={`${usage.percentUsed}% of receipt storage used`} />
             {high && (
               <p className="text-sm text-muted-foreground" role="status">
-                Your receipt storage is getting full. Deleting receipts you no longer need frees up space.
+                Your storage is getting full. Deleting receipts or photos you no longer need frees up space.
               </p>
             )}
           </div>

@@ -199,6 +199,17 @@ Open http://localhost:5173 and create an account, or log in. Vite forwards every
 | DELETE | `/api/entries/:date/:kind/:id` | Delete one entry |
 | DELETE | `/api/entries/:date` | Delete the whole day |
 | GET | `/api/entries/stats/streak` | Current and longest logging streak |
+| GET | `/api/programs` | My Journey: every program, newest first, each with its `clock` (day number, days left) |
+| GET | `/api/programs/active` | The active program (or `null`) and the most recent finished one |
+| POST | `/api/programs` | Start a program (name, length 7–365 days, start date, baseline, goals, daily plan); 409 if one is already active |
+| PUT | `/api/programs/:id` · `/api/programs/:id/baseline` | Change the name, goals, daily plan, or "Where I am now" |
+| PUT | `/api/programs/:id/check-ins/:kind` | Midpoint or final check-in (`midpoint` \| `final`), or `{ "skipped": true }` |
+| POST | `/api/programs/:id/end` · `/api/programs/:id/undo-end` | End early (optional reason and note); undo within 24 hours |
+| GET | `/api/programs/:id/progress` · `/api/programs/:id/report` | Baseline vs goal vs latest, weeks, habits and targets; the report (day 1 → the day it ended) |
+| POST/DELETE | `/api/programs/:id/photos/:slot[/:fileId]` | Progress photos (up to 4 per baseline or check-in, encrypted, owner only) |
+| PUT | `/api/programs/habits/:date` | The active program's daily habits ticked that day |
+| POST | `/api/ai/program/:id` | A short encouraging report summary, from numbers only |
+| GET/DELETE | `/api/account/data` | "Delete everything and start fresh": counts, then deletes all data (`{ "confirm": "DELETE" }`), keeping the account and settings |
 | GET | `/api/demo/config` | Demo only: `{ enabled, repoUrl, ttlHours }` (404 when `DEMO_MODE` isn't `true`) |
 | POST | `/api/demo/start` | Demo only: create a temporary account with sample data and log in (5 per IP an hour) |
 
@@ -288,12 +299,13 @@ The public demo is the **same code** deployed a second time, with `DEMO_MODE=tru
 **Try the demo.** The login page shows **Try the demo — no sign-up**. Normal registration stays closed, even if `ALLOW_REGISTRATION=true`. `POST /api/demo/start`:
 
 1. creates a new account with a friendly name ("Demo Explorer") and a made-up `@demo.invalid` address that nobody can log in with;
-2. fills it with about 60 days of sample data ending today, with the same generator as `npm run seed:demo` (`server/src/scripts/demoData.ts`):
+2. fills it with about 150 days of sample data ending today, with the same generator as `npm run seed:demo` (`server/src/scripts/demoData.ts`):
    - check-ins with several mood logs a day, workouts, water, sleep with stages and scores, steps and calories through the day
    - good things, learnings and present moments
    - meals with macros and fibre
    - daily purposes with intentions and reflections
    - a purpose statement and values, weekly goals, a few diary entries and thought logs (all neutral, made-up content)
+   - three journeys: an active 100-day program on day 40, a completed 30-day one, and one ended early on day 37 of 100, each with a report (no photos)
 3. logs the visitor in for 24 hours.
 
 **Everything expires after 24 hours.** Every document belonging to a demo account carries `expiresAt`: the account's own creation time plus 24 hours, covering both the sample data and whatever the visitor adds. At startup the demo server:
@@ -310,6 +322,7 @@ An expired account's login stops working straight away.
 - the AI: every AI feature shows pre-written example replies, and Gemini is never contacted (no key is needed)
 - Apple Health sync and its tokens (all of `/api/health-sync`)
 - deleting data before the journey start
+- uploading progress photos
 - changing email or password, deleting the account, and data export: these routes are blocked in advance, so adding them later can't open them in the demo
 
 **In the app.** Every page shows a slim banner: "You're exploring a demo with sample data. It's deleted after 24 hours — please don't enter personal information", with a link to the GitHub repo. The footer says "Built by Routhiran · GitHub". The support card adds a link to [findahelpline.com](https://findahelpline.com) for visitors outside Sri Lanka.

@@ -24,6 +24,7 @@ import {
 } from "./routes/mindRoutes";
 import { aiRouter } from "./routes/aiRoutes";
 import { healthSyncRouter } from "./routes/healthSyncRoutes";
+import { accountRouter } from "./routes/accountRoutes";
 import { programPhotosRouter, programsRouter } from "./routes/programRoutes";
 import { expensesRouter, receiptsRouter, storageRouter } from "./routes/expensesRoutes";
 import { errorHandler, notFound } from "./middleware/errorHandler";
@@ -78,6 +79,7 @@ app.use("/api/profile", profileRouter);
 app.use("/api/entries", entriesRouter);
 app.use("/api/foods", foodsRouter);
 app.use("/api/meals", mealsRouter);
+app.use("/api/account", accountRouter);
 app.use("/api/programs", programsRouter);
 app.use("/api/program-photos", programPhotosRouter);
 app.use("/api/expenses", expensesRouter);
