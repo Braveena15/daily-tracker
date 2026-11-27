@@ -1,5 +1,5 @@
-// Shown on every page of the public demo, and only there.
-import { FlaskConical } from 'lucide-react'
+// Shown on every page of a demo account, and only there.
+import { Eye, FlaskConical } from 'lucide-react'
 import { DEMO_AUTHOR } from '@/lib/demo'
 import { cn } from '@/lib/utils'
 
@@ -24,6 +24,16 @@ export function DemoBanner({ repoUrl, className }: { repoUrl: string | null; cla
           </>
         )}
       </p>
+    </div>
+  )
+}
+
+/** "You're viewing a demo account (read-only).": for a read-only demo account on a normal deployment. */
+export function ReadOnlyBanner({ className }: { className?: string }) {
+  return (
+    <div role="note" className={cn('flex items-center gap-2.5 rounded-xl bg-learning-soft px-3.5 py-2.5 text-sm text-learning-foreground', className)}>
+      <Eye className="size-4 shrink-0" aria-hidden />
+      <p className="text-pretty">You're viewing a demo account (read-only).</p>
     </div>
   )
 }

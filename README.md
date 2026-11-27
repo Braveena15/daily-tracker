@@ -283,7 +283,7 @@ To change the icon, edit `client/public/favicon.svg` and run `npm run generate-p
 
 ## How the demo works
 
-The public demo is the **same code** deployed a second time, with `DEMO_MODE=true` and **its own database**. A personal deployment leaves `DEMO_MODE` unset, and then none of the following exists: no demo routes, no expiry on any data, no TTL indexes, no restrictions.
+The public demo is the **same code** deployed a second time, with `DEMO_MODE=true` and **its own database**. A personal deployment leaves `DEMO_MODE` unset, and then none of the following exists: no demo routes, no expiry on any data, no TTL indexes, no restrictions (apart from [read-only demo accounts](#read-only-demo-accounts), if you create one).
 
 **Try the demo.** The login page shows **Try the demo — no sign-up**. Normal registration stays closed, even if `ALLOW_REGISTRATION=true`. `POST /api/demo/start`:
 
@@ -332,6 +332,15 @@ Create it as a **separate** Render web service, so your own deployment is never 
 | `DEMO_REPO_URL` | Your GitHub repository URL |
 
 The demo needs no `GEMINI_*`, `AI_DATA_MODE` or `ALLOW_REGISTRATION`.
+
+### Read-only demo accounts
+
+On a normal deployment (`DEMO_MODE` unset) you can also share a **read-only** account, e.g. with a recruiter, that shows your app with real-looking data but can't change anything:
+
+1. Register the account as usual and add some data. (Locally, `npm run seed:demo` creates `demo@example.com` with 60 days of sample data; it refuses to run with `NODE_ENV=production`.)
+2. In MongoDB, set `isDemo: true` on that user: `db.users.updateOne({ email: "demo@example.com" }, { $set: { isDemo: true } })`.
+
+That account can log in and open every page, but every create, change or delete (including Apple Health sync and AI requests) is refused with 403 "This is a read-only demo account. Sign up to try all features!" (`server/src/middleware/blockDemoWrites.ts`). Every page shows "You're viewing a demo account (read-only)." Logging out still works. Set `isDemo` back to `false` to make it a normal account again.
 
 ## Roadmap
 

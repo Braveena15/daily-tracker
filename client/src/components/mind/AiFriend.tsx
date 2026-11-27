@@ -214,8 +214,8 @@ function FriendReplyCard({
   async function rate(helpful: boolean | null) {
     try {
       onChange((await friendApi.feedback(thoughtId, 'reply', helpful)).conversation)
-    } catch {
-      toast.error('Could not save that')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not save that')
     }
   }
 
@@ -298,8 +298,8 @@ function FriendChat({
     try {
       const data = await friendApi.feedback(thoughtId, index, helpful)
       onResult({ conversation: data.conversation, showSupport: false, limitReached: false, messagesLeft: data.messagesLeft })
-    } catch {
-      toast.error('Could not save that')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not save that')
     }
   }
 

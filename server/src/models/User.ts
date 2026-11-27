@@ -112,8 +112,9 @@ const userSchema = new Schema(
     healthSyncTokenCreatedAt: { type: Date },
     lastHealthSyncAt: { type: Date },
 
-    // Public demo only (DEMO_MODE=true): a temporary account with sample data. Never set otherwise.
-    isDemo: { type: Boolean },
+    // A demo account. With DEMO_MODE=true: a temporary account with sample data (see demo/).
+    // On a normal deployment: a read-only account, set by hand in the database (see blockDemoWrites).
+    isDemo: { type: Boolean, default: false },
     // When a demo account (and all its data) is deleted by MongoDB's TTL index
     expiresAt: { type: Date },
   },

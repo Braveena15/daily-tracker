@@ -1,10 +1,11 @@
 import { Router } from "express";
 import { getInsights, getJourney, getSleep, getWater, getWeeklyReview, getWeight } from "../controllers/progressController";
 import { requireAuth } from "../middleware/requireAuth";
+import { blockDemoWrites } from "../middleware/blockDemoWrites";
 
 export const progressRouter = Router();
 
-progressRouter.use(requireAuth);
+progressRouter.use(requireAuth, blockDemoWrites);
 
 progressRouter.get("/weight", getWeight);
 progressRouter.get("/weekly-review", getWeeklyReview);

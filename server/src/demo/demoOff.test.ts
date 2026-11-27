@@ -36,7 +36,7 @@ describe("DEMO_MODE off", () => {
   it("registers normal accounts, with no demo fields and nothing that expires", async () => {
     const res = await h.request("POST", "/api/auth/register", { name: "Sam", email: "sam@example.com", password: "password-123" });
     expect(res.status).toBe(201);
-    expect(res.body.user).not.toHaveProperty("isDemo");
+    expect(res.body.user.isDemo).toBe(false);
     expect(res.body.user).not.toHaveProperty("expiresAt");
 
     const date = (await h.request("GET", "/api/entries/today")).body.date as string;

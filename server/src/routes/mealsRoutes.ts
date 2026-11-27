@@ -8,10 +8,11 @@ import {
   saveMealDay,
 } from "../controllers/mealsController";
 import { requireAuth } from "../middleware/requireAuth";
+import { blockDemoWrites } from "../middleware/blockDemoWrites";
 
 export const mealsRouter = Router();
 
-mealsRouter.use(requireAuth);
+mealsRouter.use(requireAuth, blockDemoWrites);
 
 // Fixed paths come before "/:date" so "stats" isn't treated as a date
 mealsRouter.get("/stats/weekly", getWeeklyStats);

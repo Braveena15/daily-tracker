@@ -8,7 +8,7 @@ export type User = {
   birthYear?: number
   sex?: 'male' | 'female'
   goalWeightKg?: number
-  /** Public demo only: a temporary account with sample data */
+  /** A demo account: a temporary sandbox in the public demo (DEMO_MODE), read-only on a normal deployment */
   isDemo?: boolean
   /** Public demo only: when the account and its data are deleted */
   expiresAt?: string

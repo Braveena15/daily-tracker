@@ -155,7 +155,7 @@ export function MissedTodayControls({
         <DropdownMenuContent align="end">
           <DropdownMenuItem onSelect={() => setOpen(true)}>{reason ? 'Change why I couldn’t log today' : 'I couldn’t log today'}</DropdownMenuItem>
           {reason && (
-            <DropdownMenuItem onSelect={() => void onClear().then(() => toast.success('Removed'), () => toast.error('Could not remove it'))}>
+            <DropdownMenuItem onSelect={() => void onClear().then(() => toast.success('Removed'), (err: unknown) => toast.error(err instanceof Error ? err.message : 'Could not remove it'))}>
               Remove the note
             </DropdownMenuItem>
           )}

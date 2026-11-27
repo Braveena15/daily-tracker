@@ -107,7 +107,7 @@ type Range = (typeof RANGES)[number]
 const scoreAxis = fixedAxis([0, 50, 100])
 
 /** Score tooltip that lists only real values and stays hidden on days without a check-in. */
-export function realPointTooltip(props: TooltipContentProps) {
+export function RealPointTooltip(props: TooltipContentProps) {
   const payload = props.payload?.filter((p) => p.value !== null && p.value !== undefined)
   if (!props.active || !payload?.length) return null
   return (
@@ -162,7 +162,7 @@ export function ScoreTrendCard() {
             <CartesianGrid vertical={false} />
             <XAxis dataKey="date" {...AXIS} minTickGap={28} tickFormatter={shortDate} />
             <YAxis {...AXIS} width={scoreAxis.width} domain={scoreAxis.domain} ticks={scoreAxis.ticks} tickFormatter={scoreAxis.format} />
-            <ChartTooltip content={realPointTooltip} />
+            <ChartTooltip content={RealPointTooltip} />
             <ChartLegend content={<ChartLegendContent />} />
             {AREAS.map((a) => (
               <Line

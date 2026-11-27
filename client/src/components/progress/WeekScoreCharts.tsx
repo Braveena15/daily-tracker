@@ -10,7 +10,7 @@ import { IconBubble } from '@/components/IconBubble'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { AREAS, tooltipDate, type ReviewDay, type WeeklyReviewResponse } from '@/lib/progress'
 import { fixedAxis } from '@/lib/chartAxis'
-import { realPointTooltip } from '@/components/progress/ProgressCharts'
+import { RealPointTooltip } from '@/components/progress/ProgressCharts'
 
 const scoreAxis = fixedAxis([0, 50, 100])
 
@@ -54,7 +54,7 @@ export function DailyScoresChart({ days }: { days: ReviewDay[] }) {
           {/* Padding keeps the first and last weekday labels inside the chart */}
           <XAxis dataKey="date" {...AXIS} tickFormatter={weekday} interval={0} padding={{ left: 12, right: 12 }} />
           <YAxis {...AXIS} width={scoreAxis.width} domain={scoreAxis.domain} ticks={scoreAxis.ticks} tickFormatter={scoreAxis.format} />
-          <ChartTooltip content={realPointTooltip} />
+          <ChartTooltip content={RealPointTooltip} />
           <ChartLegend content={<ChartLegendContent />} />
           {/* One solid line joining the real scores, with a dot on each; unlogged days get no dot or tooltip */}
           {AREAS.map((a) => (

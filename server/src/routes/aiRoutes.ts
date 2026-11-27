@@ -10,10 +10,11 @@ import {
 import { getFriendConversation, saveFriendFeedback, sendFriendMessage, startFriend } from "../controllers/aiFriendController";
 import { aiRateLimit } from "../middleware/rateLimit";
 import { requireAuth } from "../middleware/requireAuth";
+import { blockDemoWrites } from "../middleware/blockDemoWrites";
 
 export const aiRouter = Router();
 
-aiRouter.use(requireAuth);
+aiRouter.use(requireAuth, blockDemoWrites);
 
 aiRouter.get("/status", aiStatus);
 aiRouter.put("/settings", updateAiSettings);

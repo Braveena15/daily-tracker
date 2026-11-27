@@ -3,9 +3,10 @@
 // every device. No points, badges or pressure.
 import { useEffect, useState } from 'react'
 import { Sprout, X } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { api } from '@/lib/api'
+import { api, ApiError } from '@/lib/api'
 import type { StreakResponse } from '@/lib/entries'
 import { reachedMilestones, type Milestone } from '@/lib/milestones'
 import type { JourneyResponse } from '@/lib/progress'
@@ -42,8 +43,10 @@ export function MilestoneNote() {
     try {
       // Closing also settles the smaller milestones already passed, so they don't follow one by one
       await api.post('/profile/milestones/dismissed', { ids: shown!.reached })
-    } catch {
-      // Not saved: it may show again next time, which is harmless
+    } catch (err) {
+      // Not saved: it may show again next time, which is harmless. A refusal (e.g. a read-only demo
+      // account) is still explained.
+      if (err instanceof ApiError && err.status === 403) toast.error(err.message)
     }
     setShown(null)
   }

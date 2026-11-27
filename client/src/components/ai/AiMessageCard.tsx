@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { SupportButton, SupportCard } from '@/components/mind/Support'
 import type { AiMessage, AiResponse } from '@/lib/ai'
+import { ApiError } from '@/lib/api'
 import { IconBubble } from '@/components/IconBubble'
 import { cn } from '@/lib/utils'
 
@@ -33,7 +34,8 @@ export function AiMessageCard({
 }) {
   const [data, setData] = useState<AiResponse | null>(null)
   const [loading, setLoading] = useState(false)
-  const [failed, setFailed] = useState(false)
+  // true, or the server's message for a refusal (e.g. a read-only demo account)
+  const [failed, setFailed] = useState<boolean | string>(false)
   const requestRef = useRef(request)
   useEffect(() => {
     requestRef.current = request
@@ -44,8 +46,8 @@ export function AiMessageCard({
     setFailed(false)
     try {
       setData(await requestRef.current(regenerate))
-    } catch {
-      setFailed(true)
+    } catch (err) {
+      setFailed(err instanceof ApiError && err.status === 403 ? err.message : true)
     } finally {
       setLoading(false)
     }
@@ -127,11 +129,13 @@ export function AiMessageCard({
           <div className="flex flex-wrap items-center gap-3 rounded-xl bg-card/70 p-3" role="alert">
             <p className="flex min-w-0 flex-1 items-start gap-2 text-sm text-muted-foreground">
               <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
-              Couldn't fetch a message right now — that's okay. Your data is safe.
+              {typeof failed === 'string' ? failed : "Couldn't fetch a message right now — that's okay. Your data is safe."}
             </p>
-            <Button variant="outline" size="sm" className="bg-card" onClick={() => void load(false)}>
-              <RefreshCw aria-hidden /> Try again
-            </Button>
+            {failed === true && (
+              <Button variant="outline" size="sm" className="bg-card" onClick={() => void load(false)}>
+                <RefreshCw aria-hidden /> Try again
+              </Button>
+            )}
           </div>
         ) : (
           <Button loading={loading} variant="outline" className="bg-card" onClick={() => void load(false)} disabled={loading}>

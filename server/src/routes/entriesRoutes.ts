@@ -20,10 +20,11 @@ import {
   updatePurpose,
 } from "../controllers/dailyPurposeController";
 import { requireAuth } from "../middleware/requireAuth";
+import { blockDemoWrites } from "../middleware/blockDemoWrites";
 
 export const entriesRouter = Router();
 
-entriesRouter.use(requireAuth);
+entriesRouter.use(requireAuth, blockDemoWrites);
 
 // Fixed paths come before "/:date" so "today" isn't treated as a date
 entriesRouter.get("/", listEntries);

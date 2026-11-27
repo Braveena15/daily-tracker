@@ -3,11 +3,12 @@ import { countDataBeforeStart, deleteDataBeforeStart, getProfile, getSummary, up
 import { exportMyData } from "../controllers/exportController";
 import { dismissMilestones, getMilestones } from "../controllers/milestoneController";
 import { requireAuth } from "../middleware/requireAuth";
+import { blockDemoWrites } from "../middleware/blockDemoWrites";
 
 export const profileRouter = Router();
 
-// Every profile route needs a logged-in user
-profileRouter.use(requireAuth);
+// Every profile route needs a logged-in user (and read-only demo accounts can only read)
+profileRouter.use(requireAuth, blockDemoWrites);
 
 profileRouter.get("/", getProfile);
 profileRouter.put("/", updateProfile);

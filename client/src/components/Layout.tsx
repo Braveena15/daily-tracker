@@ -24,7 +24,7 @@ import { useLogout } from '@/hooks/useLogout'
 import { MIND_PAGES } from '@/lib/mind'
 import { cn } from '@/lib/utils'
 import { SproutMark } from '@/components/SproutMark'
-import { DemoBanner, DemoFooter } from '@/components/demo/DemoBanner'
+import { DemoBanner, DemoFooter, ReadOnlyBanner } from '@/components/demo/DemoBanner'
 import { useDemoConfig } from '@/hooks/useDemoConfig'
 
 type NavItem = {
@@ -95,7 +95,8 @@ function readCollapsed(): boolean {
 export function Layout() {
   const section = useLocation().pathname.split('/')[1]
   const [collapsed, setCollapsed] = useState(readCollapsed)
-  // Public demo only: only demo accounts ask for the demo settings
+  // Demo accounts only ask for the demo settings: in the public demo (DEMO_MODE) they're temporary
+  // sandboxes; on a normal deployment they're read-only
   const isDemo = useAuth().user?.isDemo === true
   const demo = useDemoConfig(isDemo)
 
@@ -117,7 +118,8 @@ export function Layout() {
       </TooltipProvider>
       {/* pb: room for the bottom tab bar, plus the iPhone home bar below it */}
       <main className="mx-auto w-full max-w-5xl px-4 pt-6 pb-[calc(7rem+env(safe-area-inset-bottom))] sm:px-6 md:px-10 md:pt-10 md:pb-12">
-        {isDemo && <DemoBanner repoUrl={demo?.repoUrl ?? null} className="mb-6" />}
+        {isDemo && demo?.enabled && <DemoBanner repoUrl={demo.repoUrl} className="mb-6" />}
+        {isDemo && demo && !demo.enabled && <ReadOnlyBanner className="mb-6" />}
         {/* While a page's code loads the first time; the navigation stays in place */}
         <Suspense fallback={<PageSkeleton />}>
           {/* A short fade when moving between sections (opacity only, so nothing shifts). Keyed by the
@@ -126,7 +128,7 @@ export function Layout() {
             <Outlet />
           </div>
         </Suspense>
-        {isDemo && <DemoFooter repoUrl={demo?.repoUrl ?? null} className="mt-10" />}
+        {isDemo && demo?.enabled && <DemoFooter repoUrl={demo.repoUrl} className="mt-10" />}
       </main>
       <BottomTabs />
     </div>
