@@ -12,6 +12,7 @@ const under = (prefix: string) => (path: string) => path === prefix || path.star
 export const DEMO_RULES: Rule[] = [
   { match: under("/api/health-sync"), message: "Apple Watch sync is turned off in the demo." },
   { methods: ["POST"], match: (p) => /^\/api\/expenses\/[^/]+\/receipts\/?$/.test(p), message: "Uploading receipts is turned off in the demo. The sample expenses show how receipts look." },
+  { methods: ["POST"], match: (p) => /^\/api\/programs\/[^/]+\/photos(\/|$)/.test(p), message: "Uploading progress photos is turned off in the demo." },
   { methods: ["DELETE"], match: under("/api/profile/data-before-start"), message: "Deleting data is turned off in the demo." },
   { match: (p) => /^\/api\/(auth|profile)\/(email|password|account)(\/|$)/.test(p), message: "Account settings can't be changed in the demo." },
   { methods: ["DELETE"], match: (p) => p === "/api/auth/me" || p === "/api/profile", message: "Deleting the account is turned off in the demo." },

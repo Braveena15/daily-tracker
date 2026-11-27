@@ -8,7 +8,8 @@ import { fieldCrypto } from "../config/encryption";
 import { EXPENSE_LIMITS, ExpenseModel, type ExpenseCategory } from "../models/Expense";
 import { UserModel } from "../models/User";
 import { journeyStart } from "../services/journey";
-import { deleteReceipts, readReceipt, receiptBytesUsed, sampleReceiptSvg, storeReceipt } from "../services/receipts";
+import { deleteReceipts, readReceipt, sampleReceiptSvg, storeReceipt } from "../services/receipts";
+import { totalBytesUsed } from "../services/encryptedFiles";
 import { AppError } from "../utils/AppError";
 import { addDays, daysBetween, todayInTimezone } from "../utils/dates";
 import { cleanFilename, createUploadQuota, receiptProblem, sniffReceiptType, summarizeExpenses } from "../utils/expenses";
@@ -183,9 +184,9 @@ export async function addReceipts(req: Request, res: Response): Promise<void> {
     const problem = receiptProblem({ size: file.size, bytes: file.buffer });
     if (problem) throw new AppError(400, `${cleanFilename(file.originalname, sniffReceiptType(file.buffer) ?? "image/jpeg")}: ${problem}`);
   }
-  const used = await receiptBytesUsed(String(req.userId));
+  const used = await totalBytesUsed(String(req.userId));
   if (used + files.reduce((s, f) => s + f.size, 0) > STORAGE_LIMIT_BYTES) {
-    throw new AppError(400, "Your receipt storage is full. Delete some older receipts to add new ones.");
+    throw new AppError(400, "Your storage is full. Delete some older receipts or photos to add new ones.");
   }
   if (!uploadQuota.take(String(req.userId), files.length)) {
     throw new AppError(429, "That's a lot of uploads for one hour. Please try again a little later.");
@@ -241,9 +242,9 @@ export async function downloadReceipt(req: Request, res: Response): Promise<void
   res.end(bytes);
 }
 
-/** GET /api/storage/usage — receipt bytes used, for the Profile. */
+/** GET /api/storage/usage — bytes used by receipts and program photos together (one shared budget). */
 export async function storageUsage(req: Request, res: Response): Promise<void> {
-  const bytesUsed = await receiptBytesUsed(String(req.userId));
+  const bytesUsed = await totalBytesUsed(String(req.userId));
   res.json({ bytesUsed, limitBytes: STORAGE_LIMIT_BYTES, percentUsed: Math.round((bytesUsed / STORAGE_LIMIT_BYTES) * 100) });
 }
 

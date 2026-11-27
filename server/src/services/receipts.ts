@@ -1,64 +1,18 @@
-// Receipt files in MongoDB GridFS (bucket "receipts"). Every file is encrypted with AES-256-GCM
-// (DIARY_ENCRYPTION_KEY) before it's stored and decrypted only to stream it back to its owner.
-// The file's owner is kept in its metadata, for the storage-used total. File contents are never logged.
-import { Readable } from "node:stream";
-import mongoose, { Types } from "mongoose";
-import { fieldCrypto } from "../config/encryption";
-
-const BUCKET = "receipts";
-
-function bucket() {
-  const db = mongoose.connection.db;
-  if (!db) throw new Error("The database isn't connected");
-  return new mongoose.mongo.GridFSBucket(db, { bucketName: BUCKET });
-}
+// Receipt files: encrypted in GridFS bucket "receipts" (see services/encryptedFiles.ts).
+import { bytesUsed, deleteFiles, readFile, storeFile } from "./encryptedFiles";
 
 /** Encrypts and stores one file; returns its id. */
-export async function storeReceipt(userId: string, bytes: Buffer, filename: string, mimeType: string): Promise<string> {
-  const encrypted = fieldCrypto.encryptBytes(bytes);
-  const upload = bucket().openUploadStream(filename, {
-    // The real type and size live here (the stored bytes are encrypted)
-    metadata: { userId: new Types.ObjectId(userId), mimeType, size: bytes.length, encrypted: true },
-  });
-  await new Promise<void>((resolve, reject) => {
-    Readable.from([encrypted]).pipe(upload).on("finish", () => resolve()).on("error", reject);
-  });
-  return String(upload.id);
-}
+export const storeReceipt = (userId: string, bytes: Buffer, filename: string, mimeType: string): Promise<string> =>
+  storeFile("receipts", userId, bytes, filename, mimeType);
 
 /** The decrypted file, or null when there's no such file. Throws if it can't be decrypted. */
-export async function readReceipt(fileId: string): Promise<Buffer | null> {
-  if (!Types.ObjectId.isValid(fileId)) return null;
-  const id = new Types.ObjectId(fileId);
-  const found = await bucket().find({ _id: id }).limit(1).toArray();
-  if (found.length === 0) return null;
-  const chunks: Buffer[] = [];
-  for await (const chunk of bucket().openDownloadStream(id)) chunks.push(chunk as Buffer);
-  return fieldCrypto.decryptBytes(Buffer.concat(chunks));
-}
+export const readReceipt = (fileId: string): Promise<Buffer | null> => readFile("receipts", fileId);
 
 /** Deletes files by id; ids that don't exist (or aren't stored files, like the demo's samples) are skipped. */
-export async function deleteReceipts(fileIds: string[]): Promise<void> {
-  for (const fileId of fileIds) {
-    if (!Types.ObjectId.isValid(fileId)) continue;
-    try {
-      await bucket().delete(new Types.ObjectId(fileId));
-    } catch {
-      // Already gone
-    }
-  }
-}
+export const deleteReceipts = (fileIds: string[]): Promise<void> => deleteFiles("receipts", fileIds);
 
 /** Bytes of receipts the user has stored (their original sizes). */
-export async function receiptBytesUsed(userId: string): Promise<number> {
-  const db = mongoose.connection.db;
-  if (!db) return 0;
-  const [row] = await db
-    .collection(`${BUCKET}.files`)
-    .aggregate<{ total: number }>([{ $match: { "metadata.userId": new Types.ObjectId(userId) } }, { $group: { _id: null, total: { $sum: "$metadata.size" } } }])
-    .toArray();
-  return row?.total ?? 0;
-}
+export const receiptBytesUsed = (userId: string): Promise<number> => bytesUsed("receipts", userId);
 
 /** The demo's placeholder receipt (no file is stored for it). */
 export function sampleReceiptSvg(label: string): Buffer {
