@@ -248,3 +248,14 @@ export type ProgramReport = ProgramProgress & {
   /** A short encouraging summary from the AI, from numbers only (null when the AI is off) */
   aiSummary?: string | null
 }
+
+/** The Weekly review's program part (null when no program covers the week) */
+export type ProgramWeek = {
+  id: string
+  name: string
+  week: number
+  of: number
+  baseline: { weightKg: number | null; weekWeightKg: number | null; weightChange: number | null; firstWeekMood: number | null; weekMood: number | null }
+  targets: TargetKey[]
+  days: { date: string; logged: boolean; hit: Partial<Record<TargetKey, boolean>> }[]
+}

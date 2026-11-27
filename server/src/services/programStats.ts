@@ -4,12 +4,12 @@ import { DailyEntryModel, isCheckedIn } from "../models/DailyEntry";
 import { openDayPurposes, type StoredDayPurposes } from "../utils/dailyPurpose";
 import { MealDayModel } from "../models/MealDay";
 import { ProgramModel } from "../models/Program";
-import { change, progressTowardGoal, reportRange } from "../utils/program";
-import { programStats, type ProgramDayRow } from "../utils/programStats";
+import { change, dateOfDay, progressTowardGoal, reportRange, weekOfProgram } from "../utils/program";
+import { programStats, targetsHit, type ProgramDayRow, type TargetKey } from "../utils/programStats";
 import { dayMood } from "../utils/timeline";
 import { waterTotal } from "../utils/water";
 import { dayTotals, type MealItemLike } from "../utils/meals";
-import { listDates, todayInTimezone } from "../utils/dates";
+import { addDays, listDates, todayInTimezone } from "../utils/dates";
 import { loadUserContext, scoresFor } from "./dayData";
 
 type ProgramLike = NonNullable<Awaited<ReturnType<typeof ProgramModel.findOne>>> | Record<string, any>;
@@ -173,5 +173,50 @@ export async function computeProgramReport(userId: string | undefined, program: 
     reflection: open(final?.text as string | null | undefined),
     whyText: open(p.baseline?.text),
     photos: { before: photos(p.baseline), after: photos(latestCheckIn), afterFrom: latestCheckIn ? (final ? "final" : "midpoint") : null },
+  };
+}
+
+// ---------- Weekly review ----------
+
+/**
+ * The program part of the Weekly review for the 7 days ending on `weekEnding`: "Week 3 of 15",
+ * this week compared with the baseline (and with week 1 for mood), and which daily-plan targets
+ * were hit each day. Null when no program covers that day.
+ */
+export async function programWeek(userId: string | undefined, weekEnding: string) {
+  const candidates = await ProgramModel.find({ userId, startDate: { $lte: weekEnding } }).sort({ startDate: -1 }).limit(5).lean();
+  const program = candidates.find((p) => {
+    const last = p.status === "ended_early" && p.endedOnDay ? dateOfDay(p.startDate, p.endedOnDay) : dateOfDay(p.startDate, p.lengthDays);
+    return weekEnding <= last;
+  });
+  if (!program) return null;
+  const week = weekOfProgram(program.startDate, program.lengthDays, weekEnding);
+  if (!week) return null;
+
+  const from = [addDays(weekEnding, -6), program.startDate].sort().at(-1)!;
+  const [days, firstWeek] = await Promise.all([
+    loadProgramDays(userId, from, weekEnding),
+    loadProgramDays(userId, program.startDate, [addDays(program.startDate, 6), weekEnding].sort()[0]!),
+  ]);
+  const plan = program.plan ?? {};
+  const weights = days.filter((d) => d.weightKg !== null);
+  const avgMood = (rows: typeof days) => {
+    const moods = rows.map((d) => d.avgMood).filter((m): m is number => m !== null);
+    return moods.length ? Math.round((moods.reduce((s, m) => s + m, 0) / moods.length) * 10) / 10 : null;
+  };
+  return {
+    id: String(program._id),
+    name: program.name,
+    week: week.week,
+    of: week.of,
+    baseline: {
+      weightKg: program.baseline?.weightKg ?? null,
+      weekWeightKg: weights.at(-1)?.weightKg ?? null,
+      weightChange: change(program.baseline?.weightKg, weights.at(-1)?.weightKg),
+      firstWeekMood: week.week > 1 ? avgMood(firstWeek) : null,
+      weekMood: avgMood(days),
+    },
+    targets: (Object.keys(targetsHit(days[0] ?? ({} as ProgramDayRow), plan)) as TargetKey[]),
+    days: days.map((d) => ({ date: d.date, logged: d.logged, hit: targetsHit(d, plan) })),
   };
 }

@@ -14,6 +14,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { PageHeader } from '@/components/PageHeader'
 import { ErrorNotice } from '@/components/StatusViews'
 import { RatingRow } from '@/components/journey/RatingRow'
+import { AiMessageCard } from '@/components/ai/AiMessageCard'
+import { aiRequests } from '@/lib/ai'
 import { useFetch } from '@/hooks/useFetch'
 import { formatDate, formatLongDate } from '@/lib/dates'
 import { END_REASON_LABELS, photoUrl, type ProgramReport } from '@/lib/program'
@@ -60,7 +62,10 @@ export function JourneyReport() {
       ) : !r ? (
         <Skeleton className="h-96 w-full rounded-2xl" />
       ) : (
-        <Report r={r} id={String(id)} />
+        <>
+          <AiMessageCard title="A note on your journey" request={aiRequests.program(String(id))} autoLoad={false} startLabel="Write me a summary" className="mb-4 max-w-3xl md:mb-6" />
+          <Report r={r} id={String(id)} />
+        </>
       )}
     </>
   )

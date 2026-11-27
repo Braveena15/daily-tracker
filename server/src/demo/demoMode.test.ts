@@ -222,6 +222,26 @@ describe("demo mode", () => {
     expect(await db().collection("dailyentries").countDocuments({ userId: demoUserId })).toBeGreaterThan(40);
   });
 
+  it("seeds three sample programs (active on day 40, completed, ended early on day 37), expiring with the account; no photo uploads", async () => {
+    h.setCookie(demoCookie);
+    const { programs } = (await h.request("GET", "/api/programs")).body;
+    expect(programs.map((p: { status: string }) => p.status).sort()).toEqual(["active", "completed", "ended_early"]);
+    const active = programs.find((p: { status: string }) => p.status === "active");
+    expect(active.clock).toMatchObject({ dayNumber: 40, daysLeft: 61 });
+    const ended = programs.find((p: { status: string }) => p.status === "ended_early");
+    const report = (await h.request("GET", `/api/programs/${ended.id}/report`)).body;
+    expect(report.title).toBe("37 of 100 days — what you achieved");
+    expect(report.stats.daysLogged).toBeGreaterThan(20);
+    expect(await db().collection("programs").countDocuments({ userId: demoUserId, expiresAt: { $exists: false } })).toBe(0);
+    // Habits ticked on most days of the active program
+    expect((await h.request("GET", `/api/programs/${active.id}/progress`)).body.stats.habits[0].daysDone).toBeGreaterThan(20);
+
+    const form = new FormData();
+    form.append("files", new Blob([new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3])], { type: "image/jpeg" }), "me.jpg");
+    const upload = await fetch(`${h.base}/api/programs/${active.id}/photos/baseline`, { method: "POST", headers: { Cookie: demoCookie }, body: form });
+    expect(upload.status).toBe(403);
+  });
+
   it("allows 5 demo starts per IP address an hour", async () => {
     // Starts so far: the first demo, the busy one and the expired one. Two more are allowed.
     expect((await h.request("POST", "/api/demo/start")).status).toBe(201);

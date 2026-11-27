@@ -20,6 +20,7 @@ import { journeyDate } from '@/lib/journey'
 import type { WeeklyReviewResponse } from '@/lib/progress'
 import { lazyPage } from '@/lib/lazyPage'
 import { CardChevron } from '@/components/CardChevron'
+import { ProgramWeekCard } from '@/components/journey/ProgramWeekCard'
 import { Delta, YourWeek } from '@/components/progress/YourWeek'
 
 // Recharts loads only when the charts are shown
@@ -124,6 +125,7 @@ function ReviewBody({ data, today }: { data: WeeklyReviewResponse; today: string
 
   return (
     <>
+      {data.program && <ProgramWeekCard program={data.program} />}
       <Card className="bg-secondary/60 ring-primary/15">
         <CardContent className="flex items-start gap-3">
           <IconBubble icon={Sparkles} className="bg-card" />

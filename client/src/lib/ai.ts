@@ -42,4 +42,5 @@ export const aiRequests = {
   weekly: (weekEnding: string) => (regenerate: boolean) =>
     api.get<AiResponse>(`/ai/weekly?weekEnding=${weekEnding}${again(regenerate, true)}`),
   boost: () => (regenerate: boolean) => api.post<AiResponse>(`/ai/boost${again(regenerate)}`),
+  program: (id: string) => (regenerate: boolean) => api.post<AiResponse>(`/ai/program/${id}${again(regenerate)}`),
 }

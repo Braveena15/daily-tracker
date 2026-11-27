@@ -5,6 +5,7 @@ import type { Request, Response } from "express";
 import { isValidObjectId } from "mongoose";
 import { z } from "zod";
 import {
+  buildProgramContext,
   buildBoostContext,
   buildDailyContext,
   buildThoughtContext,
@@ -31,6 +32,9 @@ import { AppError } from "../utils/AppError";
 import { addDays, isValidDateString, listDates, todayInTimezone } from "../utils/dates";
 import { journeyStart } from "../services/journey";
 import { streaksSince } from "../utils/journey";
+import { ProgramModel } from "../models/Program";
+import { computeProgramProgress } from "../services/programStats";
+import { programClock } from "../utils/program";
 
 const today = () => todayInTimezone();
 const wantsRegenerate = (req: Request) => req.query.regenerate === "true";
@@ -271,4 +275,46 @@ export async function updateAiSettings(req: Request, res: Response): Promise<voi
   const { aiEnabled } = settingsSchema.parse(req.body ?? {});
   await UserModel.updateOne({ _id: req.userId }, { $set: { aiEnabled } });
   await aiStatus(req, res);
+}
+
+/**
+ * POST /api/ai/program/:id — a short encouraging summary for a program's report, from numbers
+ * only (see buildProgramContext). One per report range unless regenerated. The why, goal notes,
+ * reflections and end note are only checked for crisis language, never sent.
+ */
+export async function programSummary(req: Request, res: Response): Promise<void> {
+  const { id } = req.params;
+  if (!isValidObjectId(id)) throw new AppError(404, "Program not found");
+  const program = await ProgramModel.findOne({ _id: id, userId: req.userId }).lean();
+  if (!program) throw new AppError(404, "Program not found");
+  const [{ userEnabled, lowMood }, progress] = await Promise.all([basics(req.userId), computeProgramProgress(req.userId, program, today())]);
+  const clock = programClock(program.startDate, program.lengthDays, today());
+  const weeks = progress.stats.weeks;
+  const open = (s: string | null | undefined) => (s ? fieldCrypto.tryDecrypt(s) : null);
+
+  await send(req, res, {
+    task: "program",
+    // A new summary when the report covers more days
+    refId: `${id}:${progress.range.to}:${program.status}`,
+    date: today(),
+    userEnabled,
+    lowMood,
+    safetyText: [open(program.baseline?.text), open(program.goals?.notes), open(program.final?.text), open(program.midpoint?.text), open(program.endNote)],
+    buildContext: () =>
+      buildProgramContext({
+        status: program.status,
+        lengthDays: program.lengthDays,
+        dayNumber: program.status === "ended_early" ? (program.endedOnDay ?? clock.dayNumber) : clock.dayNumber,
+        daysLeft: program.status === "active" ? clock.daysLeft : 0,
+        daysLogged: progress.stats.daysLogged,
+        consistency: progress.stats.consistency,
+        longestStreak: progress.stats.streaks.longest,
+        totals: progress.stats.totals,
+        weight: progress.weight,
+        ratings: progress.ratings,
+        targetsHit: weeks.reduce((s, w) => s + w.targetsHit, 0),
+        targetsPossible: weeks.reduce((s, w) => s + w.targetsPossible, 0),
+        habitPercents: progress.stats.habits.map((h) => h.percent),
+      }),
+  });
 }

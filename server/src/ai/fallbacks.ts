@@ -31,6 +31,10 @@ const BY_TASK: Record<AiTask, readonly string[]> = {
     "Another week of showing up for yourself. Look back at one moment you're glad about, and carry it into next week.",
     "Weeks have ups and downs, and you kept going through both. Choose one small focus for next week and keep it gentle.",
   ],
+  program: [
+    "Every day you showed up counts. Look at what changed, however small, and be proud of the effort behind it.",
+    "Progress isn't a straight line, and you kept coming back to it. That steady effort is the real result here.",
+  ],
   boost: [
     "You've come further than you give yourself credit for. Take a slow breath and remember why you started. 💜",
     "You matter, on good days and hard ones. Do one small kind thing for yourself right now.",

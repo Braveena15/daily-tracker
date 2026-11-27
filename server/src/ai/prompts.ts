@@ -29,6 +29,11 @@ const TASKS: Record<AiTask, string> = {
   boost:
     "Write a short pick-me-up for someone who opened the \"Lift me up\" page. Draw on their recent scores, streak and " +
     "the values they chose. Be uplifting but genuine, not over the top.",
+  program:
+    "Write a short, encouraging summary (50–90 words) for someone's transformation program report, from the numbers " +
+    "only. If status is \"ended_early\", celebrate the days they completed and never call it a failure or say they " +
+    "gave up. Mention one or two real improvements or consistent habits, and close with one warm sentence. Don't " +
+    "invent anything that isn't in the data.",
 };
 
 const DATA_NOTES =

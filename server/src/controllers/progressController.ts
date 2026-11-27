@@ -1,4 +1,5 @@
 import { activeProgram } from "../services/programs";
+import { programWeek } from "../services/programStats";
 import type { Request, Response } from "express";
 import { CHECKED_IN, DailyEntryModel } from "../models/DailyEntry";
 import { goalNumbers, journeyStart, loadUserContext, loadWater } from "../services/dayData";
@@ -95,8 +96,12 @@ export async function getWeeklyReview(req: Request, res: Response): Promise<void
   if (weekEnding > today()) throw new AppError(400, "That week hasn't happened yet");
 
   // entriesThisWeek is only for the AI's safety check; purpose text is sent only to its owner here
-  const { entriesThisWeek: _entries, ...review } = await computeWeeklyReview(req.userId, weekEnding);
-  res.json(review);
+  const [{ entriesThisWeek: _entries, ...review }, program] = await Promise.all([
+    computeWeeklyReview(req.userId, weekEnding),
+    // "Week 3 of 15", compared with the baseline, and the daily-plan targets hit each day
+    programWeek(req.userId, weekEnding),
+  ]);
+  res.json({ ...review, program });
 }
 
 /** GET /api/progress/journey — "Day X of 100": the active program's, else the journey since the first entry. */

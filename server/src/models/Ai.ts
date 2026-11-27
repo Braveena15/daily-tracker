@@ -2,7 +2,7 @@ import { Schema, model } from "mongoose";
 import { demoExpiryPlugin } from "../demo/expiryPlugin";
 
 // "friend": the AI friend's conversation about one thought log (encrypted; see ai/friend.ts)
-export const AI_TASKS = ["thought", "daily", "weekly", "boost", "friend"] as const;
+export const AI_TASKS = ["thought", "daily", "weekly", "boost", "friend", "program"] as const;
 
 // One saved message per user per thing (e.g. one daily note per date, one reflection per week),
 // so the same request doesn't call the AI twice.

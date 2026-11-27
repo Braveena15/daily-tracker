@@ -1,4 +1,4 @@
-// Fills one account with ~60 days of sample data (scripts/demoData.ts), stored exactly as the API
+// Fills one account with ~150 days of sample data and three sample programs (scripts/demoData.ts), stored exactly as the API
 // would store it: purpose, diary, thought-log and weekly-goal text is encrypted.
 // Used by the public demo (demo/controller.ts, every document expiring with the account) and by the
 // dev-only seed script (scripts/seedDemo.ts, nothing expiring).
@@ -10,10 +10,13 @@ import { MealDayModel } from "../models/MealDay";
 import { DiaryEntryModel, PurposeModel, ThoughtLogModel } from "../models/Mind";
 import { WeeklyGoalModel } from "../models/WeeklyGoal";
 import { ExpenseModel } from "../models/Expense";
+import { ProgramModel } from "../models/Program";
+import { sampleHabitTicks, samplePrograms } from "./samplePrograms";
 import { DEMO_FOODS, DEMO_PROFILE, DEMO_PURPOSE, generateDemoData, generateDemoMind, type DemoDailyPurpose } from "../scripts/demoData";
 import { addDays } from "../utils/dates";
 
-export const DEMO_DAYS = 60;
+// Long enough for the sample programs: a completed one, one ended early, a break, and the active one
+export const DEMO_DAYS = 150;
 
 /** Profile fields for a sample account whose data ends on `today`. */
 export function sampleProfile(today: string) {
@@ -43,6 +46,7 @@ export async function seedSampleData(userId: Types.ObjectId, today: string, expi
       entries.map(({ dailyPurposes, dailyReflectionNote, ...e }) => ({
         ...e,
         ...owned,
+        ...(sampleHabitTicks(e.date, today) && { programHabitsDone: sampleHabitTicks(e.date, today) }),
         ...(dailyPurposes && { dailyPurposes: encryptPurposes(dailyPurposes) }),
         ...(dailyReflectionNote && { dailyReflectionNote: fieldCrypto.encrypt(dailyReflectionNote) }),
       })),
@@ -69,6 +73,17 @@ export async function seedSampleData(userId: Types.ObjectId, today: string, expi
       })),
     ),
     PurposeModel.create({ ...owned, ...DEMO_PURPOSE }),
+    ProgramModel.insertMany(
+      samplePrograms(today).map(({ texts, baseline, goals, midpoint, final, ...p }) => ({
+        ...owned,
+        ...p,
+        ...(texts.endNote && { endNote: fieldCrypto.encrypt(texts.endNote) }),
+        baseline: { ...baseline, date: p.startDate, text: fieldCrypto.encrypt(texts.why), photos: [] },
+        goals: { ...goals, notes: fieldCrypto.encrypt(texts.goalNotes) },
+        ...(midpoint && { midpoint: { ...midpoint, habits: [], photos: [], ...(texts.midpoint && { text: fieldCrypto.encrypt(texts.midpoint) }) } }),
+        ...(final && { final: { ...final, habits: [], photos: [], ...(texts.final && { text: fieldCrypto.encrypt(texts.final) }) } }),
+      })),
+    ),
     DiaryEntryModel.insertMany(
       diary.map((d) => ({ ...owned, ...d, title: fieldCrypto.encrypt(d.title), body: fieldCrypto.encrypt(d.body) })),
     ),

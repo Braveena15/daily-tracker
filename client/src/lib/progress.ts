@@ -188,6 +188,8 @@ export type WeeklyReviewResponse = {
   /** This week's days since the journey started, oldest first */
   days: ReviewDay[]
   journeyStartDate: string
+  /** The program this week belongs to: "Week 3 of 15", baseline comparison, targets hit */
+  program?: import('./program').ProgramWeek | null
   /** This week's daily purposes, oldest first */
   purpose: {
     days: PurposeDay[]

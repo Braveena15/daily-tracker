@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   aiStatus,
   boost,
+  programSummary,
   dailyNote,
   thoughtEncouragement,
   updateAiSettings,
@@ -24,6 +25,7 @@ aiRouter.post("/thought/:id", aiRateLimit, thoughtEncouragement);
 aiRouter.post("/daily/:date", aiRateLimit, dailyNote);
 aiRouter.get("/weekly", aiRateLimit, weeklyReflection);
 aiRouter.post("/boost", aiRateLimit, boost);
+aiRouter.post("/program/:id", aiRateLimit, programSummary);
 
 // The AI friend in the Thought log. Sending needs { consent: true }; private logs are refused.
 aiRouter.get("/friend/:thoughtId", getFriendConversation);

@@ -20,7 +20,7 @@ import { purposeFacts, type DayPurposes, type PurposeStats } from "../utils/dail
 import { dayMood, timeOfDay } from "../utils/timeline";
 
 export type AiMode = "minimal" | "full";
-export type AiTask = "thought" | "daily" | "weekly" | "boost";
+export type AiTask = "thought" | "daily" | "weekly" | "boost" | "program";
 
 /** What gets turned into JSON and sent with the task prompt. */
 export type AiContext = { task: AiTask; mode: AiMode; data: Record<string, unknown> };
@@ -347,6 +347,57 @@ export function buildBoostContext(input: {
       lastLogged: logged.length ? relativeDay(logged[logged.length - 1]!.date, today) : null,
       streak,
       values: [...new Set(values)],
+    },
+  };
+}
+
+// ---------- Program report summary ----------
+
+const PROGRAM_RATING_KEYS = ["confidence", "discipline", "fitness", "mentalWellbeing", "focus"] as const;
+
+/**
+ * Numbers only, in every mode: the day number, days left, status, the built-in ratings (before,
+ * goal, latest), weight change and progress, consistency, totals and how often daily targets were
+ * hit. Never the why, goal notes, reflections, end note, custom rating names, habit names or photos.
+ */
+export function buildProgramContext(input: {
+  status: string;
+  lengthDays: number;
+  dayNumber: number;
+  daysLeft: number;
+  daysLogged: number;
+  consistency: number;
+  longestStreak: number;
+  totals: { workouts: number; learningHours: number; avgSleep: number | null; avgMood: number | null };
+  weight: { change: number | null; progress: number | null };
+  ratings: { key: string; before: number | null; goal: number | null; latest: number | null }[];
+  targetsHit: number;
+  targetsPossible: number;
+  habitPercents: number[];
+}): AiContext {
+  return {
+    task: "program",
+    mode: "minimal",
+    data: {
+      status: input.status,
+      programLengthDays: input.lengthDays,
+      dayNumber: input.dayNumber,
+      daysLeft: input.daysLeft,
+      daysLogged: input.daysLogged,
+      consistencyPercent: input.consistency,
+      longestStreakDays: input.longestStreak,
+      workouts: input.totals.workouts,
+      learningHours: input.totals.learningHours,
+      averageSleepHours: input.totals.avgSleep,
+      averageMood: input.totals.avgMood,
+      weightChangeKg: input.weight.change,
+      weightGoalProgressPercent: input.weight.progress,
+      ratings: input.ratings
+        .filter((r): r is typeof r & { key: (typeof PROGRAM_RATING_KEYS)[number] } => (PROGRAM_RATING_KEYS as readonly string[]).includes(r.key))
+        .map((r) => ({ name: r.key, before: r.before, goal: r.goal, latest: r.latest })),
+      dailyTargetsHit: input.targetsHit,
+      dailyTargetsPossible: input.targetsPossible,
+      habitConsistencyPercents: input.habitPercents,
     },
   };
 }
