@@ -11,7 +11,7 @@ const MARGIN = 48
  * The built-in PDF font only knows Western characters, so others are swapped for close matches or "?"
  * (the app itself shows them all; this only affects the PDF).
  */
-function pdfText(text: string): string {
+export function pdfText(text: string): string {
   return text
     .replace(/[‘’]/g, "'")
     .replace(/[“”]/g, '"')
@@ -21,7 +21,7 @@ function pdfText(text: string): string {
 }
 
 /** A photo as JPEG or PNG bytes pdf-lib can embed (WebP, SVG… are redrawn as JPEG). Null if the browser can't open it. */
-async function embeddable(blob: Blob): Promise<{ bytes: ArrayBuffer; type: 'jpg' | 'png' } | null> {
+export async function embeddable(blob: Blob): Promise<{ bytes: ArrayBuffer; type: 'jpg' | 'png' } | null> {
   if (blob.type === 'image/jpeg') return { bytes: await blob.arrayBuffer(), type: 'jpg' }
   if (blob.type === 'image/png') return { bytes: await blob.arrayBuffer(), type: 'png' }
   const url = URL.createObjectURL(blob)

@@ -31,6 +31,8 @@ const Expenses = lazyPage(() => import('./pages/Expenses').then((m) => m.Expense
 const Motivation = lazyPage(() => import('./pages/Motivation').then((m) => m.Motivation))
 const Profile = lazyPage(() => import('./pages/Profile').then((m) => m.Profile))
 const Journey = lazyPage(() => import('./pages/Journey').then((m) => m.Journey))
+const JourneyReport = lazyPage(() => import('./pages/JourneyReport').then((m) => m.JourneyReport))
+const JourneyHistory = lazyPage(() => import('./pages/JourneyHistory').then((m) => m.JourneyHistory))
 const JourneyNew = lazyPage(() => import('./pages/JourneyNew').then((m) => m.JourneyNew))
 const Settings = lazyPage(() => import('./pages/Settings').then((m) => m.Settings))
 
@@ -65,6 +67,8 @@ const router = createBrowserRouter([
           { path: '/profile', element: <Profile /> },
           { path: '/journey', element: <Journey /> },
           { path: '/journey/new', element: <JourneyNew /> },
+          { path: '/journey/history', element: <JourneyHistory /> },
+          { path: '/journey/:id/report', element: <JourneyReport /> },
           { path: '/settings', element: <Settings /> },
           { path: '/settings/:section', element: <Settings /> },
         ],

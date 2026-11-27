@@ -11,7 +11,7 @@ import { PROGRAM_LIMITS, ProgramModel } from "../models/Program";
 import { UserModel } from "../models/User";
 import { deleteFiles, readFile, storeFile, totalBytesUsed } from "../services/encryptedFiles";
 import { activeProgram } from "../services/programs";
-import { computeProgramProgress } from "../services/programStats";
+import { computeProgramProgress, computeProgramReport } from "../services/programStats";
 import { buildSummary } from "../services/profileSummary";
 import { AppError } from "../utils/AppError";
 import { addDays, isValidDateString, todayInTimezone } from "../utils/dates";
@@ -178,6 +178,13 @@ export async function getProgram(req: Request, res: Response): Promise<void> {
 export async function getProgramProgress(req: Request, res: Response): Promise<void> {
   const program = await ownProgram(req);
   res.json(await computeProgramProgress(req.userId, program, today()));
+}
+
+/** GET /api/programs/:id/report — the report (a live preview while the program is active). */
+export async function getProgramReport(req: Request, res: Response): Promise<void> {
+  const program = await ownProgram(req);
+  res.set("Cache-Control", "private, no-store");
+  res.json(await computeProgramReport(req.userId, program, today()));
 }
 
 // ---------- Creating and changing ----------

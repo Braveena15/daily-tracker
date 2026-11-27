@@ -24,7 +24,7 @@ export function JourneyHomeCard({ habitsFor }: { habitsFor?: { date: string; don
   if (!program) {
     const ended = data.latestEnded
     return (
-      <Link to="/journey" className="group flex items-center gap-3 surface p-4 transition-all outline-none hover:bg-accent/40 focus-visible:ring-3 focus-visible:ring-ring/50">
+      <Link to={ended && ended.status !== 'abandoned' ? `/journey/${ended.id}/report` : '/journey'} className="group flex items-center gap-3 surface p-4 transition-all outline-none hover:bg-accent/40 focus-visible:ring-3 focus-visible:ring-ring/50">
         <IconBubble icon={Route} />
         <span className="min-w-0 flex-1">
           <span className="block font-medium">{ended?.status === 'ended_early' || ended?.status === 'completed' ? `${endedLabel(ended)} — view your report` : 'Start your journey'}</span>

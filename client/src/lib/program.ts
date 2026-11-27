@@ -227,3 +227,24 @@ export type ProgramProgress = {
 
 /** A rating row's name: the five built-in ones by label, custom ones as typed. */
 export const ratingLabel = (row: Pick<CompareRow, 'key' | 'label'>) => (row.key in RATING_LABELS ? RATING_LABELS[row.key as RatingKey] : row.label)
+
+// ---------- Report (GET /api/programs/:id/report) ----------
+
+export type ProgramReport = ProgramProgress & {
+  title: string
+  status: ProgramStatus
+  name: string
+  lengthDays: number
+  startDate: string
+  endedOn: string | null
+  endedOnDay: number | null
+  endReason: EndReason | null
+  improvements: string[]
+  recurringPurposes: { text: string; days: number }[]
+  topValues: { value: string; days: number }[]
+  reflection: string
+  whyText: string
+  photos: { before: string[]; after: string[]; afterFrom: 'final' | 'midpoint' | null }
+  /** A short encouraging summary from the AI, from numbers only (null when the AI is off) */
+  aiSummary?: string | null
+}

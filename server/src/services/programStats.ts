@@ -1,5 +1,7 @@
 // Loads a program's days (only day 1 → the last day its report covers) and turns them into stats.
+import { fieldCrypto } from "../config/encryption";
 import { DailyEntryModel, isCheckedIn } from "../models/DailyEntry";
+import { openDayPurposes, type StoredDayPurposes } from "../utils/dailyPurpose";
 import { MealDayModel } from "../models/MealDay";
 import { ProgramModel } from "../models/Program";
 import { change, progressTowardGoal, reportRange } from "../utils/program";
@@ -94,5 +96,82 @@ export async function computeProgramProgress(userId: string | undefined, program
     },
     ratings: ratingRows,
     measurements,
+  };
+}
+
+// ---------- Report ----------
+
+const label = (key: string) =>
+  ({ confidence: "Confidence", discipline: "Discipline", fitness: "Fitness", mentalWellbeing: "Mental wellbeing", focus: "Focus" })[key] ?? key;
+const fmt = (n: number) => `${n > 0 ? "+" : n < 0 ? "−" : "±"}${Math.abs(n).toFixed(1)}`;
+
+/** "37 of 100 days — what you achieved" (never "failed"). */
+export function reportTitle(p: { status: string; lengthDays: number; endedOnDay?: number | null }, days: number): string {
+  if (p.status === "ended_early") return `${p.endedOnDay} of ${p.lengthDays} days — what you achieved`;
+  if (p.status === "active") return `Day ${days} of ${p.lengthDays} — your report so far`;
+  return `${p.lengthDays} days — what you achieved`;
+}
+
+/**
+ * GET /api/programs/:id/report — everything for the report, limited to day 1 → the last day it
+ * covers. Text here (purposes, reflection) is decrypted for the owner only and never sent to the AI.
+ */
+export async function computeProgramReport(userId: string | undefined, program: ProgramLike, today: string = todayInTimezone()) {
+  const p = (typeof (program as any).toObject === "function" ? (program as any).toObject() : program) as Record<string, any>;
+  const progress = await computeProgramProgress(userId, p, today);
+  const { range, stats } = progress;
+
+  // What mattered most: purposes written more than once, and the values chosen most
+  const entries = range.days > 0 ? await DailyEntryModel.find({ userId, date: { $gte: range.from, $lte: range.to } }).select("dailyPurposes").lean() : [];
+  const texts = new Map<string, { text: string; days: number }>();
+  const values = new Map<string, number>();
+  for (const e of entries) {
+    const { purposes } = openDayPurposes(fieldCrypto, e as StoredDayPurposes);
+    for (const purpose of purposes) {
+      const key = purpose.text.trim().toLowerCase();
+      if (key) texts.set(key, { text: texts.get(key)?.text ?? purpose.text.trim(), days: (texts.get(key)?.days ?? 0) + 1 });
+      for (const v of purpose.focusValues) values.set(v, (values.get(v) ?? 0) + 1);
+    }
+  }
+  const recurringPurposes = [...texts.values()].filter((t) => t.days >= 2).sort((a, b) => b.days - a.days).slice(0, 5);
+  const topValues = [...values.entries()].map(([value, days]) => ({ value, days })).sort((a, b) => b.days - a.days).slice(0, 5);
+
+  // Improvements, in plain words: "−2.3 kg", "Mood +1.4", "Discipline 4 → 7"
+  const improvements: string[] = [];
+  if (progress.weight.change) improvements.push(`${fmt(progress.weight.change)} kg`);
+  const firstWeek = stats.weeks.find((w) => w.avgMood !== null);
+  const lastWeek = [...stats.weeks].reverse().find((w) => w.avgMood !== null);
+  if (firstWeek && lastWeek && firstWeek !== lastWeek) {
+    const moodChange = change(firstWeek.avgMood, lastWeek.avgMood);
+    if (moodChange) improvements.push(`Mood ${fmt(moodChange)} (week ${firstWeek.week} → week ${lastWeek.week})`);
+  }
+  for (const r of progress.ratings) {
+    if (r.before !== null && r.latest !== null && r.latest > r.before) improvements.push(`${label(r.label)} ${r.before} → ${r.latest}`);
+  }
+  for (const m of progress.measurements) {
+    if (m.change) improvements.push(`${label(m.key.replace("Cm", ""))} ${fmt(m.change)} cm`.replace(/^./, (c) => c.toUpperCase()));
+  }
+
+  const open = (s: string | null | undefined) => (s ? (fieldCrypto.tryDecrypt(s) ?? "") : "");
+  const final = real(p.final);
+  const latestCheckIn = final ?? real(p.midpoint);
+  const photos = (s: any) => ((s?.photos ?? []) as { fileId: string }[]).map((x) => x.fileId);
+
+  return {
+    ...progress,
+    title: reportTitle({ status: p.status, lengthDays: p.lengthDays, endedOnDay: p.endedOnDay }, range.days),
+    status: p.status,
+    name: p.name,
+    lengthDays: p.lengthDays,
+    startDate: p.startDate,
+    endedOn: p.endedOn ?? null,
+    endedOnDay: p.endedOnDay ?? null,
+    endReason: p.endReason ?? null,
+    improvements,
+    recurringPurposes,
+    topValues,
+    reflection: open(final?.text as string | null | undefined),
+    whyText: open(p.baseline?.text),
+    photos: { before: photos(p.baseline), after: photos(latestCheckIn), afterFrom: latestCheckIn ? (final ? "final" : "midpoint") : null },
   };
 }
