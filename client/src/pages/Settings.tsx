@@ -11,6 +11,7 @@ import { PageHeader } from '@/components/PageHeader'
 import { AiSettings } from '@/components/ai/AiSettings'
 import { ExpenseSettingsCard } from '@/components/expenses/ExpenseCards'
 import { DataExport } from '@/components/settings/DataExport'
+import { JourneyActions } from '@/components/settings/JourneyActions'
 import { useAuth } from '@/context/useAuth'
 import { useTheme } from '@/context/useTheme'
 import { THEME_OPTIONS } from '@/lib/themeOptions'
@@ -23,7 +24,7 @@ const SECTIONS: Section[] = [
   { id: 'expenses', label: 'Expenses', description: 'Currency, budget, receipt storage', icon: Wallet },
   { id: 'privacy', label: 'Privacy & AI', description: 'What the AI may see', icon: ShieldCheck },
   { id: 'appearance', label: 'Appearance', description: 'Light, dark or system', icon: Palette },
-  { id: 'data', label: 'Data', description: 'Export, clean up', icon: Database },
+  { id: 'data', label: 'Data', description: 'Journey, export, clean up', icon: Database },
 ]
 const DEFAULT_SECTION = SECTIONS[0]!.id
 
@@ -94,6 +95,7 @@ function SectionContent({ id, isDemo }: { id: string; isDemo: boolean }) {
     default:
       return (
         <div className="max-w-3xl space-y-4 md:space-y-6">
+          {!isDemo && <JourneyActions />}
           <DataExport />
           {isDemo ? <DemoNotice>Deleting data is turned off in this demo.</DemoNotice> : <DataCleanup />}
         </div>

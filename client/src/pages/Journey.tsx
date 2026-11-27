@@ -1,8 +1,10 @@
 // /journey — "My Journey": everything about programs. With an active program: the big countdown
 // note, where I started vs my goal vs now, weekly progress, habits and check-ins. Without one: an
 // inviting start screen (30/60/90/100 days), plus the last program's result.
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, CalendarDays, CalendarRange, History as HistoryIcon, Route, Sparkles } from 'lucide-react'
+import { toast } from 'sonner'
+import { ArrowRight, CalendarDays, CalendarRange, ClipboardCheck, Flag, History as HistoryIcon, Rocket, Route, Sparkles, Undo2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
@@ -11,6 +13,9 @@ import { IconBubble } from '@/components/IconBubble'
 import { PageHeader } from '@/components/PageHeader'
 import { ErrorNotice } from '@/components/StatusViews'
 import { StickyNote } from '@/components/journey/StickyNote'
+import { CheckInDialog } from '@/components/journey/CheckIn'
+import { EndProgramDialog } from '@/components/journey/EndProgram'
+import { api } from '@/lib/api'
 import { useFetch } from '@/hooks/useFetch'
 import { formatDate, formatLongDate } from '@/lib/dates'
 import {
@@ -27,7 +32,10 @@ import { cn } from '@/lib/utils'
 const signed = (n: number, digits = 1) => `${n > 0 ? '+' : n < 0 ? '−' : '±'}${Math.abs(n).toFixed(digits)}`
 
 export function Journey() {
-  const { data, error } = useFetch<ActiveProgramResponse>('/programs/active')
+  // Bumped after a check-in, ending or undoing, to load the page again
+  const [version, setVersion] = useState(0)
+  const refresh = () => setVersion((v) => v + 1)
+  const { data, error } = useFetch<ActiveProgramResponse>(`/programs/active?v=${version}`)
 
   return (
     <>
@@ -48,9 +56,9 @@ export function Journey() {
       ) : !data ? (
         <Skeleton className="h-72 w-full rounded-2xl" />
       ) : data.program ? (
-        <ActiveJourney program={data.program} />
+        <ActiveJourney key={`${data.program.id}-${version}`} program={data.program} onChanged={refresh} />
       ) : (
-        <StartScreen latest={data.latestEnded} />
+        <StartScreen latest={data.latestEnded} onChanged={refresh} />
       )}
     </>
   )
@@ -58,8 +66,22 @@ export function Journey() {
 
 // ---------- No active program ----------
 
-function StartScreen({ latest }: { latest: Program | null }) {
+function StartScreen({ latest, onChanged }: { latest: Program | null; onChanged: () => void }) {
   const finished = latest && (latest.status === 'ended_early' || latest.status === 'completed')
+  const [undoing, setUndoing] = useState(false)
+
+  async function undo() {
+    if (!latest) return
+    setUndoing(true)
+    try {
+      await api.post(`/programs/${latest.id}/undo-end`)
+      toast.success('Welcome back — your journey continues')
+      onChanged()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not undo')
+      setUndoing(false)
+    }
+  }
   return (
     <div className="space-y-4 md:space-y-6">
       {finished && (
@@ -72,9 +94,16 @@ function StartScreen({ latest }: { latest: Program | null }) {
               </p>
               <p className="text-sm text-muted-foreground">Every day you showed up counts.</p>
             </div>
-            <Button asChild variant="outline" size="sm">
-              <Link to={`/journey/${latest.id}/report`}>View your report</Link>
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              {latest.canUndoEnd && (
+                <Button type="button" variant="ghost" size="sm" loading={undoing} disabled={undoing} onClick={() => void undo()}>
+                  <Undo2 aria-hidden /> Undo ending
+                </Button>
+              )}
+              <Button asChild variant="outline" size="sm">
+                <Link to={`/journey/${latest.id}/report`}>View your report</Link>
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -123,8 +152,21 @@ function StartScreen({ latest }: { latest: Program | null }) {
 
 // ---------- Active program ----------
 
-function ActiveJourney({ program }: { program: Program }) {
+function ActiveJourney({ program, onChanged }: { program: Program; onChanged: () => void }) {
   const { data, error } = useFetch<ProgramProgress>(`/programs/${program.id}/progress`)
+  const [checkIn, setCheckIn] = useState(false)
+  const [ending, setEnding] = useState<'end' | 'restart' | null>(null)
+  const due = program.dueCheckIn
+
+  async function deleteUpcoming() {
+    if (!window.confirm(`Delete "${program.name}"? It hasn't started, so there's nothing to report yet.`)) return
+    try {
+      await api.delete(`/programs/${program.id}`)
+      onChanged()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not delete it')
+    }
+  }
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -159,6 +201,22 @@ function ActiveJourney({ program }: { program: Program }) {
         </CardContent>
       </Card>
 
+      {due && (
+        <Card size="sm" className="ring-primary/40">
+          <CardContent className="flex flex-wrap items-center gap-3">
+            <IconBubble icon={ClipboardCheck} />
+            <div className="min-w-0 flex-1">
+              <p className="font-medium">{due === 'midpoint' ? 'Your halfway check-in is ready' : 'Your final check-in is ready'}</p>
+              <p className="text-sm text-muted-foreground">A few minutes: weight, ratings and how it's going. You can skip it.</p>
+            </div>
+            <Button type="button" onClick={() => setCheckIn(true)}>
+              Check in
+            </Button>
+          </CardContent>
+          <CheckInDialog program={program} kind={due} open={checkIn} onOpenChange={setCheckIn} onDone={onChanged} />
+        </Card>
+      )}
+
       {error ? (
         <ErrorNotice>{error}</ErrorNotice>
       ) : !data ? (
@@ -169,6 +227,35 @@ function ActiveJourney({ program }: { program: Program }) {
           <WeeksCard progress={data} />
           {data.stats.habits.length > 0 && <HabitsCard progress={data} />}
         </>
+      )}
+
+      <Card size="sm">
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">Life changes, and that's okay. Ending a program keeps everything you logged, and creates your report.</p>
+          {program.clock.phase === 'upcoming' ? (
+            <Button type="button" variant="outline" className="text-destructive hover:text-destructive" onClick={() => void deleteUpcoming()}>
+              Delete this program (it hasn't started)
+            </Button>
+          ) : (
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="outline" onClick={() => setEnding('end')}>
+              <Flag aria-hidden /> End this program
+            </Button>
+            <Button type="button" variant="ghost" onClick={() => setEnding('restart')}>
+              <Rocket aria-hidden /> End this program & start a new one
+            </Button>
+          </div>
+          )}
+        </CardContent>
+      </Card>
+      {ending && (
+        <EndProgramDialog
+          program={program}
+          open
+          startNew={ending === 'restart'}
+          onOpenChange={(o) => !o && setEnding(null)}
+          onEnded={onChanged}
+        />
       )}
     </div>
   )
