@@ -4,6 +4,7 @@
 // 2. Delete anything already expired now (the TTL monitor runs about once a minute, and could be
 //    behind after a long sleep).
 // Never runs outside the demo, so a personal deployment gets no TTL index and nothing is deleted.
+import { ProgramModel } from "../models/Program";
 import type { Collection } from "mongoose";
 import { AiMessageModel, AiUsageModel } from "../models/Ai";
 import { DailyEntryModel } from "../models/DailyEntry";
@@ -34,6 +35,7 @@ export const USER_OWNED_MODELS: OwnedModel[] = [
   ExpenseModel,
   AiMessageModel,
   AiUsageModel,
+  ProgramModel,
 ] as unknown as OwnedModel[];
 
 export const DEMO_TTL_INDEX = "demo_expiresAt_ttl";

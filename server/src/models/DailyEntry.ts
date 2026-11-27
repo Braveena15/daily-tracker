@@ -205,6 +205,9 @@ const dailyEntrySchema = new Schema(
     dailyPurposes: { type: [dayPurposeSchema], default: undefined },
     // One evening note for the whole day (encrypted)
     dailyReflectionNote: String,
+    // The active program's custom daily habits ticked on this day (their ids; see models/Program.ts).
+    // Ticking one never counts as logging the day.
+    programHabitsDone: { type: [String], default: undefined },
     // "Not logged · busy": why the day wasn't logged. Never counts as logging the day.
     missedReason: { type: missedReasonSchema, default: undefined },
   },
